@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Classic (default) ──────────────────────────────────────────────────── */
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+.dark {
+  --background: #0a0f1a;
+  --foreground: #f1f5f9;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+/* ── Civil Architect design tokens ──────────────────────────────────────────
+   Activated by <html class="design-dev">.
+   Classic styles are UNCHANGED — only new CA components use these tokens.
+   ───────────────────────────────────────────────────────────────────────── */
+.design-dev {
+  /* Surfaces */
+  --ca-base:          #f6fafe;
+  --ca-section:       #eef4fa;
+  --ca-card:          #ffffff;
+  --ca-card-high:     #ddeaf3;
+  --ca-card-highest:  #d5e5ef;
+
+  /* Ink */
+  --ca-ink:           #26343d;
+  --ca-ink-muted:     #52616a;
+  --ca-ink-faint:     #a4b4be;
+
+  /* Primary (blue-slate) */
+  --ca-primary:       #565e74;
+  --ca-primary-dim:   #4a5268;
+  --ca-primary-c:     #dae2fd;
+  --ca-on-primary:    #f7f7ff;
+
+  /* Teal (success / on-track) */
+  --ca-teal:          #006b62;
+  --ca-teal-c:        #91feef;
+
+  /* Error / overdue */
+  --ca-red:           #9f403d;
+  --ca-red-c:         #fe8983;
+
+  /* Amber / at-risk / blocked */
+  --ca-amber:         #b45309;
+  --ca-amber-c:       #fef3c7;
+
+  /* Border (used sparingly) */
+  --ca-border:        #a4b4be;
+
+  /* Remap body tokens for the CA palette */
+  --background:       #f6fafe;
+  --foreground:       #26343d;
+}
+
+.design-dev.dark {
+  /* Surfaces */
+  --ca-base:          #0d1117;
+  --ca-section:       #131b24;
+  --ca-card:          #1a2533;
+  --ca-card-high:     #1f2e3d;
+  --ca-card-highest:  #243040;
+
+  /* Ink */
+  --ca-ink:           #e2eaf0;
+  --ca-ink-muted:     #8fa4b4;
+  --ca-ink-faint:     #4a5f6e;
+
+  /* Primary */
+  --ca-primary:       #8fa4c4;
+  --ca-primary-dim:   #7a90b0;
+  --ca-primary-c:     #1e3048;
+  --ca-on-primary:    #0d1117;
+
+  /* Teal */
+  --ca-teal:          #00c4b4;
+  --ca-teal-c:        #003d38;
+
+  /* Error */
+  --ca-red:           #ff7b78;
+  --ca-red-c:         #3d0f0e;
+
+  /* Amber */
+  --ca-amber:         #fbbf24;
+  --ca-amber-c:       #2d1f00;
+
+  /* Border */
+  --ca-border:        #2d3f4e;
+
+  /* Body tokens */
+  --background:       #0d1117;
+  --foreground:       #e2eaf0;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

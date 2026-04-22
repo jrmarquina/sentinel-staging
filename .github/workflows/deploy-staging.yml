@@ -78,12 +78,16 @@ jobs:
             fi
             pm2 save
 
-            # Restart Supabase staging stack
-            docker compose \
-              -p "$COMPOSE_PROJECT" \
-              --env-file "$ENV_FILE" \
-              -f "$REPO_DIR/docker-compose.staging.yml" \
-              up -d --remove-orphans
+            # Restart Supabase staging stack (skip if env file not yet provisioned)
+            if [ -f "$ENV_FILE" ]; then
+              docker compose \
+                -p "$COMPOSE_PROJECT" \
+                --env-file "$ENV_FILE" \
+                -f "$REPO_DIR/docker-compose.staging.yml" \
+                up -d --remove-orphans
+            else
+              echo "WARNING: $ENV_FILE not found — skipping Supabase restart. Provision the env file on the VPS to enable this step."
+            fi
 
             # Verify staging health
             sleep 15
