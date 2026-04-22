@@ -50,6 +50,7 @@ jobs:
 
             # Clone staging repo on first deploy if not present
             if [ ! -d "$REPO_DIR/.git" ]; then
+              rm -rf "$REPO_DIR"
               mkdir -p /srv/sentinel/staging
               git clone -b staging \
                 https://github.com/jrmarquina/sentinel-staging.git \
