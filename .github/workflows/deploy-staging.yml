@@ -1,0 +1,94 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - staging
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true   # newer push cancels in-flight staging deploy
+
+jobs:
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm typecheck
+
+  deploy:
+    name: Deploy
+    needs: typecheck
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to VPS (staging)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            REPO_DIR="/srv/sentinel/staging/municipal-public-works"
+            ENV_FILE="/srv/sentinel/staging/.env.staging"
+            COMPOSE_PROJECT="supabase-staging"
+
+            # Clone staging repo on first deploy if not present
+            if [ ! -d "$REPO_DIR/.git" ]; then
+              mkdir -p /srv/sentinel/staging
+              git clone -b staging \
+                git@github.com:${{ github.repository }}.git \
+                "$REPO_DIR"
+            fi
+
+            cd "$REPO_DIR"
+            git fetch origin
+            git checkout staging
+            git pull origin staging
+
+            # Load staging env for build-time NEXT_PUBLIC_ vars
+            set -a
+            [ -f "$ENV_FILE" ] && source "$ENV_FILE"
+            set +a
+
+            pnpm install --frozen-lockfile
+            pnpm --filter web build
+
+            # Reload Next.js staging process
+            if pm2 describe sentinel-mpw-staging > /dev/null 2>&1; then
+              pm2 reload sentinel-mpw-staging --update-env
+            else
+              pm2 start "$REPO_DIR/ecosystem.config.js" --only sentinel-mpw-staging
+            fi
+            pm2 save
+
+            # Restart Supabase staging stack
+            docker compose \
+              -p "$COMPOSE_PROJECT" \
+              --env-file "$ENV_FILE" \
+              -f "$REPO_DIR/docker-compose.staging.yml" \
+              up -d --remove-orphans
+
+            # Verify staging health
+            sleep 15
+            curl -sf http://localhost:3002/api/health || exit 1
+
+            echo "Staging deploy complete"

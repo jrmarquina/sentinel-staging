@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sentinel Public Works — Dashboard Preview Options</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] }
+      }
+    }
+  }
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* Theme A – Dark Command Center */
+  .theme-a { --bg: #070E1A; --surface: #0D1B2E; --surface2: #132233; --border: rgba(255,255,255,0.08); --text: #F1F5F9; --muted: #64748B; --accent: #3B82F6; }
+  /* Theme B – Clean Light Executive */
+  .theme-b { --bg: #F8FAFC; --surface: #FFFFFF; --surface2: #F1F5F9; --border: #E2E8F0; --text: #0F172A; --muted: #64748B; --accent: #2563EB; }
+  /* Theme C – Bold Slate + Vivid Blue */
+  .theme-c { --bg: #EFF3F8; --surface: #FFFFFF; --surface2: #E8EFF8; --border: #CBD5E1; --text: #0F172A; --muted: #475569; --accent: #1D4ED8; }
+
+  [class*="theme-"] { background: var(--bg); color: var(--text); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+  .card2 { background: var(--surface2); border-radius: 8px; }
+  .txt-muted { color: var(--muted); }
+  .accent { color: var(--accent); }
+  .accent-bg { background: var(--accent); }
+  .bdr { border-color: var(--border); }
+
+  .pill-selector { display: flex; gap: 4px; background: var(--surface2); border-radius: 8px; padding: 4px; }
+  .pill { padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; color: var(--muted); }
+  .pill.active { background: var(--accent); color: #fff; }
+
+  /* Sidebar theme-a */
+  .sidebar-a { background: #070E1A; border-right: 1px solid rgba(255,255,255,0.06); }
+  .sidebar-b { background: #1E293B; border-right: none; }
+  .sidebar-c { background: #0F172A; border-right: none; }
+
+  /* Micro-bar chart (pure CSS) */
+  .bar { display: flex; align-items: flex-end; gap: 4px; height: 48px; }
+  .bar-item { flex: 1; border-radius: 3px 3px 0 0; transition: opacity 0.2s; }
+
+  /* Trend arrow */
+  .up { color: #10B981; }
+  .down { color: #EF4444; }
+
+  /* Alert pulse */
+  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.5 } }
+  .pulse-dot { animation: pulse 2s infinite; }
+
+  canvas { max-height: 200px; }
+</style>
+</head>
+<body class="theme-b" id="root">
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- THEME SWITCHER -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div style="position:fixed;top:0;left:0;right:0;z-index:999;background:#1E293B;padding:10px 24px;display:flex;align-items:center;justify-between;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,.4)">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div style="width:28px;height:28px;background:#3B82F6;border-radius:6px;display:flex;align-items:center;justify-content:center">
+      <svg width="16" height="16" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+    </div>
+    <span style="color:white;font-weight:700;font-size:14px">Sentinel Dashboard Preview</span>
+    <span style="color:#64748B;font-size:12px">— Select a theme to compare options</span>
+  </div>
+  <div style="display:flex;gap:6px">
+    <button onclick="setTheme('a')" id="btn-a" style="padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid #3B82F6;color:#3B82F6;background:transparent;cursor:pointer;transition:all .15s" onmouseover="this.style.background='#3B82F620'" onmouseout="if(currentTheme!='a')this.style.background='transparent'">🌑 Dark Command</button>
+    <button onclick="setTheme('b')" id="btn-b" style="padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid #64748B;color:#94A3B8;background:#3B82F6;color:white;cursor:pointer;transition:all .15s">☀️ Clean Light</button>
+    <button onclick="setTheme('c')" id="btn-c" style="padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid #64748B;color:#94A3B8;background:transparent;cursor:pointer;transition:all .15s" onmouseover="this.style.background='#ffffff20'" onmouseout="if(currentTheme!='c')this.style.background='transparent'">⚡ Bold Executive</button>
+  </div>
+</div>
+
+<div style="margin-top:52px;display:flex;min-height:calc(100vh - 52px)">
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- SIDEBAR -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<aside id="sidebar" class="sidebar-b" style="width:220px;flex-shrink:0;display:flex;flex-direction:column;padding:16px 10px">
+  <div style="display:flex;align-items:center;gap:8px;padding:8px 10px 16px;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:8px">
+    <div style="width:30px;height:30px;background:#3B82F6;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <svg width="16" height="16" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+    </div>
+    <div><div style="color:white;font-size:13px;font-weight:700;line-height:1">Sentinel</div><div style="color:#64748B;font-size:10px;line-height:1;margin-top:2px">Public Works</div></div>
+  </div>
+
+  <!-- Nav items -->
+  <nav style="flex:1">
+    <div class="nav-item active-nav" onclick="setActive(this)" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;margin-bottom:2px;background:#3B82F6;color:white">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" onclick="setActive(this)" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;margin-bottom:2px;color:#94A3B8">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      Work Orders
+      <span style="margin-left:auto;background:#EF4444;color:white;border-radius:4px;font-size:10px;font-weight:700;padding:1px 5px">12</span>
+    </div>
+    <div class="nav-item" onclick="setActive(this)" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;margin-bottom:2px;color:#94A3B8">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      Potholes
+    </div>
+    <div class="nav-item" onclick="setActive(this)" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;margin-bottom:2px;color:#94A3B8">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2m-6 9l2 2 4-4"/></svg>
+      Inspections
+    </div>
+    <div class="nav-item" onclick="setActive(this)" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;margin-bottom:2px;color:#94A3B8">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Calendar
+    </div>
+    <div class="nav-item" onclick="setActive(this)" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;margin-bottom:2px;color:#94A3B8">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Contracts
+      <span style="margin-left:auto;background:#F59E0B;color:white;border-radius:4px;font-size:10px;font-weight:700;padding:1px 5px">2</span>
+    </div>
+    <div class="nav-item" onclick="setActive(this)" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;margin-bottom:2px;color:#94A3B8">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      Team
+    </div>
+  </nav>
+
+  <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px;margin-top:8px">
+    <div style="color:#475569;font-size:10px;margin-bottom:2px">Municipality of</div>
+    <div style="color:#94A3B8;font-size:12px;font-weight:600">Guaynabo, PR</div>
+  </div>
+</aside>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- MAIN CONTENT -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<main style="flex:1;overflow-y:auto;padding:28px 28px 40px">
+
+  <!-- Header bar -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+    <div>
+      <h1 id="greeting" style="font-size:22px;font-weight:800;line-height:1.1">Good morning, Carlos 👋</h1>
+      <p style="color:#64748B;font-size:13px;margin-top:3px">Tuesday, April 7, 2026 — Guaynabo Operations</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <!-- Alert bell -->
+      <div style="position:relative;cursor:pointer">
+        <div style="width:36px;height:36px;background:var(--surface);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center">
+          <svg width="16" height="16" fill="none" stroke="var(--muted)" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        </div>
+        <div class="pulse-dot" style="position:absolute;top:-3px;right:-3px;width:10px;height:10px;background:#EF4444;border-radius:50%;border:2px solid var(--bg)"></div>
+      </div>
+      <!-- Avatar -->
+      <div style="width:36px;height:36px;background:#3B82F6;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:700;cursor:pointer">CR</div>
+    </div>
+  </div>
+
+  <!-- ── KPI ROW ─────────────────────────────────────────────────────────── -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+
+    <!-- Open Work Orders -->
+    <div class="card" style="padding:18px 20px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Open Work Orders</p>
+          <p style="font-size:32px;font-weight:900;margin-top:4px;line-height:1">47</p>
+          <p style="font-size:12px;margin-top:4px;color:#10B981">↑ 3 from last week</p>
+        </div>
+        <div style="width:40px;height:40px;background:#3B82F620;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="18" height="18" fill="none" stroke="#3B82F6" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        </div>
+      </div>
+      <!-- Micro bar sparkline -->
+      <div class="bar" style="margin-top:12px">
+        <div class="bar-item" style="height:30%;background:#3B82F640"></div>
+        <div class="bar-item" style="height:55%;background:#3B82F640"></div>
+        <div class="bar-item" style="height:40%;background:#3B82F640"></div>
+        <div class="bar-item" style="height:70%;background:#3B82F640"></div>
+        <div class="bar-item" style="height:60%;background:#3B82F640"></div>
+        <div class="bar-item" style="height:85%;background:#3B82F640"></div>
+        <div class="bar-item" style="height:100%;background:#3B82F6"></div>
+      </div>
+    </div>
+
+    <!-- Overdue -->
+    <div class="card" style="padding:18px 20px;border-left:3px solid #EF4444">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Overdue Orders</p>
+          <p style="font-size:32px;font-weight:900;margin-top:4px;line-height:1;color:#EF4444">12</p>
+          <p style="font-size:12px;margin-top:4px;color:#EF4444">⚠ Requires attention</p>
+        </div>
+        <div style="width:40px;height:40px;background:#EF444420;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="18" height="18" fill="none" stroke="#EF4444" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+      </div>
+      <div class="bar" style="margin-top:12px">
+        <div class="bar-item" style="height:20%;background:#EF444430"></div>
+        <div class="bar-item" style="height:35%;background:#EF444430"></div>
+        <div class="bar-item" style="height:45%;background:#EF444430"></div>
+        <div class="bar-item" style="height:60%;background:#EF444430"></div>
+        <div class="bar-item" style="height:75%;background:#EF444430"></div>
+        <div class="bar-item" style="height:90%;background:#EF444430"></div>
+        <div class="bar-item" style="height:100%;background:#EF4444"></div>
+      </div>
+    </div>
+
+    <!-- Active Contracts -->
+    <div class="card" style="padding:18px 20px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Active Contracts</p>
+          <p style="font-size:32px;font-weight:900;margin-top:4px;line-height:1">8</p>
+          <p style="font-size:12px;margin-top:4px;color:#10B981">$2.4M under management</p>
+        </div>
+        <div style="width:40px;height:40px;background:#10B98120;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="18" height="18" fill="none" stroke="#10B981" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+      </div>
+      <div class="bar" style="margin-top:12px">
+        <div class="bar-item" style="height:60%;background:#10B98130"></div>
+        <div class="bar-item" style="height:60%;background:#10B98130"></div>
+        <div class="bar-item" style="height:80%;background:#10B98130"></div>
+        <div class="bar-item" style="height:80%;background:#10B98130"></div>
+        <div class="bar-item" style="height:80%;background:#10B98130"></div>
+        <div class="bar-item" style="height:100%;background:#10B98130"></div>
+        <div class="bar-item" style="height:100%;background:#10B981"></div>
+      </div>
+    </div>
+
+    <!-- Expiring Soon -->
+    <div class="card" style="padding:18px 20px;border-left:3px solid #F59E0B">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Expiring in 30 Days</p>
+          <p style="font-size:32px;font-weight:900;margin-top:4px;line-height:1;color:#F59E0B">2</p>
+          <p style="font-size:12px;margin-top:4px;color:#F59E0B">Action needed</p>
+        </div>
+        <div style="width:40px;height:40px;background:#F59E0B20;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="18" height="18" fill="none" stroke="#F59E0B" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        </div>
+      </div>
+      <div class="bar" style="margin-top:12px">
+        <div class="bar-item" style="height:20%;background:#F59E0B30"></div>
+        <div class="bar-item" style="height:20%;background:#F59E0B30"></div>
+        <div class="bar-item" style="height:40%;background:#F59E0B30"></div>
+        <div class="bar-item" style="height:40%;background:#F59E0B30"></div>
+        <div class="bar-item" style="height:60%;background:#F59E0B30"></div>
+        <div class="bar-item" style="height:80%;background:#F59E0B30"></div>
+        <div class="bar-item" style="height:100%;background:#F59E0B"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECOND KPI ROW ──────────────────────────────────────────────────── -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
+    <div class="card" style="padding:14px 18px;display:flex;align-items:center;gap:14px">
+      <div style="width:36px;height:36px;background:#8B5CF620;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="16" height="16" fill="none" stroke="#8B5CF6" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      </div>
+      <div>
+        <p style="font-size:11px;color:var(--muted);font-weight:500">Potholes Reported</p>
+        <p style="font-size:22px;font-weight:800;line-height:1.2">31</p>
+      </div>
+    </div>
+    <div class="card" style="padding:14px 18px;display:flex;align-items:center;gap:14px">
+      <div style="width:36px;height:36px;background:#EC489920;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="16" height="16" fill="none" stroke="#EC4899" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2m-6 9l2 2 4-4"/></svg>
+      </div>
+      <div>
+        <p style="font-size:11px;color:var(--muted);font-weight:500">Pending Inspections</p>
+        <p style="font-size:22px;font-weight:800;line-height:1.2">9</p>
+      </div>
+    </div>
+    <div class="card" style="padding:14px 18px;display:flex;align-items:center;gap:14px">
+      <div style="width:36px;height:36px;background:#0EA5E920;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="16" height="16" fill="none" stroke="#0EA5E9" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      </div>
+      <div>
+        <p style="font-size:11px;color:var(--muted);font-weight:500">Field Crew Active</p>
+        <p style="font-size:22px;font-weight:800;line-height:1.2">14</p>
+      </div>
+    </div>
+    <div class="card" style="padding:14px 18px;display:flex;align-items:center;gap:14px">
+      <div style="width:36px;height:36px;background:#10B98120;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="16" height="16" fill="none" stroke="#10B981" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      </div>
+      <div>
+        <p style="font-size:11px;color:var(--muted);font-weight:500">Monthly Spend</p>
+        <p style="font-size:22px;font-weight:800;line-height:1.2">$84K</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CHARTS + ALERTS ROW ────────────────────────────────────────────── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 320px;gap:16px;margin-bottom:20px">
+
+    <!-- WO Activity Line Chart -->
+    <div class="card" style="padding:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <p style="font-size:13px;font-weight:700">Work Order Activity</p>
+          <p style="font-size:11px;color:var(--muted)">Created vs. Closed — last 6 months</p>
+        </div>
+        <span style="font-size:11px;color:#10B981;background:#10B98115;padding:3px 8px;border-radius:4px;font-weight:600">+18% closed</span>
+      </div>
+      <canvas id="chartLine"></canvas>
+    </div>
+
+    <!-- WO by Priority Donut -->
+    <div class="card" style="padding:20px">
+      <div style="margin-bottom:16px">
+        <p style="font-size:13px;font-weight:700">Work Orders by Priority</p>
+        <p style="font-size:11px;color:var(--muted)">Current open orders</p>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center">
+        <canvas id="chartDonut"></canvas>
+        <div style="space-y:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:7px"><div style="width:10px;height:10px;background:#EF4444;border-radius:2px"></div><span style="font-size:12px">P1 Critical</span></div>
+            <span style="font-size:13px;font-weight:700">5</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:7px"><div style="width:10px;height:10px;background:#F97316;border-radius:2px"></div><span style="font-size:12px">P2 High</span></div>
+            <span style="font-size:13px;font-weight:700">11</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:7px"><div style="width:10px;height:10px;background:#EAB308;border-radius:2px"></div><span style="font-size:12px">P3 Medium</span></div>
+            <span style="font-size:13px;font-weight:700">21</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0">
+            <div style="display:flex;align-items:center;gap:7px"><div style="width:10px;height:10px;background:#64748B;border-radius:2px"></div><span style="font-size:12px">P4 Low</span></div>
+            <span style="font-size:13px;font-weight:700">10</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alerts Panel -->
+    <div class="card" style="padding:18px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:14px">
+        <div class="pulse-dot" style="width:8px;height:8px;background:#EF4444;border-radius:50%"></div>
+        <p style="font-size:13px;font-weight:700">Active Alerts</p>
+        <span style="margin-left:auto;background:#EF4444;color:white;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px">7</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="background:#EF444415;border:1px solid #EF444430;border-radius:8px;padding:10px 12px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="background:#EF4444;color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px">P1</span>
+            <span style="font-size:12px;font-weight:600">WO-2026-0012</span>
+          </div>
+          <p style="font-size:11px;color:var(--muted)">Water main — Calle España</p>
+          <p style="font-size:10px;color:#EF4444;margin-top:2px;font-weight:600">8 days overdue</p>
+        </div>
+        <div style="background:#EF444415;border:1px solid #EF444430;border-radius:8px;padding:10px 12px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="background:#EF4444;color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px">P1</span>
+            <span style="font-size:12px;font-weight:600">WO-2026-0019</span>
+          </div>
+          <p style="font-size:11px;color:var(--muted)">Pothole repair — Ave. Las Cumbres</p>
+          <p style="font-size:10px;color:#EF4444;margin-top:2px;font-weight:600">3 days overdue</p>
+        </div>
+        <div style="background:#F59E0B15;border:1px solid #F59E0B30;border-radius:8px;padding:10px 12px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="font-size:10px;font-weight:700;color:#F59E0B">📋 CONTRACT</span>
+          </div>
+          <p style="font-size:12px;font-weight:600">CT-2026-0003</p>
+          <p style="font-size:11px;color:var(--muted)">Road Resurfacing Lot B</p>
+          <p style="font-size:10px;color:#F59E0B;margin-top:2px;font-weight:600">Expires in 18 days</p>
+        </div>
+        <div style="background:#F59E0B15;border:1px solid #F59E0B30;border-radius:8px;padding:10px 12px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="font-size:10px;font-weight:700;color:#F59E0B">📋 CONTRACT</span>
+          </div>
+          <p style="font-size:12px;font-weight:600">CT-2026-0007</p>
+          <p style="font-size:11px;color:var(--muted)">Drainage Maintenance</p>
+          <p style="font-size:10px;color:#F59E0B;margin-top:2px;font-weight:600">Expires in 26 days</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BOTTOM ROW: Overdue Table + Contract Bar ───────────────────────── -->
+  <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px">
+
+    <!-- Overdue Work Orders Table -->
+    <div class="card" style="padding:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div>
+          <p style="font-size:13px;font-weight:700">Overdue Work Orders</p>
+          <p style="font-size:11px;color:var(--muted)">Sorted by days overdue ↓</p>
+        </div>
+        <a href="#" style="font-size:11px;color:#3B82F6;font-weight:600;text-decoration:none">View all →</a>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="color:var(--muted);text-align:left">
+            <th style="padding:6px 8px;font-weight:600;border-bottom:1px solid var(--border)">WO #</th>
+            <th style="padding:6px 8px;font-weight:600;border-bottom:1px solid var(--border)">Title</th>
+            <th style="padding:6px 8px;font-weight:600;border-bottom:1px solid var(--border)">Priority</th>
+            <th style="padding:6px 8px;font-weight:600;border-bottom:1px solid var(--border)">Assigned</th>
+            <th style="padding:6px 8px;font-weight:600;border-bottom:1px solid var(--border);text-align:right">Days Over</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">0012</td>
+            <td style="padding:8px;font-weight:600">Water main break — C. España</td>
+            <td style="padding:8px"><span style="background:#EF4444;color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">P1</span></td>
+            <td style="padding:8px;color:var(--muted)">R. Sánchez</td>
+            <td style="padding:8px;text-align:right;color:#EF4444;font-weight:700">8</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">0019</td>
+            <td style="padding:8px;font-weight:600">Pothole — Ave. Las Cumbres</td>
+            <td style="padding:8px"><span style="background:#EF4444;color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">P1</span></td>
+            <td style="padding:8px;color:var(--muted)">M. Cruz</td>
+            <td style="padding:8px;text-align:right;color:#EF4444;font-weight:700">3</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">0031</td>
+            <td style="padding:8px;font-weight:600">Signal repair — Int. PR-20</td>
+            <td style="padding:8px"><span style="background:#F97316;color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">P2</span></td>
+            <td style="padding:8px;color:var(--muted)">Unassigned</td>
+            <td style="padding:8px;text-align:right;color:#F97316;font-weight:700">2</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">0027</td>
+            <td style="padding:8px;font-weight:600">Drainage — C. Gautier Benítez</td>
+            <td style="padding:8px"><span style="background:#F97316;color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">P2</span></td>
+            <td style="padding:8px;color:var(--muted)">J. Rivera</td>
+            <td style="padding:8px;text-align:right;color:#F97316;font-weight:700">1</td>
+          </tr>
+          <tr>
+            <td style="padding:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">0044</td>
+            <td style="padding:8px;font-weight:600">Line marking — Urb. Los Lagos</td>
+            <td style="padding:8px"><span style="background:#EAB308;color:#713F12;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">P3</span></td>
+            <td style="padding:8px;color:var(--muted)">C. Ortiz</td>
+            <td style="padding:8px;text-align:right;color:#EAB308;font-weight:700">1</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Contract Pipeline + Monthly Budget -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card" style="padding:20px;flex:1">
+        <div style="margin-bottom:14px">
+          <p style="font-size:13px;font-weight:700">Contract Pipeline</p>
+          <p style="font-size:11px;color:var(--muted)">Value by status</p>
+        </div>
+        <canvas id="chartContracts" style="max-height:140px"></canvas>
+      </div>
+
+      <!-- Budget progress card -->
+      <div class="card" style="padding:18px">
+        <p style="font-size:13px;font-weight:700;margin-bottom:12px">Budget — April 2026</p>
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+            <span style="color:var(--muted)">Labor</span>
+            <span style="font-weight:600">$48,200 / $65,000</span>
+          </div>
+          <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:74%;background:#3B82F6;border-radius:3px"></div>
+          </div>
+        </div>
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+            <span style="color:var(--muted)">Materials</span>
+            <span style="font-weight:600">$36,100 / $50,000</span>
+          </div>
+          <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:72%;background:#10B981;border-radius:3px"></div>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+            <span style="color:var(--muted)">Contracts</span>
+            <span style="font-weight:600;color:#F59E0B">$112K / $120K</span>
+          </div>
+          <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:93%;background:#F59E0B;border-radius:3px"></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:11px;color:var(--muted)">Total spend this month</span>
+          <span style="font-size:16px;font-weight:800">$196,300</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /bottom row -->
+</main>
+</div><!-- /flex -->
+
+<script>
+let currentTheme = 'b'
+
+function setTheme(t) {
+  currentTheme = t
+  document.getElementById('root').className = 'theme-' + t
+  const sidebar = document.getElementById('sidebar')
+  sidebar.className = 'sidebar-' + t
+
+  // Update greeting color in theme A (dark)
+  if (t === 'a') {
+    document.body.style.background = '#070E1A'
+  }
+
+  // Button states
+  ;['a','b','c'].forEach(id => {
+    const btn = document.getElementById('btn-' + id)
+    if (id === t) {
+      btn.style.background = '#3B82F6'
+      btn.style.color = 'white'
+      btn.style.borderColor = '#3B82F6'
+    } else {
+      btn.style.background = 'transparent'
+      btn.style.color = '#94A3B8'
+      btn.style.borderColor = '#475569'
+    }
+  })
+
+  updateCharts(t)
+}
+
+function setActive(el) {
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.style.background = 'transparent'
+    n.style.color = '#94A3B8'
+  })
+  el.style.background = '#3B82F6'
+  el.style.color = 'white'
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+const months = ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr']
+
+let lineChart, donutChart, contractChart
+
+function getChartDefaults(theme) {
+  const isDark = theme === 'a'
+  return {
+    textColor: isDark ? '#94A3B8' : '#64748B',
+    gridColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)',
+  }
+}
+
+function initCharts() {
+  Chart.defaults.font.family = 'Inter, system-ui, sans-serif'
+
+  // Line chart
+  const ctxLine = document.getElementById('chartLine').getContext('2d')
+  lineChart = new Chart(ctxLine, {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [
+        {
+          label: 'Created',
+          data: [22, 31, 28, 35, 41, 47],
+          borderColor: '#3B82F6',
+          backgroundColor: '#3B82F615',
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: '#3B82F6',
+          pointRadius: 4,
+        },
+        {
+          label: 'Closed',
+          data: [18, 24, 26, 30, 38, 44],
+          borderColor: '#10B981',
+          backgroundColor: '#10B98110',
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: '#10B981',
+          pointRadius: 4,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, color: '#64748B' } } },
+      scales: {
+        x: { grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { color: '#64748B', font: { size: 11 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { color: '#64748B', font: { size: 11 } }, beginAtZero: true }
+      }
+    }
+  })
+
+  // Donut
+  const ctxDonut = document.getElementById('chartDonut').getContext('2d')
+  donutChart = new Chart(ctxDonut, {
+    type: 'doughnut',
+    data: {
+      labels: ['P1 Critical', 'P2 High', 'P3 Medium', 'P4 Low'],
+      datasets: [{
+        data: [5, 11, 21, 10],
+        backgroundColor: ['#EF4444', '#F97316', '#EAB308', '#64748B'],
+        borderWidth: 2,
+        borderColor: 'transparent',
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      cutout: '65%',
+      plugins: { legend: { display: false } }
+    }
+  })
+
+  // Contract pipeline bar
+  const ctxCT = document.getElementById('chartContracts').getContext('2d')
+  contractChart = new Chart(ctxCT, {
+    type: 'bar',
+    data: {
+      labels: ['Active', 'Pending', 'Completed', 'Expiring'],
+      datasets: [{
+        label: 'Value ($K)',
+        data: [2400, 380, 1200, 280],
+        backgroundColor: ['#10B981', '#F59E0B', '#3B82F6', '#EF4444'],
+        borderRadius: 5,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#64748B', font: { size: 11 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { color: '#64748B', font: { size: 11 }, callback: v => '$' + (v/1000).toFixed(0) + 'K' } }
+      }
+    }
+  })
+}
+
+function updateCharts(theme) {
+  const { textColor, gridColor } = getChartDefaults(theme)
+
+  ;[lineChart, donutChart, contractChart].forEach(chart => {
+    if (!chart) return
+    if (chart.config.type !== 'doughnut') {
+      chart.options.scales.x.grid.color = gridColor
+      chart.options.scales.x.ticks.color = textColor
+      chart.options.scales.y.grid.color = gridColor
+      chart.options.scales.y.ticks.color = textColor
+    }
+    if (chart.options.plugins.legend.labels) {
+      chart.options.plugins.legend.labels.color = textColor
+    }
+    if (theme === 'a') {
+      if (chart.config.type === 'doughnut') {
+        chart.data.datasets[0].borderColor = '#0D1B2E'
+      }
+    } else {
+      if (chart.config.type === 'doughnut') {
+        chart.data.datasets[0].borderColor = 'transparent'
+      }
+    }
+    chart.update()
+  })
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  initCharts()
+  setTheme('b')
+})
+</script>
+</body>
+</html>

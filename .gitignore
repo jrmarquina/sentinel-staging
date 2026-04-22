@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+dist/
+out/
+
+# Environment files — NEVER commit these
+.env
+.env.local
+.env.*.local
+.env.staging
+apps/web/.env.local
+
+# Supabase
+.supabase/
+supabase/.temp/
+
+# Turbo
+.turbo/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Misc
+.tmp/
+*.sql.gz.gpg
+
+# Google OAuth (server-side only, never commit)
+credentials.json
+token.json

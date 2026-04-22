@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Sentinel Public Works — Dashboard Mockup</title>
+<!-- Leaflet for map widget -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+/*──────────────────────────────────────────────────
+  RESET & BASE
+──────────────────────────────────────────────────*/
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;transition:background .3s,color .3s}
+a{text-decoration:none;color:inherit}
+svg{display:block}
+
+/*──────────────────────────────────────────────────
+  DESIGN TOKENS — 4 modes
+──────────────────────────────────────────────────*/
+:root{
+  --bg:#f8fafc; --fg:#0f172a; --sidebar:#0D1B2E;
+  --card:#ffffff; --card-b:#f1f5f9; --border:#e2e8f0;
+  --muted:#64748b; --faint:#94a3b8;
+  --primary:#2563eb; --primary-c:#dbeafe;
+  --teal:#059669; --teal-c:#d1fae5;
+  --red:#dc2626; --red-c:#fee2e2;
+  --amber:#d97706; --amber-c:#fef3c7;
+  --orange:#ea580c; --orange-c:#ffedd5;
+  --violet:#7c3aed; --violet-c:#ede9fe;
+  --shadow:0 1px 4px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.04);
+  --shadow-lg:0 4px 24px rgba(0,0,0,.12);
+}
+.dark{
+  --bg:#0a0f1a; --fg:#f1f5f9; --sidebar:#080F1C;
+  --card:#0f172a; --card-b:#1e293b; --border:#1e293b;
+  --muted:#94a3b8; --faint:#475569;
+  --primary:#3b82f6; --primary-c:#1e3a5f;
+  --teal:#10b981; --teal-c:#064e3b;
+  --red:#f87171; --red-c:#450a0a;
+  --amber:#fbbf24; --amber-c:#2d1f00;
+  --orange:#fb923c; --orange-c:#431407;
+  --violet:#a78bfa; --violet-c:#2e1065;
+  --shadow:0 1px 4px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.2);
+  --shadow-lg:0 4px 24px rgba(0,0,0,.4);
+}
+.ca{
+  --bg:#f6fafe; --fg:#26343d; --sidebar:#eef4fa;
+  --card:#ffffff; --card-b:#eef4fa; --border:#ddeaf3;
+  --muted:#52616a; --faint:#a4b4be;
+  --primary:#565e74; --primary-c:#dae2fd;
+  --teal:#006b62; --teal-c:#91feef;
+  --red:#9f403d; --red-c:#fe8983;
+  --amber:#b45309; --amber-c:#fef3c7;
+  --orange:#b45309; --orange-c:#fef3c7;
+  --violet:#565e74; --violet-c:#dae2fd;
+}
+.ca.dark{
+  --bg:#0d1117; --fg:#e2eaf0; --sidebar:#131b24;
+  --card:#1a2533; --card-b:#131b24; --border:#1f2e3d;
+  --muted:#8fa4b4; --faint:#4a5f6e;
+  --primary:#8fa4c4; --primary-c:#1e3048;
+  --teal:#00c4b4; --teal-c:#003d38;
+  --red:#ff7b78; --red-c:#3d0f0e;
+  --amber:#fbbf24; --amber-c:#2d1f00;
+  --orange:#fb923c; --orange-c:#431407;
+  --violet:#8fa4c4; --violet-c:#1e3048;
+}
+
+/*──────────────────────────────────────────────────
+  GLOBAL TRANSITIONS (all theme tokens)
+──────────────────────────────────────────────────*/
+body,
+.sidebar,.topbar,.card,.card-b,.kpi,
+.nav-item,.priority-row,.gantt-track,
+.budget-item,.deadline-card,.wl-track,
+.pipeline-seg,.donut-wrap,
+.tooltip-box{
+  transition:background .25s,color .25s,border-color .25s,box-shadow .25s;
+}
+
+/*──────────────────────────────────────────────────
+  LAYOUT
+──────────────────────────────────────────────────*/
+body{background:var(--bg);color:var(--fg)}
+.shell{display:flex;height:100vh;overflow:hidden}
+
+/*──────────────────────────────────────────────────
+  ENTRY ANIMATIONS
+──────────────────────────────────────────────────*/
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+@keyframes slideRight{from{width:0}to{width:var(--target-w)}}
+@keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+@keyframes popIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+
+.anim-fade-up{animation:fadeUp .45s cubic-bezier(.22,.68,0,1.2) both}
+.anim-scale-in{animation:scaleIn .35s cubic-bezier(.22,.68,0,1.2) both}
+.anim-fade-in{animation:fadeIn .4s ease both}
+
+/* stagger children */
+.stagger>*{opacity:0;animation:fadeUp .4s cubic-bezier(.22,.68,0,1.2) both}
+.stagger>*:nth-child(1){animation-delay:.05s}
+.stagger>*:nth-child(2){animation-delay:.1s}
+.stagger>*:nth-child(3){animation-delay:.15s}
+.stagger>*:nth-child(4){animation-delay:.2s}
+.stagger>*:nth-child(5){animation-delay:.25s}
+.stagger>*:nth-child(6){animation-delay:.3s}
+.stagger>*:nth-child(7){animation-delay:.35s}
+.stagger>*:nth-child(8){animation-delay:.4s}
+
+/*──────────────────────────────────────────────────
+  SIDEBAR
+──────────────────────────────────────────────────*/
+.sidebar{
+  width:240px;flex-shrink:0;display:flex;flex-direction:column;
+  background:var(--sidebar);border-right:1px solid rgba(255,255,255,.06);
+}
+.ca .sidebar{background:var(--card-b);border-right-color:var(--border)}
+.sidebar-logo{
+  display:flex;align-items:center;gap:10px;
+  padding:0 20px;height:64px;
+  border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;
+}
+.ca .sidebar-logo{border-bottom-color:var(--border)}
+.logo-text p:first-child{font-size:13px;font-weight:900;color:#fff;letter-spacing:.06em;line-height:1}
+.ca .logo-text p:first-child{color:var(--primary)}
+.logo-text p:last-child{font-size:9px;color:rgba(255,255,255,.4);letter-spacing:.14em;font-weight:700;text-transform:uppercase;margin-top:2px}
+.ca .logo-text p:last-child{color:var(--faint)}
+.sidebar-nav{flex:1;padding:12px;overflow-y:auto}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;
+  font-size:13px;font-weight:500;color:rgba(255,255,255,.5);cursor:pointer;
+  margin-bottom:1px;transition:background .15s,color .15s,transform .15s,box-shadow .15s;
+  position:relative;overflow:hidden;
+}
+.nav-item::after{
+  content:'';position:absolute;inset:0;border-radius:8px;
+  background:rgba(255,255,255,.08);opacity:0;transition:opacity .15s;
+}
+.nav-item:hover{color:rgba(255,255,255,.92);transform:translateX(2px)}
+.nav-item:hover::after{opacity:1}
+.nav-item:active{transform:translateX(2px) scale(.98)}
+.ca .nav-item{color:var(--muted)}
+.ca .nav-item:hover{color:var(--fg)}
+.nav-item.active{background:#2563eb;color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.4)}
+.ca .nav-item.active{background:var(--primary-c);color:var(--primary);box-shadow:none}
+.nav-icon{width:17px;height:17px;flex-shrink:0}
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08);flex-shrink:0}
+.ca .sidebar-footer{border-top-color:var(--border)}
+.sidebar-footer p:first-child{font-size:10px;color:rgba(255,255,255,.3);font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.ca .sidebar-footer p:first-child{color:var(--faint)}
+.sidebar-footer p:last-child{font-size:13px;color:rgba(255,255,255,.7);font-weight:600;margin-top:2px}
+.ca .sidebar-footer p:last-child{color:var(--muted)}
+
+/*──────────────────────────────────────────────────
+  MAIN & TOPBAR
+──────────────────────────────────────────────────*/
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{
+  height:48px;display:flex;align-items:center;justify-content:flex-end;
+  padding:0 24px;gap:8px;
+  border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;
+}
+.toggle-btn{
+  font-size:11px;font-weight:700;padding:6px 14px;border-radius:20px;
+  border:1px solid var(--border);cursor:pointer;
+  background:var(--card-b);color:var(--muted);
+  transition:background .15s,color .15s,border-color .15s,transform .1s,box-shadow .15s;
+  letter-spacing:.05em;text-transform:uppercase;user-select:none;
+}
+.toggle-btn:hover{background:var(--border);color:var(--fg);transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.toggle-btn:active{transform:translateY(0) scale(.97)}
+.toggle-btn.on{background:var(--primary);color:#fff;border-color:var(--primary);box-shadow:0 2px 10px rgba(37,99,235,.35)}
+.ca .toggle-btn.on{background:var(--primary-c);color:var(--primary);border-color:transparent;box-shadow:none}
+.content{flex:1;overflow-y:auto;padding:28px 28px 80px}
+.page{max-width:1080px;margin:0 auto}
+
+/*──────────────────────────────────────────────────
+  CARDS
+──────────────────────────────────────────────────*/
+.card{
+  background:var(--card);border-radius:14px;
+  border:1px solid var(--border);
+  box-shadow:var(--shadow);
+}
+.card-padded{padding:20px}
+.card-header{
+  padding:14px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.card-title{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.15em}
+.card-sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* Hover-lift on cards */
+.card-lift{transition:transform .2s,box-shadow .2s}
+.card-lift:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+
+/*──────────────────────────────────────────────────
+  GRID
+──────────────────────────────────────────────────*/
+.grid{display:grid;gap:16px}
+.cols-2{grid-template-columns:repeat(2,1fr)}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.cols-4{grid-template-columns:repeat(4,1fr)}
+.cols-23{grid-template-columns:2fr 1fr}
+.col-span-2{grid-column:span 2}
+.col-span-3{grid-column:span 3}
+
+/*──────────────────────────────────────────────────
+  KPI TILES
+──────────────────────────────────────────────────*/
+.kpi{
+  padding:18px 20px;border-radius:14px;
+  border:1px solid var(--border);background:var(--card);
+  box-shadow:var(--shadow);
+  transition:transform .2s,box-shadow .2s;cursor:default;
+}
+.kpi:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+.kpi-label{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.15em;color:var(--muted);margin-bottom:8px}
+.kpi-value{font-size:38px;font-weight:900;letter-spacing:-.03em;line-height:1;animation:countUp .5s ease both}
+.kpi-sub{font-size:10px;margin-top:6px;font-weight:700}
+
+/*──────────────────────────────────────────────────
+  TOOLTIP
+──────────────────────────────────────────────────*/
+.tooltip-box{
+  position:absolute;z-index:999;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:10px 14px;
+  box-shadow:var(--shadow-lg);
+  pointer-events:none;
+  opacity:0;transform:translateY(4px) scale(.96);
+  transition:opacity .18s,transform .18s;
+  min-width:160px;
+}
+.tooltip-box.visible{opacity:1;transform:translateY(0) scale(1)}
+.tooltip-title{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:8px}
+.tooltip-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;gap:16px;padding:2px 0}
+.tooltip-row .tval{font-weight:900;font-size:13px}
+
+/*──────────────────────────────────────────────────
+  WORK ORDER PIPELINE
+──────────────────────────────────────────────────*/
+.pipeline{display:flex;gap:0;border-radius:10px;overflow:hidden;height:48px}
+.pipeline-seg{
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:1px;cursor:pointer;
+  transition:filter .15s,transform .15s,box-shadow .15s;
+  position:relative;
+}
+.pipeline-seg:hover{filter:brightness(.88);transform:scaleY(1.04);z-index:1;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.pipeline-seg:active{filter:brightness(.8);transform:scaleY(.97)}
+.pipeline-seg .seg-val{font-size:16px;font-weight:900;color:#fff;line-height:1}
+.pipeline-seg .seg-lbl{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.8)}
+
+.age-bucket{
+  text-align:center;padding:10px 6px;background:var(--card-b);border-radius:10px;
+  cursor:pointer;transition:background .15s,transform .15s,box-shadow .15s;
+  position:relative;
+}
+.age-bucket:hover{background:var(--border);transform:translateY(-2px);box-shadow:var(--shadow)}
+.age-bucket:active{transform:translateY(0)}
+.age-val{font-size:20px;font-weight:900;line-height:1}
+.age-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin-top:3px}
+
+/*──────────────────────────────────────────────────
+  PRIORITY DONUT
+──────────────────────────────────────────────────*/
+.donut-wrap{display:flex;align-items:center;gap:20px}
+.donut-legend{display:flex;flex-direction:column;gap:10px;flex:1}
+.legend-row{
+  display:flex;align-items:center;gap:9px;font-size:12px;
+  padding:6px 8px;border-radius:8px;cursor:pointer;
+  transition:background .15s,transform .12s;
+}
+.legend-row:hover{background:var(--card-b);transform:translateX(3px)}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;transition:transform .15s}
+.legend-row:hover .legend-dot{transform:scale(1.4)}
+.legend-label{flex:1;color:var(--muted);font-weight:600}
+.legend-val{font-weight:900;font-size:14px}
+
+/* donut arc animation */
+@keyframes dashIn{from{stroke-dashoffset:220}to{stroke-dashoffset:var(--final-offset)}}
+.donut-arc{animation:dashIn .8s cubic-bezier(.22,.68,0,1.1) both}
+
+/*──────────────────────────────────────────────────
+  BUDGET HEATMAP
+──────────────────────────────────────────────────*/
+.budget-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.budget-item{
+  padding:12px;border-radius:10px;background:var(--card-b);
+  cursor:pointer;transition:background .15s,transform .15s,box-shadow .15s;
+  position:relative;overflow:hidden;
+}
+.budget-item:hover{background:var(--border);transform:translateY(-2px);box-shadow:var(--shadow)}
+.budget-name{font-size:11px;font-weight:700;color:var(--fg);margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.budget-bar-track{height:6px;border-radius:99px;background:var(--border);overflow:hidden;margin-bottom:6px}
+.budget-bar-fill{
+  height:100%;border-radius:99px;
+  width:0;/* starts at 0, animated by JS */
+  transition:width .9s cubic-bezier(.22,.68,0,1.1);
+}
+.budget-pct{font-size:10px;font-weight:700}
+
+/*──────────────────────────────────────────────────
+  MINI GANTT
+──────────────────────────────────────────────────*/
+.gantt-row{
+  display:flex;align-items:center;gap:12px;padding:9px 0;
+  border-bottom:1px solid var(--border);
+  cursor:pointer;transition:background .12s;border-radius:6px;padding-left:4px;
+}
+.gantt-row:last-child{border-bottom:none}
+.gantt-row:hover{background:var(--card-b)}
+.gantt-label{width:180px;flex-shrink:0}
+.gantt-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gantt-number{font-size:10px;color:var(--faint);font-family:monospace}
+.gantt-track{flex:1;height:10px;background:var(--card-b);border-radius:99px;position:relative;overflow:visible}
+.gantt-bar{
+  height:100%;border-radius:99px;position:absolute;top:0;
+  width:0;transition:width .8s cubic-bezier(.22,.68,0,1.1);
+}
+.gantt-today{position:absolute;top:-5px;bottom:-5px;width:2px;border-radius:1px;opacity:.75;background:var(--primary)}
+.gantt-status{width:68px;flex-shrink:0;text-align:right}
+
+/*──────────────────────────────────────────────────
+  NEEDS ATTENTION — OPTION A: Priority cards
+──────────────────────────────────────────────────*/
+.attn-card{
+  display:flex;gap:14px;align-items:flex-start;
+  padding:14px 16px;border-radius:12px;
+  border-left:4px solid transparent;
+  background:var(--card);border:1px solid var(--border);border-left-width:4px;
+  cursor:pointer;
+  transition:transform .18s,box-shadow .18s,background .15s;
+  position:relative;overflow:hidden;
+}
+.attn-card::before{
+  content:'';position:absolute;inset:0;
+  background:var(--card-b);opacity:0;transition:opacity .15s;
+}
+.attn-card:hover{transform:translateX(4px) translateY(-1px);box-shadow:var(--shadow-lg)}
+.attn-card:hover::before{opacity:1}
+.attn-card:active{transform:translateX(2px) translateY(0) scale(.99)}
+.attn-card .inner{position:relative;z-index:1;flex:1;min-width:0}
+.attn-card .icon-col{position:relative;z-index:1;flex-shrink:0;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px}
+.attn-card-title{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.attn-card-meta{display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap}
+.attn-card-num{font-size:10px;font-family:monospace;color:var(--faint)}
+.attn-card-blocker{font-size:10px;font-weight:700;color:var(--amber)}
+.attn-pill{
+  font-size:9px;font-weight:900;padding:3px 8px;border-radius:99px;
+  text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;
+}
+
+/* blocked "ribbon" shimmer */
+@keyframes shimmer{from{transform:translateX(-100%)}to{transform:translateX(400%)}}
+.attn-blocked::after{
+  content:'';position:absolute;top:0;left:0;width:40%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);
+  animation:shimmer 2.5s infinite;pointer-events:none;
+}
+
+/* urgency pulse dot */
+@keyframes urgencyPulse{
+  0%{box-shadow:0 0 0 0 rgba(220,38,38,.5)}
+  70%{box-shadow:0 0 0 6px rgba(220,38,38,0)}
+  100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}
+}
+.dot-pulse{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.dot-pulse.urgent{animation:urgencyPulse 1.8s infinite}
+
+/*──────────────────────────────────────────────────
+  INSPECTION SPARKLINE
+──────────────────────────────────────────────────*/
+.spark-bar{
+  flex:1;border-radius:3px 3px 0 0;
+  transition:opacity .15s,transform .15s,filter .15s;
+  cursor:pointer;transform-origin:bottom;
+}
+.spark-bar:hover{opacity:.75;transform:scaleY(1.08);filter:brightness(1.1)}
+
+/*──────────────────────────────────────────────────
+  DEADLINE STRIP
+──────────────────────────────────────────────────*/
+.deadline-strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+.deadline-strip::-webkit-scrollbar{height:3px}
+.deadline-strip::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.deadline-card{
+  flex-shrink:0;width:148px;padding:13px;border-radius:12px;
+  background:var(--card-b);border:1px solid var(--border);cursor:pointer;
+  transition:transform .18s,box-shadow .18s,background .15s;
+}
+.deadline-card:hover{background:var(--border);transform:translateY(-3px);box-shadow:var(--shadow)}
+.deadline-card:active{transform:translateY(-1px)}
+.deadline-date{font-size:10px;font-weight:900;color:var(--faint);text-transform:uppercase;letter-spacing:.08em}
+.deadline-title{font-size:11px;font-weight:700;color:var(--fg);margin-top:4px;line-height:1.3}
+.deadline-tag{
+  display:inline-block;margin-top:7px;
+  font-size:9px;font-weight:900;padding:2px 7px;border-radius:99px;
+  text-transform:uppercase;letter-spacing:.06em;
+}
+
+/*──────────────────────────────────────────────────
+  WORKLOAD BARS
+──────────────────────────────────────────────────*/
+.wl-row{display:flex;align-items:center;gap:10px}
+.wl-name{width:100px;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wl-track{flex:1;height:12px;background:var(--card-b);border-radius:99px;overflow:hidden;cursor:pointer;transition:transform .15s}
+.wl-track:hover{transform:scaleY(1.3)}
+.wl-fill{height:100%;border-radius:99px;width:0;transition:width .8s cubic-bezier(.22,.68,0,1.1)}
+.wl-val{width:22px;text-align:right;font-size:11px;font-weight:900;color:var(--muted)}
+
+/*──────────────────────────────────────────────────
+  MAP WIDGET
+──────────────────────────────────────────────────*/
+#map-widget{height:280px;border-radius:0 0 14px 14px;overflow:hidden;z-index:0}
+.leaflet-tile-pane{filter:saturate(.85) brightness(1.02)}
+.dark #map-widget .leaflet-tile-pane{filter:saturate(.4) brightness(.55) invert(1) hue-rotate(180deg)}
+.project-marker{
+  width:28px;height:28px;border-radius:50%;
+  border:2px solid #fff;display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:900;color:#fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.3);
+  cursor:pointer;transition:transform .15s;
+}
+.project-marker:hover{transform:scale(1.2)}
+
+/*──────────────────────────────────────────────────
+  POTHOLE BARS
+──────────────────────────────────────────────────*/
+.poth-row{display:flex;align-items:center;gap:10px}
+.poth-label{width:60px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.poth-track{flex:1;height:14px;background:var(--card-b);border-radius:99px;overflow:hidden;cursor:pointer;transition:transform .15s}
+.poth-track:hover{transform:scaleY(1.2)}
+.poth-fill{height:100%;border-radius:99px;width:0;transition:width .9s cubic-bezier(.22,.68,0,1.1)}
+.poth-val{width:28px;text-align:right;font-size:13px;font-weight:900}
+
+/*──────────────────────────────────────────────────
+  BLOCKED CALLOUT
+──────────────────────────────────────────────────*/
+.blocked-callout{
+  padding:14px 18px;border-radius:12px;
+  border-left:4px solid var(--amber);
+  background:var(--amber-c);
+  display:flex;align-items:flex-start;gap:12px;
+  cursor:pointer;
+  transition:transform .15s,box-shadow .15s;
+}
+.blocked-callout:hover{transform:translateX(3px);box-shadow:var(--shadow)}
+.blocked-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.blocked-title{font-size:13px;font-weight:800;color:var(--amber)}
+.blocked-sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+/*──────────────────────────────────────────────────
+  BADGES & MISC
+──────────────────────────────────────────────────*/
+.badge{
+  display:inline-block;font-size:9px;font-weight:900;
+  padding:2px 7px;border-radius:99px;
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.health-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:3px 0}
+.health-label{color:var(--muted)}
+.health-bar-track{height:4px;background:var(--card-b);border-radius:99px;overflow:hidden;flex:1;margin:0 8px}
+.health-bar-fill{height:100%;border-radius:99px;width:0;transition:width 1s cubic-bezier(.22,.68,0,1.1)}
+</style>
+</head>
+<body>
+<div class="shell" id="shell">
+
+<!-- ═══════════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <svg width="26" height="26" viewBox="0 0 100 130" fill="none">
+      <path id="logo-top" d="M18 8 C14 8 10 11 10 15 L10 68 L52 42 L82 25 C86 23 88 19 86 15 C84 11 80 8 76 8 Z" fill="white"/>
+      <path id="logo-bot" d="M82 122 C86 122 90 119 90 115 L90 62 L48 88 L18 105 C14 107 12 111 14 115 C16 119 20 122 24 122 Z" fill="white" opacity=".75"/>
+    </svg>
+    <div class="logo-text"><p>SENTINEL</p><p>PUBLIC WORKS</p></div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-item active">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard
+    </div>
+    <div class="nav-item">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>Map
+    </div>
+    <div class="nav-item">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Projects
+    </div>
+    <div class="nav-item">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Work Orders
+    </div>
+    <div class="nav-item">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Potholes
+    </div>
+    <div class="nav-item">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Inspections
+    </div>
+    <div class="nav-item">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Calendar
+    </div>
+    <div class="nav-item">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Contracts
+    </div>
+    <div class="nav-item">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>Team
+    </div>
+  </nav>
+  <div class="sidebar-footer"><p>Municipality of</p><p>Guaynabo, PR</p></div>
+</aside>
+
+<!-- ═══════════════════════════════════════════
+     MAIN
+═══════════════════════════════════════════ -->
+<div class="main">
+  <div class="topbar">
+    <button class="toggle-btn" onclick="toggleCA(this)">CA Design</button>
+    <button class="toggle-btn" onclick="toggleDark(this)">Dark Mode</button>
+  </div>
+
+  <div class="content">
+  <div class="page">
+
+  <!-- Header -->
+  <div style="margin-bottom:22px" class="anim-fade-up">
+    <p class="eyebrow" style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.2em;color:var(--faint)">Good morning</p>
+    <h1 style="font-size:36px;font-weight:900;letter-spacing:-.02em;line-height:1;margin-top:2px">Jorge</h1>
+    <p style="font-size:13px;color:var(--muted);margin-top:6px">Wednesday, April 9 · 74 active items across the department</p>
+  </div>
+
+  <!-- Blocked callout -->
+  <div class="blocked-callout anim-fade-up" style="margin-bottom:20px;animation-delay:.08s">
+    <div class="blocked-icon">🔒</div>
+    <div>
+      <div class="blocked-title">3 projects and 2 work orders currently blocked</div>
+      <div class="blocked-sub">PRASA (water main) · AAA (ADA sidewalk) · Traffic Engineering (school zone)</div>
+    </div>
+  </div>
+
+  <!-- KPI row -->
+  <div class="grid cols-4 stagger" style="margin-bottom:20px">
+    <div class="kpi">
+      <div class="kpi-label">Open Work Orders</div>
+      <div class="kpi-value">34</div>
+      <div class="kpi-sub" style="color:var(--teal)">8 due this week</div>
+    </div>
+    <div class="kpi" style="background:color-mix(in srgb,var(--red-c) 35%,var(--card))">
+      <div class="kpi-label" style="color:var(--red)">Needs Attention</div>
+      <div class="kpi-value" style="color:var(--red)">7</div>
+      <div class="kpi-sub" style="color:var(--red)">overdue or blocked</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Active Projects</div>
+      <div class="kpi-value">8</div>
+      <div class="kpi-sub" style="color:var(--muted)">4 active contracts</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Infrastructure Health</div>
+      <div class="kpi-value" style="color:var(--teal)">74</div>
+      <div class="kpi-sub" style="color:var(--teal)">↑ +3 pts from last month</div>
+    </div>
+  </div>
+
+  <!-- Work Order Pipeline -->
+  <div class="card anim-fade-up" style="margin-bottom:20px;animation-delay:.15s">
+    <div class="card-header">
+      <div><div class="card-title">Work Order Pipeline</div><div class="card-sub">Status distribution · hover age buckets for breakdown</div></div>
+      <span style="font-size:11px;color:var(--muted)">34 total</span>
+    </div>
+    <div style="padding:16px 20px">
+      <div class="pipeline" style="margin-bottom:12px" id="pipeline">
+        <div class="pipeline-seg" style="background:#3b82f6;width:32%" data-seg="open"    onmouseenter="showPipelineTip(event,'Open','11','4 assigned · 7 unassigned')" onmouseleave="hideTip()">
+          <span class="seg-val">11</span><span class="seg-lbl">Open</span>
+        </div>
+        <div class="pipeline-seg" style="background:#8b5cf6;width:38%" data-seg="inprog"  onmouseenter="showPipelineTip(event,'In Progress','13','8 on-time · 3 at risk · 2 overdue')" onmouseleave="hideTip()">
+          <span class="seg-val">13</span><span class="seg-lbl">In Progress</span>
+        </div>
+        <div class="pipeline-seg" style="background:#d97706;width:15%" data-seg="onhold"  onmouseenter="showPipelineTip(event,'On Hold','5','3 blocked by external · 2 awaiting parts')" onmouseleave="hideTip()">
+          <span class="seg-val">5</span><span class="seg-lbl">On Hold</span>
+        </div>
+        <div class="pipeline-seg" style="background:#059669;width:15%" data-seg="closed"  onmouseenter="showPipelineTip(event,'Closed','5','avg 12 days to close')" onmouseleave="hideTip()">
+          <span class="seg-val">5</span><span class="seg-lbl">Closed</span>
+        </div>
+      </div>
+      <!-- Age buckets with overlay breakdown on hover -->
+      <div class="grid cols-4" id="age-buckets">
+        <div class="age-bucket" onmouseenter="showAgeTip(event,'0–7 days',{open:10,inprog:6,hold:0})" onmouseleave="hideTip()">
+          <div class="age-val" style="color:var(--teal)">16</div>
+          <div class="age-lbl">0–7 days</div>
+        </div>
+        <div class="age-bucket" onmouseenter="showAgeTip(event,'7–30 days',{open:1,inprog:5,hold:3})" onmouseleave="hideTip()">
+          <div class="age-val">9</div>
+          <div class="age-lbl">7–30 days</div>
+        </div>
+        <div class="age-bucket" onmouseenter="showAgeTip(event,'30–60 days',{open:0,inprog:2,hold:4})" onmouseleave="hideTip()">
+          <div class="age-val" style="color:var(--amber)">6</div>
+          <div class="age-lbl">30–60 days</div>
+        </div>
+        <div class="age-bucket" style="background:color-mix(in srgb,var(--red-c) 30%,var(--card-b))" onmouseenter="showAgeTip(event,'60+ days',{open:0,inprog:0,hold:3})" onmouseleave="hideTip()">
+          <div class="age-val" style="color:var(--red)">3</div>
+          <div class="age-lbl" style="color:var(--red)">60+ days</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row: Donut + Inspection + Pothole -->
+  <div class="grid cols-3 stagger" style="margin-bottom:20px">
+
+    <!-- Priority donut -->
+    <div class="card card-padded card-lift">
+      <div class="card-title" style="margin-bottom:14px">Priority Breakdown</div>
+      <div class="donut-wrap">
+        <svg width="92" height="92" viewBox="0 0 92 92" style="flex-shrink:0">
+          <circle cx="46" cy="46" r="36" fill="none" stroke="var(--card-b)" stroke-width="10"/>
+          <!-- P4 slate 9/34=95deg → dasharray=21.2 -->
+          <circle class="donut-arc" cx="46" cy="46" r="36" fill="none" stroke="#94a3b8" stroke-width="10"
+            stroke-dasharray="21.2 226.2" style="--final-offset:0" stroke-dashoffset="0" transform="rotate(-90 46 46)"
+            style="cursor:pointer" onmouseenter="showDonutTip(event,'P4 Low',6,'#94a3b8')" onmouseleave="hideTip()"/>
+          <!-- P3 amber 9/34=95deg dashoffset=-21.2 -->
+          <circle class="donut-arc" cx="46" cy="46" r="36" fill="none" stroke="#ca8a04" stroke-width="10"
+            stroke-dasharray="21.2 226.2" stroke-dashoffset="-21.2" transform="rotate(-90 46 46)"
+            style="cursor:pointer;animation-delay:.1s" onmouseenter="showDonutTip(event,'P3 Medium',9,'#ca8a04')" onmouseleave="hideTip()"/>
+          <!-- P2 orange 13/34=137deg dashoffset=-42.4 -->
+          <circle class="donut-arc" cx="46" cy="46" r="36" fill="none" stroke="#ea580c" stroke-width="10"
+            stroke-dasharray="30.7 226.2" stroke-dashoffset="-42.4" transform="rotate(-90 46 46)"
+            style="cursor:pointer;animation-delay:.2s" onmouseenter="showDonutTip(event,'P2 High',13,'#ea580c')" onmouseleave="hideTip()"/>
+          <!-- P1 red 6/34=63deg dashoffset=-73.1 -->
+          <circle class="donut-arc" cx="46" cy="46" r="36" fill="none" stroke="#dc2626" stroke-width="10"
+            stroke-dasharray="14.2 226.2" stroke-dashoffset="-73.1" transform="rotate(-90 46 46)"
+            style="cursor:pointer;animation-delay:.3s" onmouseenter="showDonutTip(event,'P1 Critical',6,'#dc2626')" onmouseleave="hideTip()"/>
+          <text x="46" y="50" text-anchor="middle" font-size="18" font-weight="900" fill="var(--fg)">34</text>
+        </svg>
+        <div class="donut-legend">
+          <div class="legend-row"><div class="legend-dot" style="background:#dc2626"></div><span class="legend-label">P1 Critical</span><span class="legend-val" style="color:#dc2626">6</span></div>
+          <div class="legend-row"><div class="legend-dot" style="background:#ea580c"></div><span class="legend-label">P2 High</span><span class="legend-val" style="color:#ea580c">13</span></div>
+          <div class="legend-row"><div class="legend-dot" style="background:#ca8a04"></div><span class="legend-label">P3 Medium</span><span class="legend-val" style="color:#ca8a04">9</span></div>
+          <div class="legend-row"><div class="legend-dot" style="background:#94a3b8"></div><span class="legend-label">P4 Low</span><span class="legend-val" style="color:var(--muted)">6</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inspection score trend -->
+    <div class="card card-padded card-lift">
+      <div class="card-title" style="margin-bottom:4px">Inspection Score Trend</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Avg monthly score (%)</div>
+      <div style="display:flex;align-items:flex-end;gap:5px;height:56px">
+        <div class="spark-bar" style="height:64%;background:#3b82f6;opacity:.65" onmouseenter="showSparkTip(event,'Nov','64')" onmouseleave="hideTip()"></div>
+        <div class="spark-bar" style="height:70%;background:#3b82f6;opacity:.7"  onmouseenter="showSparkTip(event,'Dec','70')" onmouseleave="hideTip()"></div>
+        <div class="spark-bar" style="height:76%;background:#3b82f6;opacity:.78" onmouseenter="showSparkTip(event,'Jan','76')" onmouseleave="hideTip()"></div>
+        <div class="spark-bar" style="height:72%;background:#d97706;opacity:.82" onmouseenter="showSparkTip(event,'Feb','72')" onmouseleave="hideTip()"></div>
+        <div class="spark-bar" style="height:69%;background:#d97706;opacity:.85" onmouseenter="showSparkTip(event,'Mar','69')" onmouseleave="hideTip()"></div>
+        <div class="spark-bar" style="height:82%;background:#059669"             onmouseenter="showSparkTip(event,'Apr','82')" onmouseleave="hideTip()"></div>
+      </div>
+      <div style="display:flex;gap:5px;margin-top:5px">
+        <div style="flex:1;text-align:center;font-size:9px;color:var(--faint);font-weight:700">N</div>
+        <div style="flex:1;text-align:center;font-size:9px;color:var(--faint);font-weight:700">D</div>
+        <div style="flex:1;text-align:center;font-size:9px;color:var(--faint);font-weight:700">J</div>
+        <div style="flex:1;text-align:center;font-size:9px;color:var(--faint);font-weight:700">F</div>
+        <div style="flex:1;text-align:center;font-size:9px;color:var(--faint);font-weight:700">M</div>
+        <div style="flex:1;text-align:center;font-size:9px;color:var(--faint);font-weight:700">A</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:34px;font-weight:900;color:var(--teal)">82</div>
+        <div><div style="font-size:11px;font-weight:700">This month</div><div style="font-size:10px;color:var(--teal);font-weight:700">↑ +13 pts vs Oct</div></div>
+      </div>
+    </div>
+
+    <!-- Pothole resolution -->
+    <div class="card card-padded card-lift">
+      <div class="card-title" style="margin-bottom:4px">Pothole Resolution</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:16px">Reported vs closed this month</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="poth-row">
+          <div class="poth-label">Reported</div>
+          <div class="poth-track" onmouseenter="showPothTip(event,'Reported this month',17)" onmouseleave="hideTip()">
+            <div class="poth-fill" data-target="85" style="background:#dc2626"></div>
+          </div>
+          <div class="poth-val" style="color:#dc2626">17</div>
+        </div>
+        <div class="poth-row">
+          <div class="poth-label">Closed</div>
+          <div class="poth-track" onmouseenter="showPothTip(event,'Closed this month',11)" onmouseleave="hideTip()">
+            <div class="poth-fill" data-target="55" style="background:#059669"></div>
+          </div>
+          <div class="poth-val" style="color:#059669">11</div>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">Backlog trend (6 mo)</div>
+        <div style="display:flex;gap:4px;align-items:flex-end;height:30px">
+          <div class="spark-bar" style="height:40%;background:var(--teal);opacity:.6"></div>
+          <div class="spark-bar" style="height:55%;background:var(--teal);opacity:.65"></div>
+          <div class="spark-bar" style="height:45%;background:var(--teal);opacity:.7"></div>
+          <div class="spark-bar" style="height:70%;background:var(--amber);opacity:.8"></div>
+          <div class="spark-bar" style="height:85%;background:var(--red);opacity:.85"></div>
+          <div class="spark-bar" style="height:76%;background:var(--red)"></div>
+        </div>
+        <div style="font-size:10px;color:var(--amber);font-weight:700;margin-top:5px">⚠ Backlog growing · 6 reports &gt;30 days</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       NEEDS ATTENTION
+  ════════════════════════════════════════ -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header">
+      <div>
+        <div class="card-title">⚡ Needs Attention</div>
+        <div class="card-sub">Overdue, blocked, or at risk · sorted by urgency</div>
+      </div>
+      <span style="font-size:11px;color:var(--muted)">7 items</span>
+    </div>
+    <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px" id="attn-list" class="stagger">
+
+      <!-- BLOCKED / OVERDUE -->
+      <div class="attn-card attn-blocked" style="border-left-color:#dc2626">
+        <div class="dot-pulse urgent" style="background:#dc2626"></div>
+        <div class="icon-col" style="background:color-mix(in srgb,#dc2626 15%,transparent)">🔒</div>
+        <div class="inner">
+          <div class="attn-card-title">Ave. San Miguel ADA Sidewalk Compliance</div>
+          <div class="attn-card-meta">
+            <span class="attn-card-num">PJ-2025-0104</span>
+            <span class="attn-card-blocker">Blocked · AAA utilities</span>
+            <span style="font-size:10px;color:var(--faint)">Since Oct 3, 2025</span>
+          </div>
+        </div>
+        <span class="attn-pill" style="background:var(--amber-c);color:var(--amber)">BLOCKED</span>
+      </div>
+
+      <div class="attn-card attn-blocked" style="border-left-color:#dc2626">
+        <div class="dot-pulse urgent" style="background:#dc2626"></div>
+        <div class="icon-col" style="background:color-mix(in srgb,#dc2626 15%,transparent)">🔒</div>
+        <div class="inner">
+          <div class="attn-card-title">Trench Excavation — Pueblo Viejo Main Ph. 2</div>
+          <div class="attn-card-meta">
+            <span class="attn-card-num">WO-2026-0116</span>
+            <span class="attn-card-blocker">Blocked · PRASA permit</span>
+            <span style="font-size:10px;color:var(--faint)">Since Mar 12, 2026</span>
+          </div>
+        </div>
+        <span class="attn-pill" style="background:var(--amber-c);color:var(--amber)">BLOCKED</span>
+      </div>
+
+      <div class="attn-card" style="border-left-color:#dc2626">
+        <div class="dot-pulse urgent" style="background:#dc2626"></div>
+        <div class="icon-col" style="background:color-mix(in srgb,#dc2626 12%,transparent)">⏰</div>
+        <div class="inner">
+          <div class="attn-card-title">Culvert Extension — PR-167 Km 1.4 Creek Crossing</div>
+          <div class="attn-card-meta">
+            <span class="attn-card-num">WO-2026-0120</span>
+            <span style="font-size:10px;color:var(--red);font-weight:700">Due Apr 30 · 21 days overdue</span>
+          </div>
+        </div>
+        <span class="attn-pill" style="background:var(--red-c);color:var(--red)">OVERDUE</span>
+      </div>
+
+      <div class="attn-card" style="border-left-color:#dc2626">
+        <div class="dot-pulse urgent" style="background:#dc2626"></div>
+        <div class="icon-col" style="background:color-mix(in srgb,#dc2626 12%,transparent)">⏰</div>
+        <div class="inner">
+          <div class="attn-card-title">Emergency Pothole Repair — PR-177 at Camarones</div>
+          <div class="attn-card-meta">
+            <span class="attn-card-num">WO-2026-0101</span>
+            <span style="font-size:10px;color:var(--red);font-weight:700">P1 · 9 days overdue</span>
+          </div>
+        </div>
+        <span class="attn-pill" style="background:var(--red-c);color:var(--red)">OVERDUE</span>
+      </div>
+
+      <!-- AT RISK -->
+      <div class="attn-card" style="border-left-color:#d97706">
+        <div class="dot-pulse" style="background:#d97706;animation:none"></div>
+        <div class="icon-col" style="background:color-mix(in srgb,#d97706 12%,transparent)">⚠️</div>
+        <div class="inner">
+          <div class="attn-card-title">Roof Membrane Replacement — Sonadora Community Center</div>
+          <div class="attn-card-meta">
+            <span class="attn-card-num">WO-2026-0124</span>
+            <span style="font-size:10px;color:var(--amber);font-weight:700">Due May 5 · 4 days left · P1</span>
+          </div>
+        </div>
+        <span class="attn-pill" style="background:var(--amber-c);color:var(--amber)">AT RISK</span>
+      </div>
+
+      <div class="attn-card" style="border-left-color:#d97706">
+        <div class="dot-pulse" style="background:#d97706;animation:none"></div>
+        <div class="icon-col" style="background:color-mix(in srgb,#d97706 12%,transparent)">💰</div>
+        <div class="inner">
+          <div class="attn-card-title">Río Barrio Flooding Prevention — PR-167 Corridor</div>
+          <div class="attn-card-meta">
+            <span class="attn-card-num">PJ-2025-0105</span>
+            <span style="font-size:10px;color:var(--amber);font-weight:700">92% budget used · $28k remaining</span>
+          </div>
+        </div>
+        <span class="attn-pill" style="background:var(--amber-c);color:var(--amber)">AT RISK</span>
+      </div>
+
+      <div class="attn-card" style="border-left-color:#d97706">
+        <div class="dot-pulse" style="background:#d97706;animation:none"></div>
+        <div class="icon-col" style="background:color-mix(in srgb,#d97706 12%,transparent)">🔒</div>
+        <div class="inner">
+          <div class="attn-card-title">Pueblo Viejo Water Main Replacement</div>
+          <div class="attn-card-meta">
+            <span class="attn-card-num">PJ-2025-0103</span>
+            <span class="attn-card-blocker">Blocked · PRASA coord.</span>
+            <span style="font-size:10px;color:var(--faint)">6 months stalled</span>
+          </div>
+        </div>
+        <span class="attn-pill" style="background:var(--amber-c);color:var(--amber)">BLOCKED</span>
+      </div>
+
+    </div>
+    <div style="padding:10px 20px;border-top:1px solid var(--border)">
+      <a href="#" style="font-size:10px;font-weight:900;color:var(--primary)">View all items →</a>
+    </div>
+  </div>
+
+  <!-- Budget heatmap -->
+  <div class="card anim-fade-up" style="margin-bottom:20px;animation-delay:.25s">
+    <div class="card-header">
+      <div><div class="card-title">Project Budget Utilization</div><div class="card-sub">Actual vs budget · hover for details</div></div>
+      <span style="font-size:11px;color:var(--muted)">$3.4M total</span>
+    </div>
+    <div style="padding:16px 20px">
+      <div class="budget-grid">
+        <div class="budget-item" onmouseenter="showBudgetTip(event,'PR-177 Resurfacing',287500,380000,'On Track')" onmouseleave="hideTip()">
+          <div class="budget-name">PR-177 / Las Cumbres Resurfacing</div>
+          <div class="budget-bar-track"><div class="budget-bar-fill" data-target="76" style="background:#059669"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><div class="budget-pct" style="color:#059669">76% · $287k / $380k</div><span class="badge" style="background:var(--teal-c);color:var(--teal)">On Track</span></div>
+        </div>
+        <div class="budget-item" onmouseenter="showBudgetTip(event,'Río Flooding Prevention',312000,340000,'At Risk')" onmouseleave="hideTip()">
+          <div class="budget-name">Río Barrio Flooding Prevention</div>
+          <div class="budget-bar-track"><div class="budget-bar-fill" data-target="92" style="background:#d97706"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><div class="budget-pct" style="color:#d97706">92% · $312k / $340k</div><span class="badge" style="background:var(--amber-c);color:var(--amber)">At Risk</span></div>
+        </div>
+        <div class="budget-item" onmouseenter="showBudgetTip(event,'Ave San Miguel ADA',760000,920000,'Over Budget')" onmouseleave="hideTip()">
+          <div class="budget-name">Ave. San Miguel ADA Sidewalk</div>
+          <div class="budget-bar-track"><div class="budget-bar-fill" data-target="100" style="background:#dc2626"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><div class="budget-pct" style="color:#dc2626">107% · $760k / $920k</div><span class="badge" style="background:var(--red-c);color:var(--red)">Over Budget</span></div>
+        </div>
+        <div class="budget-item" onmouseenter="showBudgetTip(event,'Sonadora Community Center',267000,320000,'At Risk')" onmouseleave="hideTip()">
+          <div class="budget-name">Sonadora Community Center</div>
+          <div class="budget-bar-track"><div class="budget-bar-fill" data-target="83" style="background:#d97706"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><div class="budget-pct" style="color:#d97706">83% · $267k / $320k</div><span class="badge" style="background:var(--amber-c);color:var(--amber)">At Risk</span></div>
+        </div>
+        <div class="budget-item" onmouseenter="showBudgetTip(event,'Frailes Community Park',156800,195000,'On Track')" onmouseleave="hideTip()">
+          <div class="budget-name">Frailes Community Park</div>
+          <div class="budget-bar-track"><div class="budget-bar-fill" data-target="80" style="background:#059669"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><div class="budget-pct" style="color:#059669">80% · $157k / $195k</div><span class="badge" style="background:var(--teal-c);color:var(--teal)">On Track</span></div>
+        </div>
+        <div class="budget-item" onmouseenter="showBudgetTip(event,'Camarones Stormwater',134500,180000,'On Track')" onmouseleave="hideTip()">
+          <div class="budget-name">Camarones Stormwater Upgrade</div>
+          <div class="budget-bar-track"><div class="budget-bar-fill" data-target="75" style="background:#059669"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><div class="budget-pct" style="color:#059669">75% · $135k / $180k</div><span class="badge" style="background:var(--teal-c);color:var(--teal)">On Track</span></div>
+        </div>
+        <div class="budget-item" onmouseenter="showBudgetTip(event,'Hato Nuevo Road',89600,520000,'Early')" onmouseleave="hideTip()">
+          <div class="budget-name">Hato Nuevo Road Widening</div>
+          <div class="budget-bar-track"><div class="budget-bar-fill" data-target="17" style="background:#059669"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><div class="budget-pct" style="color:var(--muted)">17% · $90k / $520k</div><span class="badge" style="background:var(--card-b);color:var(--muted)">Early</span></div>
+        </div>
+        <div class="budget-item" onmouseenter="showBudgetTip(event,'Mamey Sports Complex',0,1250000,'Not Started')" onmouseleave="hideTip()">
+          <div class="budget-name">Mamey Multi-Use Sports Complex</div>
+          <div class="budget-bar-track"><div class="budget-bar-fill" data-target="1" style="background:var(--faint)"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><div class="budget-pct" style="color:var(--faint)">0% · $0 / $1.25M</div><span class="badge" style="background:var(--card-b);color:var(--faint)">Not Started</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mini Gantt -->
+  <div class="card anim-fade-up" style="margin-bottom:20px;animation-delay:.3s">
+    <div class="card-header">
+      <div><div class="card-title">Active Project Timeline</div><div class="card-sub">Jan 2025 – Dec 2026 · blue line = today</div></div>
+    </div>
+    <div style="padding:6px 20px 16px">
+      <div class="gantt-row" onmouseenter="showGanttTip(event,'PR-177 Resurfacing','Sep 2025','Aug 2026','On Track','76%')" onmouseleave="hideTip()">
+        <div class="gantt-label"><div class="gantt-name">PR-177 Resurfacing</div><div class="gantt-number">PJ-2025-0101</div></div>
+        <div class="gantt-track">
+          <div class="gantt-bar" data-left="33" data-width="46" style="background:#3b82f6"></div>
+          <div class="gantt-today" style="left:62.5%"></div>
+        </div>
+        <div class="gantt-status"><span class="badge" style="background:var(--teal-c);color:var(--teal)">On Track</span></div>
+      </div>
+      <div class="gantt-row" onmouseenter="showGanttTip(event,'Frailes Park','Oct 2025','Jul 2026','On Track','80%')" onmouseleave="hideTip()">
+        <div class="gantt-label"><div class="gantt-name">Frailes Park Renovation</div><div class="gantt-number">PJ-2025-0102</div></div>
+        <div class="gantt-track">
+          <div class="gantt-bar" data-left="37.5" data-width="37.5" style="background:#8b5cf6"></div>
+          <div class="gantt-today" style="left:62.5%"></div>
+        </div>
+        <div class="gantt-status"><span class="badge" style="background:var(--teal-c);color:var(--teal)">On Track</span></div>
+      </div>
+      <div class="gantt-row" onmouseenter="showGanttTip(event,'Pueblo Viejo Water','Jul 2025','—','Blocked','81%')" onmouseleave="hideTip()">
+        <div class="gantt-label"><div class="gantt-name">Pueblo Viejo Water Main</div><div class="gantt-number">PJ-2025-0103</div></div>
+        <div class="gantt-track">
+          <div class="gantt-bar" data-left="25" data-width="75" style="background:#f59e0b;opacity:.7"></div>
+          <div class="gantt-today" style="left:62.5%"></div>
+        </div>
+        <div class="gantt-status"><span class="badge" style="background:var(--amber-c);color:var(--amber)">Blocked</span></div>
+      </div>
+      <div class="gantt-row" onmouseenter="showGanttTip(event,'Ave San Miguel ADA','Aug 2025','Feb 2026 (past)','Overdue','107%')" onmouseleave="hideTip()">
+        <div class="gantt-label"><div class="gantt-name">Ave San Miguel ADA</div><div class="gantt-number">PJ-2025-0104</div></div>
+        <div class="gantt-track">
+          <div class="gantt-bar" data-left="29" data-width="66" style="background:#dc2626"></div>
+          <div class="gantt-today" style="left:62.5%"></div>
+        </div>
+        <div class="gantt-status"><span class="badge" style="background:var(--red-c);color:var(--red)">Overdue</span></div>
+      </div>
+      <div class="gantt-row" onmouseenter="showGanttTip(event,'PR-167 Flooding','Jun 2025','Jun 2026','At Risk','92%')" onmouseleave="hideTip()">
+        <div class="gantt-label"><div class="gantt-name">PR-167 Flooding Prev.</div><div class="gantt-number">PJ-2025-0105</div></div>
+        <div class="gantt-track">
+          <div class="gantt-bar" data-left="20" data-width="46" style="background:#059669"></div>
+          <div class="gantt-today" style="left:62.5%"></div>
+        </div>
+        <div class="gantt-status"><span class="badge" style="background:var(--amber-c);color:var(--amber)">At Risk</span></div>
+      </div>
+      <div class="gantt-row" onmouseenter="showGanttTip(event,'Hato Nuevo Road','Jan 2026','Dec 2026','On Track','17%')" onmouseleave="hideTip()">
+        <div class="gantt-label"><div class="gantt-name">Hato Nuevo Road</div><div class="gantt-number">PJ-2026-0103</div></div>
+        <div class="gantt-track">
+          <div class="gantt-bar" data-left="50" data-width="50" style="background:#6366f1;opacity:.75"></div>
+          <div class="gantt-today" style="left:62.5%"></div>
+        </div>
+        <div class="gantt-status"><span class="badge" style="background:var(--primary-c);color:var(--primary)">Planning</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row: Workload + Health + Map -->
+  <div class="grid cols-3 stagger" style="margin-bottom:20px">
+
+    <!-- Workload -->
+    <div class="card card-padded card-lift">
+      <div class="card-title" style="margin-bottom:14px">Assignee Workload</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="wl-row">
+          <div class="wl-name">M. Rivera</div>
+          <div class="wl-track" onmouseenter="showWorkloadTip(event,'M. Rivera',8)" onmouseleave="hideTip()"><div class="wl-fill" data-target="100" style="background:var(--red)"></div></div>
+          <div class="wl-val">8</div>
+        </div>
+        <div class="wl-row">
+          <div class="wl-name">C. Torres</div>
+          <div class="wl-track" onmouseenter="showWorkloadTip(event,'C. Torres',6)" onmouseleave="hideTip()"><div class="wl-fill" data-target="75" style="background:var(--amber)"></div></div>
+          <div class="wl-val">6</div>
+        </div>
+        <div class="wl-row">
+          <div class="wl-name">J. Pérez</div>
+          <div class="wl-track" onmouseenter="showWorkloadTip(event,'J. Pérez',5)" onmouseleave="hideTip()"><div class="wl-fill" data-target="63" style="background:var(--amber)"></div></div>
+          <div class="wl-val">5</div>
+        </div>
+        <div class="wl-row">
+          <div class="wl-name">A. Rosario</div>
+          <div class="wl-track" onmouseenter="showWorkloadTip(event,'A. Rosario',4)" onmouseleave="hideTip()"><div class="wl-fill" data-target="50" style="background:var(--teal)"></div></div>
+          <div class="wl-val">4</div>
+        </div>
+        <div class="wl-row">
+          <div class="wl-name">R. Sánchez</div>
+          <div class="wl-track" onmouseenter="showWorkloadTip(event,'R. Sánchez',2)" onmouseleave="hideTip()"><div class="wl-fill" data-target="25" style="background:var(--teal)"></div></div>
+          <div class="wl-val">2</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Health score -->
+    <div class="card card-padded card-lift">
+      <div class="card-title" style="margin-bottom:12px">Infrastructure Health</div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+        <div>
+          <div style="font-size:52px;font-weight:900;letter-spacing:-.03em;line-height:1;color:var(--teal)">74</div>
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:var(--muted);margin-top:2px">/ 100</div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:11px;color:var(--muted)">Composite score based on inspection pass rate, P1 closure SLA, and pothole resolution rate.</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="health-row">
+          <span class="health-label">Insp. avg score</span>
+          <div class="health-bar-track"><div class="health-bar-fill" data-target="82" style="background:var(--teal)"></div></div>
+          <span style="font-weight:900;font-size:12px;color:var(--teal);width:30px;text-align:right">82%</span>
+        </div>
+        <div class="health-row">
+          <span class="health-label">P1 SLA closure</span>
+          <div class="health-bar-track"><div class="health-bar-fill" data-target="67" style="background:var(--amber)"></div></div>
+          <span style="font-weight:900;font-size:12px;color:var(--amber);width:30px;text-align:right">67%</span>
+        </div>
+        <div class="health-row">
+          <span class="health-label">Pothole resolution</span>
+          <div class="health-bar-track"><div class="health-bar-fill" data-target="65" style="background:var(--amber)"></div></div>
+          <span style="font-weight:900;font-size:12px;color:var(--amber);width:30px;text-align:right">65%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map widget -->
+    <div class="card" style="overflow:hidden">
+      <div class="card-header">
+        <div><div class="card-title">Active Projects Map</div><div class="card-sub">In-progress projects · Guaynabo, PR</div></div>
+      </div>
+      <div id="map-widget"></div>
+    </div>
+  </div>
+
+  <!-- Upcoming 7-day deadline strip -->
+  <div class="card anim-fade-up" style="margin-bottom:20px;animation-delay:.35s">
+    <div class="card-header"><div class="card-title">Upcoming Deadlines — Next 7 Days</div></div>
+    <div style="padding:14px 20px">
+      <div class="deadline-strip">
+        <div class="deadline-card"><div class="deadline-date">Apr 10</div><div class="deadline-title">Storm Drain Cleaning — Camarones 24 inlets</div><span class="deadline-tag" style="background:var(--primary-c);color:var(--primary)">WO</span></div>
+        <div class="deadline-card"><div class="deadline-date">Apr 11</div><div class="deadline-title">Emergency Pothole Repair — PR-177</div><span class="deadline-tag" style="background:var(--red-c);color:var(--red)">OVERDUE</span></div>
+        <div class="deadline-card"><div class="deadline-date">Apr 12</div><div class="deadline-title">Irrigation System — Parque Frailes</div><span class="deadline-tag" style="background:var(--primary-c);color:var(--primary)">WO</span></div>
+        <div class="deadline-card"><div class="deadline-date">Apr 13</div><div class="deadline-title">Inspection: PR-177 Sector A Progress</div><span class="deadline-tag" style="background:var(--teal-c);color:var(--teal)">INSP</span></div>
+        <div class="deadline-card"><div class="deadline-date">Apr 14</div><div class="deadline-title">Roof Membrane — Sonadora Center</div><span class="deadline-tag" style="background:var(--amber-c);color:var(--amber)">AT RISK</span></div>
+        <div class="deadline-card"><div class="deadline-date">Apr 15</div><div class="deadline-title">Culvert Extension — PR-167 Km 1.4</div><span class="deadline-tag" style="background:var(--red-c);color:var(--red)">OVERDUE</span></div>
+        <div class="deadline-card"><div class="deadline-date">Apr 15</div><div class="deadline-title">Hato Nuevo Subbase Construction</div><span class="deadline-tag" style="background:var(--violet-c);color:var(--violet)">PROJ</span></div>
+        <div class="deadline-card"><div class="deadline-date">Apr 16</div><div class="deadline-title">Camarones Inlet Grate Replacement</div><span class="deadline-tag" style="background:var(--primary-c);color:var(--primary)">WO</span></div>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /page -->
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- Shared tooltip -->
+<div class="tooltip-box" id="tooltip"></div>
+
+<script>
+/*──────────────────────────────────────
+  THEME TOGGLES
+──────────────────────────────────────*/
+let isDark=false,isCA=false;
+function applyTheme(){
+  const s=document.getElementById('shell');
+  s.className=['',isCA?'ca':'',isDark?'dark':''].join(' ').trim();
+  const c=isCA?(isDark?'#8fa4c4':'#565e74'):'#ffffff';
+  document.getElementById('logo-top').setAttribute('fill',c);
+  document.getElementById('logo-bot').setAttribute('fill',c);
+  // reinit map tiles on dark toggle
+  if(window._map){setTimeout(()=>window._map.invalidateSize(),50)}
+}
+function toggleDark(btn){isDark=!isDark;btn.classList.toggle('on',isDark);btn.textContent=isDark?'Light Mode':'Dark Mode';applyTheme()}
+function toggleCA(btn){isCA=!isCA;btn.classList.toggle('on',isCA);applyTheme()}
+
+/*──────────────────────────────────────
+  TOOLTIP ENGINE
+──────────────────────────────────────*/
+const tip=document.getElementById('tooltip');
+let tipTimeout;
+function showTip(el,html){
+  clearTimeout(tipTimeout);
+  tip.innerHTML=html;
+  tip.classList.add('visible');
+  positionTip(el);
+}
+function positionTip(el){
+  const r=el.getBoundingClientRect();
+  const tw=tip.offsetWidth||200;
+  let left=r.left+r.width/2-tw/2;
+  let top=r.bottom+8+window.scrollY;
+  // flip up if too close to bottom
+  if(r.bottom+160>window.innerHeight){top=r.top-8+window.scrollY;tip.style.transform='translateY(-100%) scale(1)'}
+  else{tip.style.transform=''}
+  left=Math.max(8,Math.min(left,window.innerWidth-tw-8));
+  tip.style.left=left+'px';
+  tip.style.top=top+'px';
+}
+function hideTip(){tipTimeout=setTimeout(()=>{tip.classList.remove('visible')},100)}
+
+function row(label,val,color){return`<div class="tooltip-row"><span>${label}</span><span class="tval" style="color:${color||'var(--fg)'}">${val}</span></div>`}
+
+function showPipelineTip(el,label,count,sub){
+  showTip(el,`<div class="tooltip-title">${label}</div>${row('Count',count)}<div style="font-size:11px;color:var(--muted);margin-top:4px">${sub}</div>`)
+}
+function showAgeTip(el,label,d){
+  const total=d.open+d.inprog+d.hold;
+  showTip(el,`<div class="tooltip-title">${label}</div>${row('Open',d.open,'#3b82f6')}${row('In Progress',d.inprog,'#8b5cf6')}${row('On Hold',d.hold,'#d97706')}<div style="height:1px;background:var(--border);margin:8px 0"></div>${row('Total',total)}`)
+}
+function showDonutTip(el,label,count,color){
+  const pct=Math.round(count/34*100);
+  showTip(el,`<div class="tooltip-title" style="color:${color}">${label}</div>${row('Count',count,color)}${row('Share',pct+'%',color)}`)
+}
+function showSparkTip(el,month,score){
+  const color=score>=80?'#059669':score>=70?'#d97706':'#dc2626';
+  showTip(el,`<div class="tooltip-title">${month} 2025/26</div>${row('Avg Score',score+'%',color)}`)
+}
+function showBudgetTip(el,name,actual,budget,status){
+  const pct=Math.round(actual/budget*100);
+  const rem=(budget-actual).toLocaleString();
+  const color=pct>=100?'#dc2626':pct>=85?'#d97706':'#059669';
+  showTip(el,`<div class="tooltip-title">${name}</div>${row('Budget','$'+budget.toLocaleString())}${row('Actual','$'+actual.toLocaleString(),color)}${row('Remaining','$'+rem)}${row('Utilization',pct+'%',color)}`)
+}
+function showGanttTip(el,name,start,end,status,budget){
+  showTip(el,`<div class="tooltip-title">${name}</div>${row('Start',start)}${row('End',end)}${row('Budget used',budget)}${row('Status',status)}`)
+}
+function showWorkloadTip(el,name,count){
+  const warn=count>=7?'Overloaded':count>=5?'Heavy':'Healthy';
+  const color=count>=7?'#dc2626':count>=5?'#d97706':'#059669';
+  showTip(el,`<div class="tooltip-title">${name}</div>${row('Open WOs',count,color)}${row('Status',warn,color)}`)
+}
+function showPothTip(el,label,val){
+  showTip(el,`<div class="tooltip-title">${label}</div>${row('Count',val)}`)
+}
+
+/*──────────────────────────────────────
+  ANIMATED BAR FILLS (IntersectionObserver)
+──────────────────────────────────────*/
+function animateBars(){
+  document.querySelectorAll('[data-target]').forEach(el=>{
+    el.style.width=el.dataset.target+'%';
+  });
+  // Gantt bars: use data-left and data-width
+  document.querySelectorAll('.gantt-bar').forEach(b=>{
+    b.style.left=b.dataset.left+'%';
+    b.style.width=b.dataset.width+'%';
+  });
+}
+// Fire after a short delay so CSS transitions play visibly
+setTimeout(animateBars,200);
+
+/*──────────────────────────────────────
+  LEAFLET MAP
+──────────────────────────────────────*/
+const projects=[
+  {lat:18.3888,lng:-66.1103,name:'PR-177 Resurfacing',       color:'#3b82f6',status:'In Progress'},
+  {lat:18.3752,lng:-66.1158,name:'Frailes Park',             color:'#8b5cf6',status:'In Progress'},
+  {lat:18.3712,lng:-66.1040,name:'Pueblo Viejo Water',        color:'#f59e0b',status:'Blocked'},
+  {lat:18.3834,lng:-66.1181,name:'Ave San Miguel ADA',        color:'#dc2626',status:'Overdue'},
+  {lat:18.3668,lng:-66.0921,name:'PR-167 Flooding',           color:'#d97706',status:'At Risk'},
+  {lat:18.4001,lng:-66.1055,name:'Camarones Stormwater',     color:'#059669',status:'In Progress'},
+  {lat:18.3578,lng:-66.0842,name:'Sonadora Community Ctr',   color:'#ea580c',status:'In Progress'},
+  {lat:18.3891,lng:-66.0988,name:'Guaraguao School Zone',    color:'#059669',status:'In Progress'},
+  {lat:18.4088,lng:-66.0894,name:'Mamey Sports Complex',     color:'#6366f1',status:'Planning'},
+  {lat:18.3635,lng:-66.1202,name:'Hato Nuevo Road',           color:'#64748b',status:'Planning'},
+];
+
+window.addEventListener('load',()=>{
+  const map=L.map('map-widget',{
+    center:[18.387,-66.105],zoom:12,
+    zoomControl:true,attributionControl:false,
+  });
+  window._map=map;
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);
+
+  projects.forEach(p=>{
+    const icon=L.divIcon({
+      html:`<div class="project-marker" style="background:${p.color};border-color:rgba(255,255,255,.9)">${p.name.slice(0,2).toUpperCase()}</div>`,
+      className:'',iconSize:[28,28],iconAnchor:[14,14],
+    });
+    L.marker([p.lat,p.lng],{icon}).addTo(map)
+      .bindPopup(`<b style="font-size:12px">${p.name}</b><br><span style="font-size:11px;color:#64748b">${p.status}</span>`);
+  });
+});
+
+/*──────────────────────────────────────
+  PIPELINE SEGMENT HOVER ANIMATION
+  On hover of age bucket, animate the
+  pipeline bars to show that age bucket's breakdown
+──────────────────────────────────────*/
+const origWidths={open:'32%',inprog:'38%',onhold:'15%',closed:'15%'};
+function showAgeTipAndAnimate(el,label,d){
+  showAgeTip(el,label,d);
+  const total=d.open+d.inprog+d.hold;
+  if(total===0)return;
+  const segs=document.querySelectorAll('.pipeline-seg');
+  const openW=Math.round(d.open/total*100)+'%';
+  const inpW =Math.round(d.inprog/total*100)+'%';
+  const holdW=Math.round(d.hold/total*100)+'%';
+  segs[0].style.transition='width .4s cubic-bezier(.22,.68,0,1.1)';
+  segs[1].style.transition='width .4s cubic-bezier(.22,.68,0,1.1)';
+  segs[2].style.transition='width .4s cubic-bezier(.22,.68,0,1.1)';
+  segs[3].style.transition='width .4s cubic-bezier(.22,.68,0,1.1)';
+  segs[0].style.width=d.open>0?openW:'4px';
+  segs[1].style.width=d.inprog>0?inpW:'4px';
+  segs[2].style.width=d.hold>0?holdW:'4px';
+  segs[3].style.width='0px';
+}
+function resetPipeline(){
+  hideTip();
+  const segs=document.querySelectorAll('.pipeline-seg');
+  segs[0].style.width=origWidths.open;
+  segs[1].style.width=origWidths.inprog;
+  segs[2].style.width=origWidths.onhold;
+  segs[3].style.width=origWidths.closed;
+}
+
+// Reassign age bucket events to use the animate version
+document.addEventListener('DOMContentLoaded',()=>{
+  const buckets=document.querySelectorAll('.age-bucket');
+  const data=[
+    {label:'0–7 days',  d:{open:10,inprog:6, hold:0}},
+    {label:'7–30 days', d:{open:1, inprog:5, hold:3}},
+    {label:'30–60 days',d:{open:0, inprog:2, hold:4}},
+    {label:'60+ days',  d:{open:0, inprog:0, hold:3}},
+  ];
+  buckets.forEach((b,i)=>{
+    b.addEventListener('mouseenter',(e)=>showAgeTipAndAnimate(e.currentTarget,data[i].label,data[i].d));
+    b.addEventListener('mouseleave',resetPipeline);
+  });
+});
+</script>
+</body>
+</html>

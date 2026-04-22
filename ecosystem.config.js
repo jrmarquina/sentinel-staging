@@ -1,0 +1,42 @@
+module.exports = {
+  apps: [
+    {
+      name: 'sentinel-mpw',
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start',
+      cwd: '/srv/sentinel/municipal-public-works/apps/web',
+      instances: 1,
+      exec_mode: 'fork',
+      watch: false,
+      max_memory_restart: '512M',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3001,
+      },
+      error_file: '/srv/sentinel/logs/mpw-error.log',
+      out_file: '/srv/sentinel/logs/mpw-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+      restart_delay: 5000,
+      max_restarts: 10,
+    },
+    {
+      name: 'sentinel-mpw-staging',
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start',
+      cwd: '/srv/sentinel/staging/municipal-public-works/apps/web',
+      instances: 1,
+      exec_mode: 'fork',
+      watch: false,
+      max_memory_restart: '384M',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3002,
+      },
+      error_file: '/srv/sentinel/logs/staging-error.log',
+      out_file: '/srv/sentinel/logs/staging-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+      restart_delay: 5000,
+      max_restarts: 10,
+    },
+  ],
+}

@@ -1,0 +1,74 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm typecheck
+
+  deploy:
+    name: Deploy
+    needs: typecheck
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            REPO_DIR="/srv/sentinel/municipal-public-works"
+            cd "$REPO_DIR"
+
+            # Pull latest code
+            git pull origin main
+
+            # Install dependencies
+            pnpm install --frozen-lockfile
+
+            # Build
+            pnpm --filter web build
+
+            # Reload PM2 process (zero-downtime)
+            if pm2 describe sentinel-mpw > /dev/null 2>&1; then
+              pm2 reload sentinel-mpw --update-env
+            else
+              pm2 start "$REPO_DIR/ecosystem.config.js" --only sentinel-mpw
+            fi
+            pm2 save
+
+            # Verify health
+            sleep 10
+            curl -sf http://localhost:3001/api/health || exit 1
+
+            echo "Deploy complete"

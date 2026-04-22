@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sentinel — Calendar Views Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+/* ── Brand typography (Avenir-Next feel via Plus Jakarta Sans) ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Plus Jakarta Sans', 'Avenir Next', 'Helvetica Neue', system-ui, sans-serif; }
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+/* ══ THEME DEFINITIONS ══════════════════════════════════════════════════════ */
+
+/* Theme A – Dark Command (v2 Sentinel DNA) */
+.t-a {
+  --bg:       #020817;
+  --bg2:      #0f172a;
+  --surface:  rgba(30,41,59,0.5);
+  --surface2: rgba(15,23,42,0.8);
+  --border:   rgba(148,163,184,0.1);
+  --border2:  rgba(148,163,184,0.2);
+  --text:     #f8fafc;
+  --muted:    #94a3b8;
+  --accent:   #38bdf8;
+  --accent2:  #0ea5e9;
+  --green:    #34d399;
+  --amber:    #fbbf24;
+  --red:      #fb7185;
+  --purple:   #a78bfa;
+  --sidebar:  #020817;
+  --sidebar-border: rgba(148,163,184,0.08);
+  --header:   #0f172a;
+  --glow:     rgba(56,189,248,0.15);
+}
+
+/* Theme C – Bold Executive (dark sidebar, white content) */
+.t-c {
+  --bg:       #f1f5f9;
+  --bg2:      #e2e8f0;
+  --surface:  #ffffff;
+  --surface2: #f8fafc;
+  --border:   #e2e8f0;
+  --border2:  #cbd5e1;
+  --text:     #0f172a;
+  --muted:    #64748b;
+  --accent:   #2563eb;
+  --accent2:  #1d4ed8;
+  --green:    #059669;
+  --amber:    #d97706;
+  --red:      #dc2626;
+  --purple:   #7c3aed;
+  --sidebar:  #0f172a;
+  --sidebar-border: rgba(255,255,255,0.07);
+  --header:   #ffffff;
+  --glow:     rgba(37,99,235,0.08);
+}
+
+/* ── Base layout ── */
+.shell { display: flex; height: 100vh; overflow: hidden; background: var(--bg); }
+
+/* ── Sidebar (always dark navy — brand identity) ── */
+.sidebar {
+  width: 220px; flex-shrink: 0; background: var(--sidebar);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex; flex-direction: column; padding: 0;
+}
+.sidebar-logo {
+  display: flex; align-items: center; gap: 10px;
+  padding: 20px 18px 16px; border-bottom: 1px solid var(--sidebar-border);
+}
+.logo-icon {
+  width: 32px; height: 32px; border-radius: 8px; background: var(--accent);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.logo-text-main { color: #fff; font-size: 13px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
+.logo-text-sub  { color: rgba(148,163,184,0.6); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; margin-top: 2px; }
+
+nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.nav-item {
+  display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 8px;
+  font-size: 13px; font-weight: 600; color: rgba(148,163,184,0.7); cursor: pointer;
+  transition: all 0.15s; position: relative;
+}
+.nav-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+.nav-item.active { background: rgba(56,189,248,0.12); color: var(--accent); border: 1px solid rgba(56,189,248,0.2); }
+.t-c .nav-item.active { background: rgba(37,99,235,0.15); color: #60a5fa; border-color: rgba(37,99,235,0.25); }
+.nav-badge {
+  margin-left: auto; font-size: 10px; font-weight: 700; padding: 1px 5px;
+  border-radius: 4px; background: var(--red); color: white; font-family: 'JetBrains Mono', monospace;
+}
+.nav-badge.amber { background: var(--amber); color: #1c1917; }
+.sidebar-org { padding: 14px 18px; border-top: 1px solid var(--sidebar-border); }
+.sidebar-org-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(148,163,184,0.4); margin-bottom: 2px; }
+.sidebar-org-name  { font-size: 12px; font-weight: 700; color: rgba(148,163,184,0.7); }
+
+/* ── Main area ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Top header ── */
+.topbar {
+  height: 56px; flex-shrink: 0; background: var(--header);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+}
+.t-a .topbar { border-bottom: 1px solid var(--border2); }
+.page-title  { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+.page-sub    { font-size: 11px; color: var(--muted); margin-top: 1px; font-weight: 500; }
+
+/* View switcher pill */
+.view-switcher { display: flex; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 3px; gap: 2px; }
+.t-a .view-switcher { background: rgba(15,23,42,0.8); }
+.view-btn {
+  padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 700;
+  cursor: pointer; color: var(--muted); transition: all 0.15s; border: none; background: transparent;
+  font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.01em;
+}
+.view-btn.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px var(--glow); }
+.t-c .view-btn.active { color: #fff; }
+
+/* ── Content ── */
+.content { flex: 1; overflow-y: auto; padding: 20px 24px 32px; }
+
+/* ── Cards ── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden;
+}
+.t-a .card { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+}
+.card-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); }
+.card-sub   { font-size: 10px; color: var(--muted); font-weight: 500; margin-top: 2px; letter-spacing: 0.02em; }
+
+/* ── Month calendar ── */
+.month-grid { display: grid; grid-template-columns: repeat(7,1fr); }
+.month-dow {
+  padding: 8px 4px; text-align: center; font-size: 9px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.month-day {
+  min-height: 82px; padding: 6px 8px; border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.12s;
+  position: relative;
+}
+.month-day:hover { background: var(--glow); }
+.month-day.today { background: rgba(56,189,248,0.06); }
+.t-c .month-day.today { background: rgba(37,99,235,0.04); }
+.month-day.other-month .day-num { color: var(--border2); }
+.day-num {
+  font-size: 12px; font-weight: 700; color: var(--text); line-height: 1;
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 6px;
+}
+.day-num.today-circle { background: var(--accent); color: #fff; border-radius: 50%; }
+.day-events { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.day-event {
+  font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  letter-spacing: 0.01em;
+}
+.ev-contract { background: rgba(56,189,248,0.15); color: var(--accent); }
+.t-c .ev-contract { background: #dbeafe; color: #1d4ed8; }
+.ev-wo       { background: rgba(251,191,36,0.15); color: var(--amber); }
+.t-c .ev-wo  { background: #fef9c3; color: #a16207; }
+.ev-insp     { background: rgba(167,139,250,0.15); color: var(--purple); }
+.t-c .ev-insp { background: #ede9fe; color: #5b21b6; }
+.ev-deadline { background: rgba(251,113,133,0.15); color: var(--red); }
+.t-c .ev-deadline { background: #fee2e2; color: #b91c1c; }
+
+/* Heatmap dots */
+.heat-dots { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 5px; }
+.heat-dot  { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Gantt Chart ── */
+.gantt-wrapper { overflow-x: auto; }
+.gantt-header { display: flex; border-bottom: 1px solid var(--border); }
+.gantt-label-col { width: 200px; flex-shrink: 0; padding: 8px 14px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); border-right: 1px solid var(--border); }
+.gantt-timeline { flex: 1; display: flex; min-width: 700px; }
+.gantt-month { flex: 1; padding: 8px 10px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); border-right: 1px solid var(--border); text-align: center; }
+
+.gantt-row { display: flex; align-items: center; border-bottom: 1px solid var(--border); min-height: 52px; }
+.gantt-row:last-child { border-bottom: none; }
+.gantt-row-label { width: 200px; flex-shrink: 0; padding: 10px 14px; border-right: 1px solid var(--border); }
+.gantt-row-num    { font-size: 9px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--muted); margin-bottom: 2px; letter-spacing: 0.04em; }
+.gantt-row-title  { font-size: 11px; font-weight: 700; color: var(--text); line-height: 1.3; }
+.gantt-row-meta   { font-size: 9px; color: var(--muted); margin-top: 2px; font-weight: 500; }
+.gantt-bar-area   { flex: 1; position: relative; padding: 10px 0; min-width: 700px; }
+.gantt-today-line {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  background: var(--red); opacity: 0.7; z-index: 2;
+}
+.gantt-today-label {
+  position: absolute; top: 3px; font-size: 8px; font-weight: 800;
+  color: var(--red); white-space: nowrap; font-family: 'JetBrains Mono', monospace;
+  transform: translateX(-50%);
+}
+.gantt-bar {
+  position: absolute; height: 26px; border-radius: 5px;
+  display: flex; align-items: center; padding: 0 8px;
+  font-size: 9px; font-weight: 700; color: #fff; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+  transition: filter 0.15s, transform 0.15s;
+  top: 50%; transform: translateY(-50%);
+}
+.gantt-bar:hover { filter: brightness(1.15); transform: translateY(-50%) scaleY(1.05); }
+.gantt-bar.overdue { background: linear-gradient(90deg, var(--red), rgba(251,113,133,0.6)) !important; }
+.gantt-bar.active   { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+.gantt-bar.t-c-active { background: linear-gradient(90deg, #2563eb, #1d4ed8) !important; }
+.gantt-bar.pending  { background: linear-gradient(90deg, var(--amber), rgba(251,191,36,0.7)); color: #1c1917; }
+.gantt-bar.draft    { background: rgba(148,163,184,0.2); color: var(--muted); border: 1px dashed var(--border2); }
+
+/* Milestone diamonds */
+.milestone {
+  position: absolute; width: 12px; height: 12px;
+  background: var(--red); transform: translateY(-50%) rotate(45deg);
+  border: 2px solid var(--bg); cursor: pointer; z-index: 3;
+  top: 50%; transition: transform 0.15s;
+}
+.milestone:hover { transform: translateY(-50%) rotate(45deg) scale(1.3); }
+
+/* ── Week view ── */
+.week-grid { display: grid; grid-template-columns: 56px repeat(7, 1fr); }
+.week-time-col { font-size: 9px; font-weight: 700; color: var(--muted); text-align: right; padding-right: 8px; font-family: 'JetBrains Mono', monospace; }
+.week-day-header { padding: 8px 6px; text-align: center; border-left: 1px solid var(--border); }
+.week-dow   { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.week-date  { font-size: 18px; font-weight: 900; letter-spacing: -0.03em; margin-top: 2px; color: var(--text); line-height: 1; }
+.week-date.today-w { color: var(--accent); }
+.week-row   { display: contents; }
+.week-cell  { min-height: 54px; border-left: 1px solid var(--border); border-top: 1px solid var(--border); position: relative; padding: 2px; }
+.week-time-label { min-height: 54px; display: flex; align-items: flex-start; padding-top: 4px; border-top: 1px solid var(--border); }
+.week-event {
+  font-size: 9px; font-weight: 700; padding: 3px 6px; border-radius: 4px;
+  margin: 1px; letter-spacing: 0.01em; line-height: 1.3;
+  border-left: 3px solid transparent; cursor: pointer;
+}
+.week-event.contract { background: rgba(56,189,248,0.12); border-color: var(--accent); color: var(--accent); }
+.t-c .week-event.contract { background: #dbeafe; border-color: #2563eb; color: #1e40af; }
+.week-event.wo       { background: rgba(251,191,36,0.12); border-color: var(--amber); color: var(--amber); }
+.t-c .week-event.wo  { background: #fef9c3; border-color: #d97706; color: #92400e; }
+.week-event.insp     { background: rgba(167,139,250,0.12); border-color: var(--purple); color: var(--purple); }
+.t-c .week-event.insp { background: #ede9fe; border-color: #7c3aed; color: #4c1d95; }
+.week-event.deadline { background: rgba(251,113,133,0.12); border-color: var(--red); color: var(--red); }
+.t-c .week-event.deadline { background: #fee2e2; border-color: #dc2626; color: #991b1b; }
+
+/* All-day row */
+.week-allday {
+  font-size: 9px; font-weight: 700; padding: 2px 4px; margin: 1px; border-radius: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── Agenda view ── */
+.agenda-group { margin-bottom: 24px; }
+.agenda-date-header {
+  display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--border2);
+}
+.agenda-dow   { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.agenda-day   { font-size: 28px; font-weight: 900; letter-spacing: -0.04em; color: var(--text); line-height: 1; }
+.agenda-month { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.agenda-today-tag { font-size: 9px; font-weight: 800; padding: 2px 7px; background: var(--accent); color: #fff; border-radius: 4px; margin-left: 4px; letter-spacing: 0.05em; }
+.agenda-event {
+  display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  margin-bottom: 6px; cursor: pointer; transition: border-color 0.15s;
+}
+.agenda-event:hover { border-color: var(--border2); }
+.agenda-type-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.agenda-event-num { font-size: 9px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--muted); }
+.agenda-event-title { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+.agenda-event-sub { font-size: 10px; color: var(--muted); margin-top: 2px; font-weight: 500; }
+.agenda-event-tags { display: flex; gap: 4px; margin-top: 5px; flex-wrap: wrap; }
+.agenda-tag {
+  font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+/* ── Legend ── */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.legend-bar { width: 14px; height: 6px; border-radius: 2px; flex-shrink: 0; }
+
+/* ── Theme toggle bar ── */
+.theme-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+  background: #020817; border-bottom: 1px solid rgba(148,163,184,0.1);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 20px; gap: 12px;
+}
+.theme-bar-logo { display: flex; align-items: center; gap: 8px; }
+.theme-bar-label { color: rgba(148,163,184,0.5); font-size: 11px; font-weight: 600; }
+.theme-bar-title { color: #fff; font-size: 13px; font-weight: 800; letter-spacing: -0.02em; }
+.theme-btn {
+  padding: 5px 14px; border-radius: 6px; font-size: 11px; font-weight: 700;
+  cursor: pointer; border: 1px solid rgba(148,163,184,0.2); background: transparent;
+  color: rgba(148,163,184,0.6); transition: all 0.15s; font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.theme-btn.active { background: var(--accent,#38bdf8); color: #fff; border-color: transparent; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+
+.today-indicator {
+  position: absolute; left: 0; right: 0; height: 2px; background: var(--red);
+  opacity: 0.6; pointer-events: none;
+}
+</style>
+</head>
+<body style="margin:0;padding-top:44px">
+
+<!-- ══ THEME + VIEW CONTROL BAR ══════════════════════════════════════════════ -->
+<div class="theme-bar">
+  <div class="theme-bar-logo">
+    <div style="width:26px;height:26px;background:#38bdf8;border-radius:6px;display:flex;align-items:center;justify-content:center">
+      <svg width="14" height="14" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+    </div>
+    <span class="theme-bar-title">Sentinel Calendar Preview</span>
+    <span class="theme-bar-label">— Guaynabo Public Works · April 2026</span>
+  </div>
+
+  <div style="display:flex;gap:8px;align-items:center">
+    <!-- Theme buttons -->
+    <div style="display:flex;gap:4px;margin-right:8px;border-right:1px solid rgba(148,163,184,0.15);padding-right:12px">
+      <button class="theme-btn active" id="btn-ta" onclick="setTheme('a')">🌑 Dark Command</button>
+      <button class="theme-btn" id="btn-tc" onclick="setTheme('c')">⚡ Bold Executive</button>
+    </div>
+    <!-- View buttons -->
+    <div style="display:flex;gap:4px">
+      <button class="theme-btn active" id="vbtn-month" onclick="setView('month')" style="color:#fff;background:#38bdf8;border-color:transparent">Month / Heatmap</button>
+      <button class="theme-btn" id="vbtn-gantt" onclick="setView('gantt')">Gantt / Timeline</button>
+      <button class="theme-btn" id="vbtn-week"  onclick="setView('week')">Week View</button>
+      <button class="theme-btn" id="vbtn-agenda" onclick="setView('agenda')">Agenda</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SHELL ══════════════════════════════════════════════════════════════════ -->
+<div class="shell t-a" id="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg width="16" height="16" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+      </div>
+      <div><div class="logo-text-main">Sentinel</div><div class="logo-text-sub">Public Works</div></div>
+    </div>
+    <nav>
+      <div class="nav-item">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Work Orders
+        <span class="nav-badge">12</span>
+      </div>
+      <div class="nav-item">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        Potholes
+      </div>
+      <div class="nav-item">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2m-6 9l2 2 4-4"/></svg>
+        Inspections
+      </div>
+      <div class="nav-item active">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Calendar
+      </div>
+      <div class="nav-item">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Contracts
+        <span class="nav-badge amber">2</span>
+      </div>
+      <div class="nav-item">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        Team
+      </div>
+    </nav>
+    <div class="sidebar-org">
+      <div class="sidebar-org-label">Municipality of</div>
+      <div class="sidebar-org-name">Guaynabo, PR</div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div>
+        <div class="page-title">Calendar</div>
+        <div class="page-sub">April 2026 · 47 open work orders · 8 active contracts</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <!-- Month nav -->
+        <div style="display:flex;align-items:center;gap:6px">
+          <button style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span style="font-size:12px;font-weight:800;color:var(--text);min-width:80px;text-align:center;letter-spacing:-0.01em">April 2026</span>
+          <button style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <button style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:0.02em;font-family:'Plus Jakarta Sans',sans-serif">
+          + New Event
+        </button>
+        <!-- Legend -->
+        <div class="legend" style="margin-left:8px">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Contract</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>Work Order</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div>Inspection</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Deadline</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content" id="content">
+      <!-- Views rendered by JS -->
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Data ───────────────────────────────────────────────────────────────────────
+const TODAY = { month: 4, day: 7 }; // April 7, 2026
+
+// Events keyed by [month][day]
+const EVENTS = {
+  // April
+  4: {
+    1:  [{ type:'contract', label:'CT-2026-0002 Start', num:'CT-0002', title:'Drainage — Urb. Los Lagos', sub:'Contract start' }],
+    3:  [{ type:'wo', label:'WO-0031 Due', num:'WO-0031', title:'Signal repair — PR-20', sub:'P2 · Due today' }],
+    7:  [
+          { type:'wo', label:'WO-0019 Overdue', num:'WO-0019', title:'Pothole — Ave. Las Cumbres', sub:'P1 · 3 days overdue' },
+          { type:'insp', label:'Bridge Inspection', num:'INSP-014', title:'Bridge — Río Bayamón', sub:'Monthly structural' },
+          { type:'insp', label:'Road Inspection', num:'INSP-015', title:'Ave. Las Cumbres', sub:'PCI assessment' },
+        ],
+    10: [{ type:'contract', label:'CT-2026-0003 Start', num:'CT-0003', title:'Bridge Inspection', sub:'Contract start' }],
+    14: [
+          { type:'insp', label:'Drainage Inspection', num:'INSP-016', title:'Urb. Los Lagos drains', sub:'Bi-weekly check' },
+          { type:'wo', label:'WO-0044 Due', num:'WO-0044', title:'Line marking — Los Lagos', sub:'P3 · Due today' },
+        ],
+    18: [{ type:'meeting', label:'Staff Meeting', num:'MTG-001', title:'Q2 Planning Meeting', sub:'9:00 AM · All supervisors' }],
+    20: [{ type:'deadline', label:'CT-0004 DEADLINE', num:'CT-0004', title:'Sidewalk Repair — C. España', sub:'⚠ Contract end — OVERDUE' }],
+    21: [
+          { type:'insp', label:'Storm drain check', num:'INSP-017', title:'System-wide storm drains', sub:'Post-rain inspection' },
+          { type:'wo', label:'WO-0012 Escalate', num:'WO-0012', title:'Water main — C. España', sub:'P1 · 21 days overdue' },
+        ],
+    25: [
+          { type:'contract', label:'CT-0006 Meeting', num:'CT-0006', title:'Park Lighting bid opening', sub:'Sealed bid review — 2:00 PM' },
+          { type:'wo', label:'WO-0027 Due', num:'WO-0027', title:'Drainage — C. Gautier', sub:'P2 · Due today' },
+        ],
+    28: [{ type:'insp', label:'Road inspection', num:'INSP-018', title:'PR-20 Segment A pavement', sub:'Monthly PCI scoring' }],
+    30: [{ type:'contract', label:'Bid Deadline', num:'CT-0005', title:'Line Marking contract bid', sub:'Sealed bids close 5:00 PM' }],
+  },
+  // May
+  5: {
+    1:  [{ type:'contract', label:'CT-0005 Start', num:'CT-0005', title:'Line Marking — Las Cumbres', sub:'Contract activation' }],
+    5:  [{ type:'insp', label:'Quarterly review', num:'INSP-019', title:'Q2 infrastructure review', sub:'Full team · All day' }],
+    15: [{ type:'deadline', label:'CT-0003 End', num:'CT-0003', title:'Bridge Inspection contract', sub:'Contract closes' }],
+    25: [{ type:'deadline', label:'CT-0003 DEADLINE', num:'CT-0003', title:'Bridge Inspection', sub:'Final deliverable due' }],
+  }
+}
+
+function getEventsForDay(month, day) {
+  return (EVENTS[month] && EVENTS[month][day]) || [];
+}
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let currentTheme = 'a';
+let currentView  = 'month';
+
+// ── Theme ──────────────────────────────────────────────────────────────────────
+function setTheme(t) {
+  currentTheme = t;
+  const app = document.getElementById('app');
+  app.className = 'shell t-' + t;
+  ['a','c'].forEach(id => {
+    const b = document.getElementById('btn-t' + id);
+    b.style.background    = id === t ? '#38bdf8' : 'transparent';
+    b.style.color         = id === t ? '#fff' : 'rgba(148,163,184,0.6)';
+    b.style.borderColor   = id === t ? 'transparent' : 'rgba(148,163,184,0.2)';
+  });
+  renderView();
+}
+
+function setView(v) {
+  currentView = v;
+  ['month','gantt','week','agenda'].forEach(id => {
+    const b = document.getElementById('vbtn-' + id);
+    b.style.background  = id === v ? '#38bdf8' : 'transparent';
+    b.style.color       = id === v ? '#fff' : 'rgba(148,163,184,0.6)';
+    b.style.borderColor = id === v ? 'transparent' : 'rgba(148,163,184,0.2)';
+  });
+  renderView();
+}
+
+function renderView() {
+  const content = document.getElementById('content');
+  if (currentView === 'month')  content.innerHTML = renderMonth();
+  if (currentView === 'gantt')  content.innerHTML = renderGantt();
+  if (currentView === 'week')   content.innerHTML = renderWeek();
+  if (currentView === 'agenda') content.innerHTML = renderAgenda();
+}
+
+// ── TYPE COLORS ────────────────────────────────────────────────────────────────
+function typeColor(type) {
+  const map = {
+    contract: 'var(--accent)', wo: 'var(--amber)',
+    insp: 'var(--purple)', deadline: 'var(--red)',
+    meeting: 'var(--green)'
+  };
+  return map[type] || 'var(--muted)';
+}
+function typeBg(type) {
+  const map = {
+    contract: 'ev-contract', wo: 'ev-wo', insp: 'ev-insp',
+    deadline: 'ev-deadline', meeting: 'ev-insp'
+  };
+  return map[type] || '';
+}
+
+// ══ MONTH VIEW ════════════════════════════════════════════════════════════════
+function renderMonth() {
+  const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  // April 1, 2026 = Wednesday (day 3)
+  const firstDay = 3; // 0=Sun
+  const totalDays = 30;
+  const prevDays = [27,28,29,30,31]; // March trailing days
+
+  let html = `
+  <div class="card" style="overflow:visible">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Monthly Overview — Heatmap</div>
+        <div class="card-sub">Events density per day · Contract deadlines · Work order due dates · Scheduled inspections</div>
+      </div>
+    </div>
+    <div class="month-grid">
+  `;
+
+  // Day-of-week headers
+  days.forEach(d => { html += `<div class="month-dow">${d}</div>`; });
+
+  // Previous month filler
+  for (let i = 0; i < firstDay; i++) {
+    html += `<div class="month-day other-month"><div class="day-num">${prevDays[prevDays.length - firstDay + i]}</div></div>`;
+  }
+
+  // April days
+  for (let d = 1; d <= totalDays; d++) {
+    const isToday = d === TODAY.day;
+    const events  = getEventsForDay(4, d);
+    const heatLevel = events.length; // 0-4+
+
+    // Heatmap bg based on event count
+    const heatBg = heatLevel >= 3 ? 'rgba(56,189,248,0.1)' :
+                   heatLevel === 2 ? 'rgba(56,189,248,0.06)' :
+                   heatLevel === 1 ? 'rgba(56,189,248,0.02)' : '';
+
+    html += `<div class="month-day ${isToday ? 'today' : ''}" style="background:${isToday ? '' : heatBg}">`;
+    html += `<div class="day-num ${isToday ? 'today-circle' : ''}">${d}</div>`;
+
+    if (events.length > 0) {
+      html += `<div class="day-events">`;
+      events.slice(0, 2).forEach(ev => {
+        html += `<div class="day-event ${typeBg(ev.type)}">${ev.label}</div>`;
+      });
+      if (events.length > 2) {
+        html += `<div class="day-event" style="background:var(--border);color:var(--muted)">+${events.length-2} more</div>`;
+      }
+      html += `</div>`;
+
+      // Heatmap dots for all events
+      html += `<div class="heat-dots" style="margin-top:auto;position:absolute;bottom:4px;left:6px;right:6px">`;
+      events.forEach(ev => {
+        html += `<div class="heat-dot" style="background:${typeColor(ev.type)};opacity:0.6"></div>`;
+      });
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Filler for next month
+  const usedCells = firstDay + totalDays;
+  const fillCells = (7 - (usedCells % 7)) % 7;
+  for (let i = 1; i <= fillCells; i++) {
+    html += `<div class="month-day other-month"><div class="day-num">${i}</div></div>`;
+  }
+
+  html += `</div></div>`;
+  return html;
+}
+
+// ══ GANTT VIEW ════════════════════════════════════════════════════════════════
+// Range: Apr 1 – Jun 30, 2026 (91 days)
+const GANTT_START = 0;   // Apr 1
+const GANTT_TOTAL = 91;  // 3 months
+
+function dayOffset(month, day) {
+  // Apr=0-30, May=30-61, Jun=61-91
+  const offsets = { 4: 0, 5: 30, 6: 61 };
+  return offsets[month] + (day - 1);
+}
+
+function pct(offset) { return ((offset / GANTT_TOTAL) * 100).toFixed(2) + '%'; }
+function width(start, end) { return (((end - start) / GANTT_TOTAL) * 100).toFixed(2) + '%'; }
+
+const contracts = [
+  { num:'CT-2026-0001', title:'Road Resurfacing — PR-20 Seg.A', vendor:'Constructora Irizarry', start:[4,1], end:[7,15], status:'active' },
+  { num:'CT-2026-0002', title:'Drainage System — Urb. Los Lagos', vendor:'AquaPR Contractors', start:[3,15], end:[6,30], status:'active' },
+  { num:'CT-2026-0003', title:'Bridge Inspection — Río Bayamón', vendor:'Puentes & Co.', start:[4,10], end:[5,25], status:'active' },
+  { num:'CT-2026-0004', title:'Sidewalk Repair — Calle España', vendor:'ObraCivil PR LLC', start:[1,15], end:[4,20], status:'overdue' },
+  { num:'CT-2026-0005', title:'Line Marking — Ave. Las Cumbres', vendor:'TBD — Bid Open', start:[5,1], end:[8,1], status:'draft' },
+  { num:'CT-2026-0006', title:'Park Lighting — Parque Central', vendor:'LuzPR Electric', start:[4,5], end:[6,15], status:'pending' },
+  { num:'CT-2026-0007', title:'Drainage Maintenance Annual', vendor:'MantenimientoPR', start:[1,1], end:[12,31], status:'active' },
+];
+
+const milestones = [
+  { label:'Bid Close', month:4, day:30, color:'var(--amber)' },
+  { label:'Midpoint Review', month:5, day:15, color:'var(--purple)' },
+  { label:'Q2 Report', month:6, day:30, color:'var(--accent)' },
+];
+
+function renderGantt() {
+  const todayOffset = dayOffset(4, 7); // April 7
+  const todayPct    = ((todayOffset / GANTT_TOTAL) * 100).toFixed(2);
+
+  let html = `
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Contract Gantt — Project Timeline</div>
+        <div class="card-sub">Apr 1 – Jun 30, 2026 · Active, pending &amp; upcoming contracts · Red line = today</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div class="legend-item"><div class="legend-bar" style="background:var(--accent)"></div> Active</div>
+        <div class="legend-item"><div class="legend-bar" style="background:var(--amber)"></div> Pending</div>
+        <div class="legend-item"><div class="legend-bar" style="background:var(--red)"></div> Overdue</div>
+        <div class="legend-item"><div class="legend-bar" style="background:var(--border2)"></div> Draft</div>
+      </div>
+    </div>
+    <div class="gantt-wrapper">
+      <div class="gantt-header">
+        <div class="gantt-label-col">CONTRACT</div>
+        <div class="gantt-timeline">
+          <div class="gantt-month">April 2026</div>
+          <div class="gantt-month">May 2026</div>
+          <div class="gantt-month">June 2026</div>
+        </div>
+      </div>
+  `;
+
+  contracts.forEach(ct => {
+    const startOff = Math.max(0, dayOffset(ct.start[0], ct.start[1]));
+    const endOff   = Math.min(GANTT_TOTAL, Math.max(0,
+      ct.end[0] === 7 ? GANTT_TOTAL : dayOffset(ct.end[0], ct.end[1])
+    ));
+    const left  = pct(startOff);
+    const w     = width(startOff, endOff);
+    const barClass = ct.status === 'overdue' ? 'gantt-bar overdue' :
+                     ct.status === 'pending' ? 'gantt-bar pending' :
+                     ct.status === 'draft'   ? 'gantt-bar draft' :
+                     'gantt-bar active';
+
+    html += `
+    <div class="gantt-row">
+      <div class="gantt-row-label">
+        <div class="gantt-row-num">${ct.num}</div>
+        <div class="gantt-row-title">${ct.title}</div>
+        <div class="gantt-row-meta">${ct.vendor}</div>
+      </div>
+      <div class="gantt-bar-area" style="position:relative">
+        <!-- Today line -->
+        <div class="gantt-today-line" style="left:${todayPct}%"></div>
+    `;
+
+    // Month dividers (visual grid)
+    html += `<div style="position:absolute;top:0;bottom:0;left:${(30/91*100).toFixed(1)}%;width:1px;background:var(--border);opacity:0.5"></div>`;
+    html += `<div style="position:absolute;top:0;bottom:0;left:${(61/91*100).toFixed(1)}%;width:1px;background:var(--border);opacity:0.5"></div>`;
+
+    html += `<div class="${barClass}" style="left:${left};width:${w}">${ct.num.replace('CT-2026-','CT-')}</div>`;
+
+    html += `</div></div>`;
+  });
+
+  // Milestones row
+  html += `
+  <div class="gantt-row" style="background:rgba(0,0,0,0.03)">
+    <div class="gantt-row-label">
+      <div class="gantt-row-num">KEY DATES</div>
+      <div class="gantt-row-title">Milestones &amp; Deadlines</div>
+    </div>
+    <div class="gantt-bar-area" style="position:relative;min-height:52px">
+      <div class="gantt-today-line" style="left:${todayPct}%"></div>
+      <div class="gantt-today-label" style="left:${todayPct}%">TODAY</div>
+  `;
+  milestones.forEach(m => {
+    const off = dayOffset(m.month, m.day);
+    const lft = ((off / GANTT_TOTAL) * 100).toFixed(2);
+    html += `<div class="milestone" style="left:${lft}%;background:${m.color}" title="${m.label} — ${m.month}/${m.day}"></div>`;
+    html += `<div style="position:absolute;left:${lft}%;top:6px;font-size:8px;font-weight:700;color:${m.color};transform:translateX(-50%);white-space:nowrap;font-family:'JetBrains Mono',monospace">${m.label}</div>`;
+  });
+  html += `</div></div>`;
+
+  html += `</div></div>`;
+  return html;
+}
+
+// ══ WEEK VIEW ══════════════════════════════════════════════════════════════════
+// Week of April 6-12, 2026 (Mon–Sun)
+function renderWeek() {
+  const weekDays = [
+    { dow:'MON', date:6  },
+    { dow:'TUE', date:7, today:true },
+    { dow:'WED', date:8  },
+    { dow:'THU', date:9  },
+    { dow:'FRI', date:10 },
+    { dow:'SAT', date:11 },
+    { dow:'SUN', date:12 },
+  ];
+
+  const timeSlots = ['7 AM','8 AM','9 AM','10 AM','11 AM','12 PM','1 PM','2 PM','3 PM','4 PM','5 PM'];
+
+  // Scheduled time-based events: [day_index (0=Mon), time_row (0=7AM), duration_rows, type, title, num]
+  const timeEvents = [
+    { day:1, row:1, dur:1, type:'insp',     title:'Bridge Inspection — Río Bayamón', num:'INSP-014' },
+    { day:1, row:3, dur:2, type:'wo',       title:'WO-0019: Pothole repair field work', num:'WO-0019' },
+    { day:2, row:2, dur:1, type:'meeting',  title:'Weekly Ops Stand-up', num:'MTG-002' },
+    { day:2, row:5, dur:1, type:'insp',     title:'Road Assessment — Ave. Las Cumbres', num:'INSP-015' },
+    { day:3, row:0, dur:3, type:'wo',       title:'WO-0031: Signal repair crew on-site', num:'WO-0031' },
+    { day:4, row:4, dur:2, type:'contract', title:'CT-0003: Bridge Inspection review', num:'CT-0003' },
+    { day:5, row:2, dur:1, type:'wo',       title:'WO-0044: Line marking — Los Lagos', num:'WO-0044' },
+  ];
+
+  // All-day events
+  const allDayEvents = [
+    { day:1, type:'deadline', title:'CT-0004 Contract Expiry Warning', num:'CT-0004' },
+    { day:4, type:'contract', title:'CT-0003 Bridge Inspection Start', num:'CT-0003' },
+  ];
+
+  let html = `
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Week of April 6 – 12, 2026</div>
+        <div class="card-sub">Work orders · Contract events · Scheduled inspections · Meetings</div>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+  `;
+
+  // All-day row
+  html += `<div class="week-grid" style="border-bottom:2px solid var(--border2)">`;
+  html += `<div class="week-time-col" style="padding:6px 8px 4px;font-size:9px;font-weight:700;color:var(--muted);text-align:right;border-top:1px solid var(--border)">ALL DAY</div>`;
+  weekDays.forEach((d, i) => {
+    html += `<div class="week-day-header" style="min-height:50px">`;
+    html += `<div class="week-dow">${d.dow}</div>`;
+    html += `<div class="week-date ${d.today ? 'today-w' : ''}">${d.date}</div>`;
+    // All-day events
+    allDayEvents.filter(e => e.day === i).forEach(ev => {
+      html += `<div class="week-allday ${typeBg(ev.type)}" style="margin-top:3px" title="${ev.title}">${ev.num}: ${ev.title}</div>`;
+    });
+    html += `</div>`;
+  });
+  html += `</div>`;
+
+  // Time rows
+  timeSlots.forEach((slot, rowIdx) => {
+    html += `<div class="week-grid">`;
+    html += `<div class="week-time-label"><span class="week-time-col">${slot}</span></div>`;
+    weekDays.forEach((_, dayIdx) => {
+      html += `<div class="week-cell">`;
+      timeEvents.filter(e => e.day === dayIdx && e.row === rowIdx).forEach(ev => {
+        html += `<div class="week-event ${ev.type}" style="position:relative;min-height:${ev.dur*52}px;height:${ev.dur*52-4}px;overflow:hidden">
+          <div style="font-size:8px;opacity:0.7;font-family:'JetBrains Mono',monospace">${ev.num}</div>
+          <div>${ev.title}</div>
+        </div>`;
+      });
+      html += `</div>`;
+    });
+    html += `</div>`;
+  });
+
+  html += `</div></div>`;
+  return html;
+}
+
+// ══ AGENDA VIEW ═══════════════════════════════════════════════════════════════
+function renderAgenda() {
+  const days = [
+    { dow:'TUE', day:7,  month:'APR', today:true,
+      events:[
+        { type:'wo',       num:'WO-0019', title:'Pothole repair — Ave. Las Cumbres', sub:'P1 · 3 days overdue · Assigned: M. Cruz', tags:['P1','OVERDUE'] },
+        { type:'insp',     num:'INSP-014', title:'Bridge Inspection — Río Bayamón', sub:'Monthly structural · 9:00 AM', tags:['INSPECTION'] },
+        { type:'insp',     num:'INSP-015', title:'Road Assessment — Ave. Las Cumbres', sub:'PCI scoring · 1:00 PM', tags:['INSPECTION'] },
+      ]},
+    { dow:'WED', day:8,  month:'APR',
+      events:[
+        { type:'meeting',  num:'MTG-002', title:'Weekly Ops Stand-up', sub:'9:00 AM · All supervisors · Sala de Reuniones A', tags:['MEETING'] },
+        { type:'wo',       num:'WO-0031', title:'Signal repair crew — Int. PR-20', sub:'P2 · All day field work · Unassigned', tags:['P2','FIELD'] },
+      ]},
+    { dow:'THU', day:9,  month:'APR',
+      events:[
+        { type:'contract', num:'CT-2026-0003', title:'Bridge Inspection contract review', sub:'2:00 PM · Progress meeting · Week 1', tags:['CONTRACT'] },
+      ]},
+    { dow:'MON', day:14, month:'APR',
+      events:[
+        { type:'insp',     num:'INSP-016', title:'Drainage check — Urb. Los Lagos', sub:'Bi-weekly · Morning patrol', tags:['INSPECTION'] },
+        { type:'wo',       num:'WO-0044', title:'Line marking — Urb. Los Lagos', sub:'P3 · Due today · C. Ortiz', tags:['P3','DUE TODAY'] },
+      ]},
+    { dow:'FRI', day:18, month:'APR',
+      events:[
+        { type:'meeting',  num:'MTG-003', title:'Q2 Planning Meeting', sub:'9:00 AM · Alcaldía Sala Principal · All supervisors', tags:['MEETING','Q2'] },
+      ]},
+    { dow:'SUN', day:20, month:'APR',
+      events:[
+        { type:'deadline', num:'CT-2026-0004', title:'Sidewalk Repair — Calle España', sub:'⚠ CONTRACT EXPIRES — Final deliverable due', tags:['DEADLINE','URGENT'] },
+      ]},
+    { dow:'FRI', day:25, month:'APR',
+      events:[
+        { type:'contract', num:'CT-2026-0006', title:'Park Lighting bid opening — Parque Central', sub:'2:00 PM · Sealed bids opened · 3 vendors expected', tags:['BID OPENING'] },
+        { type:'wo',       num:'WO-0027', title:'Drainage — C. Gautier Benítez', sub:'P2 · Due today · J. Rivera', tags:['P2','DUE TODAY'] },
+      ]},
+    { dow:'WED', day:30, month:'APR',
+      events:[
+        { type:'deadline', num:'CT-2026-0005', title:'Line Marking contract — bid deadline', sub:'5:00 PM · Sealed bids close · Pre-bid meeting done', tags:['DEADLINE'] },
+      ]},
+    { dow:'FRI', day:5,  month:'MAY',
+      events:[
+        { type:'insp',     num:'INSP-019', title:'Q2 Infrastructure Review', sub:'All day · Full team · All sites', tags:['QUARTERLY'] },
+      ]},
+  ];
+
+  const tagStyle = (tag) => {
+    if (tag === 'OVERDUE' || tag === 'DEADLINE' || tag === 'URGENT') return `background:rgba(251,113,133,0.15);color:var(--red)`;
+    if (tag === 'P1')        return `background:rgba(251,113,133,0.15);color:var(--red)`;
+    if (tag === 'P2')        return `background:rgba(251,191,36,0.15);color:var(--amber)`;
+    if (tag === 'P3')        return `background:rgba(148,163,184,0.15);color:var(--muted)`;
+    if (tag === 'DUE TODAY') return `background:rgba(251,191,36,0.15);color:var(--amber)`;
+    if (tag === 'CONTRACT' || tag === 'BID OPENING') return `background:rgba(56,189,248,0.15);color:var(--accent)`;
+    if (tag === 'INSPECTION' || tag === 'QUARTERLY') return `background:rgba(167,139,250,0.15);color:var(--purple)`;
+    if (tag === 'MEETING')   return `background:rgba(52,211,153,0.15);color:var(--green)`;
+    return `background:var(--border);color:var(--muted)`;
+  };
+
+  let html = `<div style="max-width:720px;margin:0 auto">`;
+  days.forEach(day => {
+    html += `<div class="agenda-group">
+      <div class="agenda-date-header">
+        <span class="agenda-dow">${day.dow}</span>
+        <span class="agenda-day">${day.day}</span>
+        <span class="agenda-month">${day.month}</span>
+        ${day.today ? '<span class="agenda-today-tag">TODAY</span>' : ''}
+      </div>
+    `;
+    day.events.forEach(ev => {
+      html += `
+      <div class="agenda-event">
+        <div class="agenda-type-dot" style="background:${typeColor(ev.type)}"></div>
+        <div style="flex:1;min-width:0">
+          <div class="agenda-event-num">${ev.num}</div>
+          <div class="agenda-event-title">${ev.title}</div>
+          <div class="agenda-event-sub">${ev.sub}</div>
+          <div class="agenda-event-tags">
+            ${ev.tags.map(t => `<span class="agenda-tag" style="${tagStyle(t)}">${t}</span>`).join('')}
+          </div>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  renderView();
+});
+</script>
+</body>
+</html>

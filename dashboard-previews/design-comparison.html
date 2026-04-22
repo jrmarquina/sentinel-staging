@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dashboard Design Comparison — Shallow vs Deep</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'sans-serif'] },
+      colors: {
+        /* ── Civil Architect tokens ── */
+        ca: {
+          /* surfaces — light */
+          base:          '#f6fafe',
+          'section':     '#eef4fa',
+          'card':        '#ffffff',
+          'card-high':   '#ddeaf3',
+          'card-highest':'#d5e5ef',
+          /* surfaces — dark */
+          'd-base':      '#0d1117',
+          'd-section':   '#131b24',
+          'd-card':      '#1a2533',
+          'd-card-high': '#1f2e3d',
+          /* ink */
+          'ink':         '#26343d',
+          'ink-muted':   '#52616a',
+          'ink-faint':   '#a4b4be',
+          'd-ink':       '#e2eaf0',
+          'd-ink-muted': '#8fa4b4',
+          'd-ink-faint': '#4a5f6e',
+          /* primary */
+          'primary':     '#565e74',
+          'primary-dim': '#4a5268',
+          'primary-c':   '#dae2fd',
+          /* tertiary (teal-green = success) */
+          'teal':        '#006b62',
+          'teal-c':      '#91feef',
+          'd-teal':      '#00c4b4',
+          /* error */
+          'red':         '#9f403d',
+          'red-c':       '#fe8983',
+          'd-red':       '#ff7b78',
+          /* outline */
+          'border':      '#a4b4be',
+          'd-border':    '#2d3f4e',
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; }
+
+  /* ═══════════════════════════════════════════════
+     DEEP THEME — CSS vars so components stay clean
+  ═══════════════════════════════════════════════ */
+  .deep-light {
+    --base:       #f6fafe;
+    --section:    #eef4fa;
+    --card:       #ffffff;
+    --card-high:  #ddeaf3;
+    --ink:        #26343d;
+    --ink-muted:  #52616a;
+    --ink-faint:  #a4b4be;
+    --primary:    #565e74;
+    --primary-dim:#4a5268;
+    --primary-c:  #dae2fd;
+    --teal:       #006b62;
+    --teal-c:     #91feef;
+    --red:        #9f403d;
+    --red-c:      #fe8983;
+  }
+  .deep-dark {
+    --base:       #0d1117;
+    --section:    #131b24;
+    --card:       #1a2533;
+    --card-high:  #1f2e3d;
+    --ink:        #e2eaf0;
+    --ink-muted:  #8fa4b4;
+    --ink-faint:  #4a5f6e;
+    --primary:    #8fa4c4;
+    --primary-dim:#7a90b0;
+    --primary-c:  #1e3048;
+    --teal:       #00c4b4;
+    --teal-c:     #003d38;
+    --red:        #ff7b78;
+    --red-c:      #3d0f0e;
+  }
+
+  /* Deep theme utility classes */
+  .d-base     { background: var(--base); }
+  .d-section  { background: var(--section); }
+  .d-card     { background: var(--card); }
+  .d-card-high{ background: var(--card-high); }
+  .d-ink      { color: var(--ink); }
+  .d-ink-muted{ color: var(--ink-muted); }
+  .d-ink-faint{ color: var(--ink-faint); }
+  .d-primary  { color: var(--primary); }
+  .d-primary-bg{ background: var(--primary); }
+  .d-primary-grad { background: linear-gradient(135deg, var(--primary), var(--primary-dim)); }
+  .d-primary-c-bg { background: var(--primary-c); }
+  .d-teal     { color: var(--teal); }
+  .d-teal-bg  { background: var(--teal); }
+  .d-teal-c-bg{ background: var(--teal-c); }
+  .d-red      { color: var(--red); }
+  .d-red-c-bg { background: var(--red-c); }
+
+  .d-hover:hover { background: var(--card-high); }
+
+  /* Progress bar */
+  .progress-track { background: var(--card-high); border-radius: 999px; overflow: hidden; height: 6px; }
+  .progress-fill  { height: 100%; border-radius: 999px; }
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen p-6">
+
+<!-- ═══════════════════════════════════════════════════════
+     CONTROLS
+═══════════════════════════════════════════════════════ -->
+<div class="max-w-[1600px] mx-auto mb-6 flex items-center gap-4 flex-wrap">
+  <h1 class="text-lg font-black text-slate-800 tracking-tight mr-4">Dashboard Design Comparison</h1>
+  <button onclick="toggleMode()"
+    class="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors">
+    Toggle Dark Mode
+  </button>
+  <div class="ml-auto flex gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider items-center">
+    <span class="w-3 h-3 rounded bg-blue-400 inline-block"></span> Classic (current)
+    <span class="w-3 h-3 rounded bg-ca-primary inline-block ml-4" style="background:#565e74"></span> Shallow
+    <span class="w-3 h-3 rounded inline-block ml-4" style="background:linear-gradient(135deg,#565e74,#4a5268)"></span> Deep
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     THREE-COLUMN COMPARISON
+═══════════════════════════════════════════════════════ -->
+<div class="max-w-[1600px] mx-auto grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+  <!-- ══════════════════════════════════════════
+       COLUMN 1 — CLASSIC (current production)
+  ══════════════════════════════════════════ -->
+  <div id="classic-col" class="rounded-2xl overflow-hidden shadow-xl border border-slate-200">
+    <div class="bg-slate-700 text-white text-xs font-black uppercase tracking-widest px-4 py-2 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+      Classic — Current Production
+    </div>
+
+    <!-- Classic app shell -->
+    <div class="bg-white dark:bg-slate-950 min-h-screen">
+      <!-- Header -->
+      <div class="h-12 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center px-4 gap-3">
+        <div class="w-6 h-6 rounded bg-blue-600 flex items-center justify-center">
+          <div class="w-3 h-2 border-t-2 border-b-2 border-white"></div>
+        </div>
+        <span class="font-bold text-sm text-slate-800 dark:text-white">Sentinel Public Works</span>
+        <div class="ml-auto flex items-center gap-2">
+          <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+      </div>
+
+      <div class="flex">
+        <!-- Classic sidebar -->
+        <div class="w-48 min-h-screen bg-slate-900 p-3 flex-shrink-0">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold">
+              <div class="w-4 h-4 rounded bg-white/20"></div> Dashboard
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-400 text-xs">
+              <div class="w-4 h-4 rounded bg-slate-700"></div> Work Orders
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-400 text-xs">
+              <div class="w-4 h-4 rounded bg-slate-700"></div> Projects
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-400 text-xs">
+              <div class="w-4 h-4 rounded bg-slate-700"></div> Contracts
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-400 text-xs">
+              <div class="w-4 h-4 rounded bg-slate-700"></div> Map
+            </div>
+          </div>
+        </div>
+
+        <!-- Classic main content -->
+        <div class="flex-1 p-4 bg-slate-50 dark:bg-slate-950">
+          <h1 class="text-xl font-bold text-slate-900 dark:text-white mb-1">Good morning, Jorge</h1>
+          <p class="text-slate-500 text-xs mb-4">Here's what's happening in Guaynabo today.</p>
+
+          <!-- Quick links (bordered cards) -->
+          <div class="grid grid-cols-2 gap-2 mb-4">
+            <div class="flex items-center gap-2 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+              <div class="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0">
+                <div class="w-3 h-3 border-2 border-white rounded-sm"></div>
+              </div>
+              <span class="font-medium text-slate-700 dark:text-slate-200">Work Orders</span>
+            </div>
+            <div class="flex items-center gap-2 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+              <div class="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center flex-shrink-0">
+                <div class="w-3 h-3 border-2 border-white rounded-sm"></div>
+              </div>
+              <span class="font-medium text-slate-700 dark:text-slate-200">Projects</span>
+            </div>
+            <div class="flex items-center gap-2 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+              <div class="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                <div class="w-3 h-3 border-2 border-white rounded-sm"></div>
+              </div>
+              <span class="font-medium text-slate-700 dark:text-slate-200">Map View</span>
+            </div>
+            <div class="flex items-center gap-2 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+              <div class="w-7 h-7 rounded-lg bg-purple-500 flex items-center justify-center flex-shrink-0">
+                <div class="w-3 h-3 border-2 border-white rounded-sm"></div>
+              </div>
+              <span class="font-medium text-slate-700 dark:text-slate-200">Calendar</span>
+            </div>
+          </div>
+
+          <!-- Stats (bordered) -->
+          <div class="grid grid-cols-3 gap-2 mb-4">
+            <div class="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+              <p class="text-xl font-bold text-amber-500">47</p>
+              <p class="text-[10px] text-slate-500">Open Work Orders</p>
+            </div>
+            <div class="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+              <p class="text-xl font-bold text-slate-900 dark:text-white">12</p>
+              <p class="text-[10px] text-slate-500">Active Contracts</p>
+            </div>
+            <div class="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+              <p class="text-xl font-bold text-red-500">8</p>
+              <p class="text-[10px] text-slate-500">Active Potholes</p>
+            </div>
+          </div>
+
+          <!-- Needs Attention (bordered list) -->
+          <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 mb-4">
+            <div class="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <div class="w-4 h-4 text-red-500">⚠</div>
+              <span class="font-semibold text-slate-800 dark:text-white text-xs">Needs Attention</span>
+              <span class="ml-auto text-[10px] bg-red-100 text-red-600 font-medium px-2 py-0.5 rounded-full">6</span>
+            </div>
+            <div class="divide-y divide-slate-100 dark:divide-slate-800">
+              <div class="flex items-start gap-3 px-4 py-3">
+                <span class="mt-1.5 w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-mono text-slate-400">PRJ-2026-004</span>
+                    <span class="text-xs font-medium text-slate-800 dark:text-slate-100">Calle Montehiedra Resurfacing</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600">Project</span>
+                  </div>
+                  <p class="text-[10px] text-red-500 mt-0.5 font-medium">Overdue</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 px-4 py-3">
+                <span class="mt-1.5 w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-mono text-slate-400">WO-2026-0022</span>
+                    <span class="text-xs font-medium text-slate-800 dark:text-slate-100">Storm drain inspection</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">WO</span>
+                  </div>
+                  <p class="text-[10px] text-amber-500 mt-0.5 font-medium">Due soon · Blocked by Procurement</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 px-4 py-3">
+                <span class="mt-1.5 w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-mono text-slate-400">PRJ-2026-007</span>
+                    <span class="text-xs font-medium text-slate-800 dark:text-slate-100">Parque Nuevo Fence Repair</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600">Project</span>
+                  </div>
+                  <p class="text-[10px] text-red-500 mt-0.5 font-medium">Overdue · Blocked by Legal</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-[10px] text-slate-400 italic">Note: borders everywhere, blue accent, dark sidebar, standard utility spacing.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       COLUMN 2 — SHALLOW (same structure, new palette)
+  ══════════════════════════════════════════ -->
+  <div id="shallow-col" class="rounded-2xl overflow-hidden shadow-xl border border-slate-200">
+    <div class="text-white text-xs font-black uppercase tracking-widest px-4 py-2 flex items-center gap-2" style="background:#565e74">
+      <span class="w-2 h-2 rounded-full" style="background:#91feef"></span>
+      Shallow — Same structure, new palette
+    </div>
+
+    <!-- Shallow uses the SAME HTML structure as Classic, just different colors -->
+    <div style="background:#f6fafe" class="dark:bg-ca-d-base min-h-screen">
+
+      <!-- Header — same structure, ca-primary colors -->
+      <div class="h-12 flex items-center px-4 gap-3 border-b" style="background:#ffffff; border-color:#ddeaf3">
+        <div class="w-6 h-6 rounded flex items-center justify-center" style="background:#565e74">
+          <div class="w-3 h-2 border-t-2 border-b-2 border-white opacity-80"></div>
+        </div>
+        <span class="font-bold text-sm" style="color:#26343d">Sentinel Public Works</span>
+        <div class="ml-auto flex items-center gap-2">
+          <div class="w-6 h-6 rounded-full" style="background:#ddeaf3"></div>
+        </div>
+      </div>
+
+      <div class="flex">
+        <!-- Sidebar — ca-primary instead of slate-900 -->
+        <div class="w-48 min-h-screen p-3 flex-shrink-0" style="background:#dae2fd">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-white text-xs font-semibold" style="background:#565e74">
+              <div class="w-4 h-4 rounded opacity-60" style="background:white"></div> Dashboard
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style="color:#52616a">
+              <div class="w-4 h-4 rounded" style="background:#a4b4be; opacity:0.4"></div> Work Orders
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style="color:#52616a">
+              <div class="w-4 h-4 rounded" style="background:#a4b4be; opacity:0.4"></div> Projects
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style="color:#52616a">
+              <div class="w-4 h-4 rounded" style="background:#a4b4be; opacity:0.4"></div> Contracts
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style="color:#52616a">
+              <div class="w-4 h-4 rounded" style="background:#a4b4be; opacity:0.4"></div> Map
+            </div>
+          </div>
+        </div>
+
+        <!-- Main — same grid layout, ca colors -->
+        <div class="flex-1 p-4" style="background:#f6fafe">
+          <h1 class="text-xl font-bold mb-1" style="color:#26343d">Good morning, Jorge</h1>
+          <p class="text-xs mb-4" style="color:#52616a">Here's what's happening in Guaynabo today.</p>
+
+          <!-- Quick links — same structure, ca borders -->
+          <div class="grid grid-cols-2 gap-2 mb-4">
+            <div class="flex items-center gap-2 p-3 rounded-xl border text-xs" style="background:#ffffff; border-color:#ddeaf3">
+              <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#565e74">
+                <div class="w-3 h-3 border-2 border-white rounded-sm opacity-80"></div>
+              </div>
+              <span class="font-medium" style="color:#26343d">Work Orders</span>
+            </div>
+            <div class="flex items-center gap-2 p-3 rounded-xl border text-xs" style="background:#ffffff; border-color:#ddeaf3">
+              <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#526074">
+                <div class="w-3 h-3 border-2 border-white rounded-sm opacity-80"></div>
+              </div>
+              <span class="font-medium" style="color:#26343d">Projects</span>
+            </div>
+            <div class="flex items-center gap-2 p-3 rounded-xl border text-xs" style="background:#ffffff; border-color:#ddeaf3">
+              <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#006b62">
+                <div class="w-3 h-3 border-2 border-white rounded-sm opacity-80"></div>
+              </div>
+              <span class="font-medium" style="color:#26343d">Map View</span>
+            </div>
+            <div class="flex items-center gap-2 p-3 rounded-xl border text-xs" style="background:#ffffff; border-color:#ddeaf3">
+              <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#4a5268">
+                <div class="w-3 h-3 border-2 border-white rounded-sm opacity-80"></div>
+              </div>
+              <span class="font-medium" style="color:#26343d">Calendar</span>
+            </div>
+          </div>
+
+          <!-- Stats — same structure, ca colors -->
+          <div class="grid grid-cols-3 gap-2 mb-4">
+            <div class="p-3 rounded-xl border" style="background:#ffffff; border-color:#ddeaf3">
+              <p class="text-xl font-bold" style="color:#9f403d">47</p>
+              <p class="text-[10px]" style="color:#52616a">Open Work Orders</p>
+            </div>
+            <div class="p-3 rounded-xl border" style="background:#ffffff; border-color:#ddeaf3">
+              <p class="text-xl font-bold" style="color:#26343d">12</p>
+              <p class="text-[10px]" style="color:#52616a">Active Contracts</p>
+            </div>
+            <div class="p-3 rounded-xl border" style="background:#ffffff; border-color:#ddeaf3">
+              <p class="text-xl font-bold" style="color:#9f403d">8</p>
+              <p class="text-[10px]" style="color:#52616a">Active Potholes</p>
+            </div>
+          </div>
+
+          <!-- Needs Attention — same bordered list, ca colors -->
+          <div class="rounded-xl border mb-4" style="background:#ffffff; border-color:#ddeaf3">
+            <div class="flex items-center gap-2 px-4 py-3 border-b" style="border-color:#eef4fa">
+              <span class="text-xs font-semibold" style="color:#26343d">Needs Attention</span>
+              <span class="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full" style="background:#fe8983; color:#752121">6</span>
+            </div>
+            <div>
+              <div class="flex items-start gap-3 px-4 py-3 border-b" style="border-color:#eef4fa">
+                <span class="mt-1.5 w-2 h-2 rounded-full flex-shrink-0" style="background:#9f403d"></span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-mono" style="color:#a4b4be">PRJ-2026-004</span>
+                    <span class="text-xs font-medium" style="color:#26343d">Calle Montehiedra Resurfacing</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded" style="background:#dae2fd; color:#4a5167">Project</span>
+                  </div>
+                  <p class="text-[10px] mt-0.5 font-medium" style="color:#9f403d">Overdue</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 px-4 py-3 border-b" style="border-color:#eef4fa">
+                <span class="mt-1.5 w-2 h-2 rounded-full flex-shrink-0" style="background:#d97706"></span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-mono" style="color:#a4b4be">WO-2026-0022</span>
+                    <span class="text-xs font-medium" style="color:#26343d">Storm drain inspection</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded" style="background:#d5e3fc; color:#455367">WO</span>
+                  </div>
+                  <p class="text-[10px] mt-0.5 font-medium" style="color:#d97706">Due soon · Blocked by Procurement</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 px-4 py-3">
+                <span class="mt-1.5 w-2 h-2 rounded-full flex-shrink-0" style="background:#9f403d"></span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-mono" style="color:#a4b4be">PRJ-2026-007</span>
+                    <span class="text-xs font-medium" style="color:#26343d">Parque Nuevo Fence Repair</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded" style="background:#dae2fd; color:#4a5167">Project</span>
+                  </div>
+                  <p class="text-[10px] mt-0.5 font-medium" style="color:#9f403d">Overdue · Blocked by Legal</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-[10px] italic" style="color:#a4b4be">Note: borders still present — only colors swapped. Fast to implement, minimal risk.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       COLUMN 3 — DEEP (full Civil Architect rework)
+  ══════════════════════════════════════════ -->
+  <div id="deep-col" class="rounded-2xl overflow-hidden shadow-xl border border-slate-200">
+    <div class="text-white text-xs font-black uppercase tracking-widest px-4 py-2 flex items-center gap-2"
+         style="background:linear-gradient(135deg,#565e74,#4a5268)">
+      <span class="w-2 h-2 rounded-full" style="background:#91feef"></span>
+      Deep — Full Civil Architect Rework
+    </div>
+
+    <!-- Deep: no borders, tonal layering, editorial KPIs, bento grid -->
+    <div id="deep-shell" class="deep-light d-base min-h-screen text-sm">
+
+      <!-- Deep header — borderless, tonal bg -->
+      <div class="h-12 flex items-center px-4 gap-3 d-card" style="border-bottom: none">
+        <div class="w-6 h-6 rounded-lg flex items-center justify-center d-primary-grad">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <rect x="1" y="1" width="4" height="4" fill="white" opacity="0.8" rx="1"/>
+            <rect x="7" y="1" width="4" height="4" fill="white" opacity="0.5" rx="1"/>
+            <rect x="1" y="7" width="4" height="4" fill="white" opacity="0.5" rx="1"/>
+            <rect x="7" y="7" width="4" height="4" fill="white" opacity="0.8" rx="1"/>
+          </svg>
+        </div>
+        <span class="font-black text-xs tracking-tight d-ink uppercase">Sentinel Public Works</span>
+        <div class="ml-auto">
+          <div class="w-6 h-6 rounded-full d-card-high"></div>
+        </div>
+      </div>
+
+      <div class="flex">
+        <!-- Deep sidebar — light bg section, no dark strip -->
+        <div class="w-48 min-h-screen p-3 flex-shrink-0 d-section">
+          <div class="space-y-0.5">
+            <div class="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-black d-card d-ink" style="box-shadow:0 1px 4px rgba(38,52,61,0.06)">
+              <div class="w-4 h-4 rounded d-primary-bg opacity-70"></div> Dashboard
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold d-ink-muted hover:d-card transition-colors cursor-pointer">
+              <div class="w-4 h-4 rounded d-card-high"></div> Work Orders
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold d-ink-muted cursor-pointer">
+              <div class="w-4 h-4 rounded d-card-high"></div> Projects
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold d-ink-muted cursor-pointer">
+              <div class="w-4 h-4 rounded d-card-high"></div> Contracts
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold d-ink-muted cursor-pointer">
+              <div class="w-4 h-4 rounded d-card-high"></div> Map
+            </div>
+
+            <!-- CTA at bottom -->
+            <div class="pt-6 mt-4">
+              <button class="w-full py-2 rounded-xl text-white text-xs font-bold d-primary-grad" style="box-shadow:0 4px 16px rgba(86,94,116,0.2)">
+                + New Work Order
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Deep main — no borders anywhere -->
+        <div class="flex-1 p-4 d-base">
+
+          <!-- Editorial header -->
+          <div class="mb-5">
+            <p class="text-[10px] font-bold uppercase tracking-widest d-ink-faint mb-1">Good morning</p>
+            <h1 class="text-3xl font-black tracking-tighter d-ink leading-none">Jorge</h1>
+            <p class="text-xs d-ink-muted mt-1">Guaynabo · Tuesday, April 8 · 147 active items</p>
+          </div>
+
+          <!-- KPI bento row — NO borders, tonal layers only -->
+          <div class="grid grid-cols-3 gap-2 mb-4">
+            <!-- Big stat -->
+            <div class="d-card rounded-xl p-4" style="box-shadow:0 1px 4px rgba(38,52,61,0.05)">
+              <p class="text-[10px] font-black uppercase tracking-widest d-ink-muted mb-1">Open WOs</p>
+              <p class="text-3xl font-black d-ink leading-none">47</p>
+              <p class="text-[10px] d-teal font-bold mt-1 flex items-center gap-1">
+                <span>↑</span> 4 from yesterday
+              </p>
+            </div>
+            <!-- Error stat -->
+            <div class="rounded-xl p-4" style="background:var(--red-c,#fe8983)20; box-shadow:0 1px 4px rgba(38,52,61,0.05)">
+              <p class="text-[10px] font-black uppercase tracking-widest d-red mb-1">Overdue</p>
+              <p class="text-3xl font-black d-red leading-none">8</p>
+              <p class="text-[10px] d-red font-bold mt-1 opacity-70">Critical resolution</p>
+            </div>
+            <!-- Teal stat -->
+            <div class="d-card rounded-xl p-4" style="box-shadow:0 1px 4px rgba(38,52,61,0.05)">
+              <p class="text-[10px] font-black uppercase tracking-widest d-ink-muted mb-1">Projects</p>
+              <p class="text-3xl font-black d-ink leading-none">18</p>
+              <p class="text-[10px] d-teal font-bold mt-1">5 at risk</p>
+            </div>
+          </div>
+
+          <!-- ★ HIGH-LEVEL PROJECT OVERVIEW — the section you like -->
+          <div class="d-card rounded-xl p-4 mb-4" style="box-shadow:0 1px 4px rgba(38,52,61,0.05)">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h2 class="text-xs font-black uppercase tracking-widest d-ink">Department Overview</h2>
+                <p class="text-[10px] d-ink-muted mt-0.5">All active work — projects, orders, inspections, contracts</p>
+              </div>
+              <div class="flex gap-1">
+                <button class="px-2 py-1 rounded-lg text-[10px] font-black text-white d-primary-bg">All</button>
+                <button class="px-2 py-1 rounded-lg text-[10px] font-black d-ink-muted d-card-high">At Risk</button>
+                <button class="px-2 py-1 rounded-lg text-[10px] font-black d-ink-muted d-card-high">Blocked</button>
+              </div>
+            </div>
+
+            <!-- Project rows — NO dividers, just hover state -->
+            <div class="space-y-0.5">
+              <!-- Overdue row -->
+              <div class="grid gap-2 items-center p-2.5 rounded-lg d-hover cursor-pointer transition-colors" style="grid-template-columns:1fr 90px 70px 60px">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:#9f403d"></span>
+                    <p class="text-xs font-bold d-ink truncate">Calle Montehiedra Resurfacing</p>
+                    <span class="text-[9px] px-1.5 rounded-full font-black" style="background:#dae2fd; color:#4a5167">PROJ</span>
+                  </div>
+                  <p class="text-[10px] d-ink-faint ml-3.5">Due Apr 1 · Zone 3</p>
+                </div>
+                <div>
+                  <div class="progress-track"><div class="progress-fill" style="width:68%; background:#9f403d"></div></div>
+                  <p class="text-[9px] d-ink-faint mt-0.5 text-right">68%</p>
+                </div>
+                <div>
+                  <span class="text-[9px] px-2 py-0.5 rounded-full font-black d-red" style="background:var(--red-c,#fe8983)25">OVERDUE</span>
+                </div>
+                <div class="text-right">
+                  <span class="text-[10px] d-ink-faint font-mono">Apr 1</span>
+                </div>
+              </div>
+
+              <!-- Blocked row -->
+              <div class="grid gap-2 items-center p-2.5 rounded-lg d-hover cursor-pointer transition-colors" style="grid-template-columns:1fr 90px 70px 60px">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:#d97706"></span>
+                    <p class="text-xs font-bold d-ink truncate">Storm Drain Inspection WO-0022</p>
+                    <span class="text-[9px] px-1.5 rounded-full font-black" style="background:#d5e3fc; color:#455367">WO</span>
+                  </div>
+                  <p class="text-[10px] d-ink-faint ml-3.5">🔒 Blocked by Procurement</p>
+                </div>
+                <div>
+                  <div class="progress-track"><div class="progress-fill" style="width:45%; background:#d97706"></div></div>
+                  <p class="text-[9px] d-ink-faint mt-0.5 text-right">45%</p>
+                </div>
+                <div>
+                  <span class="text-[9px] px-2 py-0.5 rounded-full font-black" style="background:#fff3cd; color:#d97706">BLOCKED</span>
+                </div>
+                <div class="text-right">
+                  <span class="text-[10px] d-ink-faint font-mono">Apr 12</span>
+                </div>
+              </div>
+
+              <!-- On track row -->
+              <div class="grid gap-2 items-center p-2.5 rounded-lg d-hover cursor-pointer transition-colors" style="grid-template-columns:1fr 90px 70px 60px">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 d-teal-bg"></span>
+                    <p class="text-xs font-bold d-ink truncate">Parque Villa del Rey Renovation</p>
+                    <span class="text-[9px] px-1.5 rounded-full font-black" style="background:#dae2fd; color:#4a5167">PROJ</span>
+                  </div>
+                  <p class="text-[10px] d-ink-faint ml-3.5">75% complete · Zone 1</p>
+                </div>
+                <div>
+                  <div class="progress-track"><div class="progress-fill d-teal-bg" style="width:75%"></div></div>
+                  <p class="text-[9px] d-ink-faint mt-0.5 text-right">75%</p>
+                </div>
+                <div>
+                  <span class="text-[9px] px-2 py-0.5 rounded-full font-black d-teal" style="background:var(--teal-c,#91feef)40">ON TRACK</span>
+                </div>
+                <div class="text-right">
+                  <span class="text-[10px] d-ink-faint font-mono">May 30</span>
+                </div>
+              </div>
+
+              <!-- Inspection row -->
+              <div class="grid gap-2 items-center p-2.5 rounded-lg d-hover cursor-pointer transition-colors" style="grid-template-columns:1fr 90px 70px 60px">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:#d97706"></span>
+                    <p class="text-xs font-bold d-ink truncate">Bridge Inspection — Río Bayamón</p>
+                    <span class="text-[9px] px-1.5 rounded-full font-black" style="background:#e5eff7; color:#52616a">INSP</span>
+                  </div>
+                  <p class="text-[10px] d-ink-faint ml-3.5">Assigned to Inspector Rivera</p>
+                </div>
+                <div>
+                  <div class="progress-track"><div class="progress-fill" style="width:20%; background:#d97706"></div></div>
+                  <p class="text-[9px] d-ink-faint mt-0.5 text-right">20%</p>
+                </div>
+                <div>
+                  <span class="text-[9px] px-2 py-0.5 rounded-full font-black" style="background:#fff3cd; color:#d97706">AT RISK</span>
+                </div>
+                <div class="text-right">
+                  <span class="text-[10px] d-ink-faint font-mono">Apr 15</span>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="mt-3 pt-2 border-t" style="border-color:var(--card-high)">
+              <button class="text-[10px] font-black d-primary uppercase tracking-wider hover:underline">
+                View all 147 items →
+              </button>
+            </div>
+          </div>
+
+          <!-- Bottom row: Activity feed (no borders) -->
+          <div class="d-section rounded-xl p-4">
+            <h3 class="text-[10px] font-black uppercase tracking-widest d-ink-muted mb-3">Recent Activity</h3>
+            <div class="space-y-3 relative">
+              <div class="absolute left-[5px] top-1 bottom-1 w-0.5 d-card-high rounded"></div>
+              <div class="pl-5 relative">
+                <div class="absolute left-0 top-1 w-3 h-3 rounded-full d-teal-bg flex items-center justify-center">
+                  <div class="w-1 h-1 rounded-full bg-white"></div>
+                </div>
+                <p class="text-[10px] font-bold d-ink">WO-0019 completed — Sidewalk repair</p>
+                <p class="text-[10px] d-ink-faint">24m ago · Crew B</p>
+              </div>
+              <div class="pl-5 relative">
+                <div class="absolute left-0 top-1 w-3 h-3 rounded-full flex items-center justify-center" style="background:#fe898330">
+                  <div class="w-1 h-1 rounded-full d-red-c-bg"></div>
+                </div>
+                <p class="text-[10px] font-bold d-ink">PRJ-004 flagged overdue</p>
+                <p class="text-[10px] d-ink-faint">1h ago · System</p>
+              </div>
+              <div class="pl-5 relative">
+                <div class="absolute left-0 top-1 w-3 h-3 rounded-full d-primary-c-bg flex items-center justify-center" style="background:#dae2fd">
+                  <div class="w-1 h-1 rounded-full d-primary-bg" style="background:#565e74"></div>
+                </div>
+                <p class="text-[10px] font-bold d-ink">Contract CNT-2026-003 renewed</p>
+                <p class="text-[10px] d-ink-faint">3h ago · Admin</p>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-[10px] italic d-ink-faint mt-3">Note: no borders — depth via tonal layering only. Requires component markup changes.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     TRADE-OFF SUMMARY
+═══════════════════════════════════════════════════════ -->
+<div class="max-w-[1600px] mx-auto mt-6 grid grid-cols-1 xl:grid-cols-3 gap-4">
+  <div class="bg-white rounded-xl p-4 border border-slate-200">
+    <h3 class="font-black text-sm text-slate-700 mb-2">Classic</h3>
+    <ul class="text-xs text-slate-500 space-y-1">
+      <li>✓ Zero implementation cost</li>
+      <li>✓ Already working in production</li>
+      <li>✗ Utility borders everywhere</li>
+      <li>✗ Standard enterprise look</li>
+      <li>✗ Blue accents feel generic</li>
+    </ul>
+  </div>
+  <div class="bg-white rounded-xl p-4 border border-slate-200">
+    <h3 class="font-black text-sm mb-2" style="color:#565e74">Shallow</h3>
+    <ul class="text-xs text-slate-500 space-y-1">
+      <li>✓ Low risk — only CSS vars change</li>
+      <li>✓ Rollback = one line in globals.css</li>
+      <li>✓ 1–2 days to implement fully</li>
+      <li>✗ Still has borders (rule violation)</li>
+      <li>✗ No structural improvements</li>
+    </ul>
+  </div>
+  <div class="rounded-xl p-4 border border-slate-200" style="background:linear-gradient(135deg,#f6fafe,#eef4fa)">
+    <h3 class="font-black text-sm mb-2" style="color:#565e74">Deep</h3>
+    <ul class="text-xs space-y-1" style="color:#52616a">
+      <li>✓ Full Civil Architect look & feel</li>
+      <li>✓ Tonal layering, no borders</li>
+      <li>✓ Better hierarchy & editorial KPIs</li>
+      <li>✗ Higher effort (touch every component)</li>
+      <li>→ Mitigated by the Classic safety switch</li>
+    </ul>
+  </div>
+</div>
+
+<p class="text-center text-xs text-slate-400 mt-6 mb-2">
+  Toggle dark mode to preview both light and dark variants of the Deep theme.
+  Shallow and Classic are shown in light mode only here.
+</p>
+
+<script>
+  let dark = false
+  function toggleMode() {
+    dark = !dark
+    const html = document.documentElement
+    const shell = document.getElementById('deep-shell')
+    if (dark) {
+      html.classList.add('dark')
+      shell.classList.remove('deep-light')
+      shell.classList.add('deep-dark')
+    } else {
+      html.classList.remove('dark')
+      shell.classList.remove('deep-dark')
+      shell.classList.add('deep-light')
+    }
+  }
+</script>
+</body>
+</html>
