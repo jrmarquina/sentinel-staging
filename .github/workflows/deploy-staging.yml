@@ -46,7 +46,6 @@ jobs:
             set -e
             REPO_DIR="/srv/sentinel/staging/municipal-public-works"
             ENV_FILE="/srv/sentinel/staging/.env.staging"
-            COMPOSE_PROJECT="supabase-staging"
 
             # Clone staging repo on first deploy if not present
             if [ ! -d "$REPO_DIR/.git" ]; then
@@ -78,18 +77,12 @@ jobs:
             fi
             pm2 save
 
-            # Restart Supabase staging stack (skip if env file not yet provisioned)
-            if [ -f "$ENV_FILE" ]; then
-              docker compose \
-                -p "$COMPOSE_PROJECT" \
-                --env-file "$ENV_FILE" \
-                -f "$REPO_DIR/docker-compose.staging.yml" \
-                up -d --remove-orphans
-            else
-              echo "WARNING: $ENV_FILE not found — skipping Supabase restart. Provision the env file on the VPS to enable this step."
-            fi
+            # NOTE: Supabase staging stack is managed as infrastructure (not restarted on app deploys).
+            # To restart it manually: ssh into VPS and run:
+            #   docker compose -p supabase-staging --env-file /srv/sentinel/staging/supabase/.env \
+            #     -f /srv/sentinel/staging/municipal-public-works/docker-compose.staging.yml up -d
 
-            # Verify staging health (non-fatal until .env.staging is provisioned)
+            # Verify staging health
             sleep 15
             if curl -sf http://localhost:3002/api/health; then
               echo "✓ Staging health check passed"
