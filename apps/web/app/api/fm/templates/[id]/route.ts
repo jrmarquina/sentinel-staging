@@ -27,7 +27,7 @@ export async function GET(
     const supabase = createClient()
 
     const { data, error } = await supabase
-      .from('fm_templates')
+      .from('fm_inspection_templates')
       .select('*')
       .eq('id', params.id)
       .eq('org_id', session.orgId)
@@ -51,7 +51,7 @@ export async function PUT(
 
     const supabase = createClient()
     const { data, error } = await supabase
-      .from('fm_templates')
+      .from('fm_inspection_templates')
       .update({ ...parsed.data, updated_at: new Date().toISOString() })
       .eq('id', params.id)
       .eq('org_id', session.orgId)
@@ -73,7 +73,7 @@ export async function DELETE(
     const supabase = createClient()
 
     const { error } = await supabase
-      .from('fm_templates')
+      .from('fm_inspection_templates')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', params.id)
       .eq('org_id', session.orgId)

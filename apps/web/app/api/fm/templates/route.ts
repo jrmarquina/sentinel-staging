@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest) {
     const supabase = createClient()
 
     const { data, error } = await supabase
-      .from('fm_templates')
+      .from('fm_inspection_templates')
       .select('*')
       .eq('org_id', session.orgId)
       .is('deleted_at', null)
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     const supabase = createClient()
     const { data, error } = await supabase
-      .from('fm_templates')
+      .from('fm_inspection_templates')
       .insert({ ...parsed.data, org_id: session.orgId })
       .select()
       .single()

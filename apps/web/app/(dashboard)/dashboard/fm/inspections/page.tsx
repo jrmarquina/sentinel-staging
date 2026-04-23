@@ -69,10 +69,10 @@ export default function FMInspectionsPage() {
       fetch('/api/fm/assets').then((r) => r.json() as Promise<FmAsset[]>),
     ])
       .then(([insp, props, tmpl, asst]) => {
-        setInspections(insp)
-        setProperties(props)
-        setTemplates(tmpl)
-        setAssets(asst)
+        setInspections(Array.isArray(insp) ? insp : [])
+        setProperties(Array.isArray(props) ? props : [])
+        setTemplates(Array.isArray(tmpl) ? tmpl : [])
+        setAssets(Array.isArray(asst) ? asst : [])
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
       .finally(() => setLoading(false))

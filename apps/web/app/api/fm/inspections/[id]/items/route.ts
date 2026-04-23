@@ -48,7 +48,7 @@ export async function PATCH(
 
     // Fetch existing items
     const { data: existingItems } = await supabase
-      .from('fm_inspection_items')
+      .from('fm_checklist_item_responses')
       .select('id, key')
       .eq('inspection_id', params.id)
 
@@ -62,7 +62,7 @@ export async function PATCH(
       const isFail = item.result?.toLowerCase() === 'fail' || item.severity === 'HIGH'
 
       await supabase
-        .from('fm_inspection_items')
+        .from('fm_checklist_item_responses')
         .update({
           result: item.result ?? null,
           severity: item.severity ?? null,

@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     // Verify template belongs to org
     const { data: template } = await supabase
-      .from('fm_templates')
+      .from('fm_inspection_templates')
       .select('id, json_schema')
       .eq('id', template_id)
       .eq('org_id', session.orgId)
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
         label: f.label,
         org_id: session.orgId,
       }))
-      await supabase.from('fm_inspection_items').insert(items)
+      await supabase.from('fm_checklist_item_responses').insert(items)
     }
 
     return NextResponse.json(inspection, { status: 201 })

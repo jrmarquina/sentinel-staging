@@ -20,7 +20,7 @@ export async function POST(
     const supabase = createClient()
 
     const { data: items } = await supabase
-      .from('fm_inspection_items')
+      .from('fm_checklist_item_responses')
       .select('id, result, severity')
       .eq('inspection_id', params.id)
 

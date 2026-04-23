@@ -28,7 +28,7 @@ export async function GET(
         template:template_id(*),
         inspector:inspector_id(*),
         approved_by:approved_by_id(id, full_name, role),
-        fm_inspection_items(*),
+        fm_inspection_items:fm_checklist_item_responses(*),
         fm_attachments(*),
         fm_reports(*)
       `)
@@ -51,7 +51,7 @@ export async function DELETE(
 
     // Cascade: reports → items → inspection
     await supabase.from('fm_reports').delete().eq('inspection_id', params.id).eq('org_id', session.orgId)
-    await supabase.from('fm_inspection_items').delete().eq('inspection_id', params.id).eq('org_id', session.orgId)
+    await supabase.from('fm_checklist_item_responses').delete().eq('inspection_id', params.id).eq('org_id', session.orgId)
 
     const { error } = await supabase
       .from('fm_inspections')
