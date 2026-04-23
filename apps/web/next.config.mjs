@@ -15,7 +15,12 @@ const nextConfig = {
   staticPageGenerationTimeout: 180,
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', 'pw.sentinelmgpr.com'],
+      allowedOrigins: [
+        'localhost:3000',
+        'localhost:3002',
+        'pw.sentinelmgpr.com',
+        'staging.sentinelmgpr.com',
+      ],
     },
   },
   images: {
