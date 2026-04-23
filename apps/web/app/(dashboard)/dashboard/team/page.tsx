@@ -27,13 +27,13 @@ export default async function TeamPage() {
       .order('created_at', { ascending: true }),
     supabase
       .from('profiles')
-      .select('id, full_name, avatar_url')
+      .select('id, full_name, avatar_url, department')
       .eq('org_id', orgId)
       .is('deleted_at', null),
   ])
 
   type MemberRow = { user_id: string; role: string; created_at: string }
-  type ProfileRow = { id: string; full_name: string | null; avatar_url: string | null }
+  type ProfileRow = { id: string; full_name: string | null; avatar_url: string | null; department: string | null }
 
   const profileMap: Record<string, ProfileRow> = {}
   for (const p of (profilesData ?? []) as ProfileRow[]) {
@@ -46,6 +46,7 @@ export default async function TeamPage() {
     joined_at:  m.created_at,
     full_name:  profileMap[m.user_id]?.full_name ?? 'Unknown',
     avatar_url: profileMap[m.user_id]?.avatar_url ?? null,
+    department: profileMap[m.user_id]?.department ?? 'pw',
     is_me:      m.user_id === user.id,
   }))
 

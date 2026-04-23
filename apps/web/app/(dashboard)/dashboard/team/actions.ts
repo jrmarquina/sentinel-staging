@@ -8,12 +8,16 @@ export async function createTeamMember(
   email: string,
   password: string,
   fullName: string,
-  role: string
+  role: string,
+  department: string = 'pw'
 ): Promise<{ error?: string }> {
   if (!email || !email.includes('@')) return { error: 'Valid email required' }
   if (!password || password.length < 6) return { error: 'Password must be at least 6 characters' }
   if (!fullName.trim()) return { error: 'Full name required' }
   if (!VALID_ROLES.includes(role as typeof VALID_ROLES[number])) return { error: 'Invalid role' }
+
+  const validDepts = ['pw', 'fm', 'both']
+  const dept = validDepts.includes(department) ? department : 'pw'
 
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -45,7 +49,7 @@ export async function createTeamMember(
     await admin
       .from('profiles')
       .upsert(
-        { id: created.user.id, org_id: orgId, full_name: fullName.trim(), avatar_url: null, deleted_at: null },
+        { id: created.user.id, org_id: orgId, full_name: fullName.trim(), avatar_url: null, deleted_at: null, department: dept },
         { onConflict: 'id' }
       )
   }

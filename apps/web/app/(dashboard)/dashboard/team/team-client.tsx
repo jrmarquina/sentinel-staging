@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { createTeamMember } from './actions'
+import { useAppMode } from '@/lib/app-mode'
 
 const ROLES = ['admin', 'supervisor', 'inspector', 'vendor', 'viewer'] as const
 type AppRole = typeof ROLES[number]
@@ -32,6 +33,7 @@ interface Member {
   joined_at:  string
   full_name:  string
   avatar_url: string | null
+  department: string
   is_me:      boolean
 }
 
@@ -119,7 +121,7 @@ function RoleDropdown({ member, canEdit, onChanged }: {
   )
 }
 
-function AddMemberModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function AddMemberModal({ onClose, onSuccess, department }: { onClose: () => void; onSuccess: () => void; department: string }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -132,7 +134,7 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
     e.preventDefault()
     setError('')
     startTransition(async () => {
-      const res = await createTeamMember(email.trim(), password, name.trim(), role)
+      const res = await createTeamMember(email.trim(), password, name.trim(), role, department)
       if (res.error) { setError(res.error); return }
       onSuccess()
     })
@@ -208,6 +210,12 @@ export function TeamClient({ team: initialTeam, currentRole }: Props) {
   const [team, setTeam] = useState(initialTeam)
   const [showInvite, setShowInvite] = useState(false)
   const canEdit = currentRole === 'admin'
+  const { appMode } = useAppMode()
+
+  // Filter by department: 'pw' shows pw+both, 'fm' shows fm+both
+  const visibleTeam = team.filter((m) =>
+    m.department === 'both' || m.department === appMode
+  )
 
   function handleRoleChanged(userId: string, newRole: AppRole) {
     setTeam((prev) => prev.map((m) => m.user_id === userId ? { ...m, role: newRole } : m))
@@ -222,7 +230,10 @@ export function TeamClient({ team: initialTeam, currentRole }: Props) {
         </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">Team</h1>
-          <p className="text-sm text-slate-500">{team.length} member{team.length !== 1 ? 's' : ''} · Guaynabo Public Works</p>
+          <p className="text-sm text-slate-500">
+            {visibleTeam.length} member{visibleTeam.length !== 1 ? 's' : ''}
+            {' · '}{appMode === 'fm' ? 'Head Start Facility Mgmt' : 'Guaynabo Public Works'}
+          </p>
         </div>
         <div className="flex items-center gap-2 ml-auto">
           {canEdit && (
@@ -245,13 +256,13 @@ export function TeamClient({ team: initialTeam, currentRole }: Props) {
 
       {/* Member list */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-        {team.length === 0 ? (
+        {visibleTeam.length === 0 ? (
           <div className="px-5 py-12 text-center text-slate-400 text-sm">
             No team members yet.{canEdit && <> <button onClick={() => setShowInvite(true)} className="text-blue-600 hover:underline">Invite the first member →</button></>}
           </div>
         ) : (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {team.map((member) => (
+            {visibleTeam.map((member) => (
               <li key={member.user_id} className="flex items-center gap-4 px-5 py-3.5">
                 <Avatar name={member.full_name} url={member.avatar_url} />
                 <div className="flex-1 min-w-0">
@@ -297,6 +308,7 @@ export function TeamClient({ team: initialTeam, currentRole }: Props) {
         <AddMemberModal
           onClose={() => setShowInvite(false)}
           onSuccess={() => { setShowInvite(false); router.refresh() }}
+          department={appMode}
         />
       )}
     </div>
