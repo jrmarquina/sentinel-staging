@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Menu, Sun, Moon, Check, ChevronDown, Globe, UserCircle } from 'lucide-react'
 import Link from 'next/link'
-import { logoutAction } from '@/lib/auth/actions'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { useRole } from '@/hooks/useRole'
 import { useTheme } from '@/lib/theme'
@@ -250,17 +249,14 @@ export function Header({ onMenuClick, userEmail, userFullName, userAvatar }: Hea
                 </div>
               )}
 
-              {/* Sign out */}
+              {/* Sign out — plain link to avoid server-action bundle-mismatch on redeploy */}
               <div className="p-1">
-                <form action={logoutAction}>
-                  <button
-                    type="submit"
-                    onClick={() => setOpen(false)}
-                    className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                  >
-                    {t('menu.signOut')}
-                  </button>
-                </form>
+                <a
+                  href="/api/auth/signout"
+                  className="block w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                >
+                  {t('menu.signOut')}
+                </a>
               </div>
             </div>
           )}
