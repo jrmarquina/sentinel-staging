@@ -1,0 +1,330 @@
+_format_version: '2.1'
+_transform: false
+
+# =============================================================
+# Sentinel Public Works — Kong Declarative Configuration
+#
+# Key values are baked in (no env var substitution) because
+# Kong 3.9.1 DB-less mode does not perform $VAR substitution.
+#
+# Authorization header strategy:
+#   - auth-v1 (GoTrue): no transformer — user's Bearer token
+#     passes through unchanged. GoTrue validates it internally.
+#   - rest-v1, graphql-v1, realtime-v1: post-function Lua plugin
+#     injects Authorization from apikey only when absent, so
+#     existing user JWTs always pass through untouched.
+#   - storage-v1: same post-function approach.
+#   - functions-v1: open (no key-auth), JWT verified by runtime.
+#
+# JWT values (generated with JWT_SECRET from .env.staging):
+#   anon_key         — role: anon, exp: 2092143128
+#   service_role_key — role: service_role, exp: 2147483647
+# =============================================================
+
+###
+### Consumers
+###
+consumers:
+  - username: DASHBOARD
+  - username: anon
+    keyauth_credentials:
+      - key: eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogImFub24iLCAiaXNzIjogInN1cGFiYXNlIiwgImlhdCI6IDE3NzY3ODMxMjgsICJleHAiOiAyMDkyMTQzMTI4fQ.Z5I01wRI0aauyfS3sbEhhqDYhx_S5To5nGriVdgS9Yc
+  - username: service_role
+    keyauth_credentials:
+      - key: eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogInNlcnZpY2Vfcm9sZSIsICJpc3MiOiAic3VwYWJhc2UiLCAiaWF0IjogMTc3Njc4MzEyOCwgImV4cCI6IDIxNDc0ODM2NDd9.P-rpKJF8eGpZWYw6nIahUzAa93BWnS7eL_uJYcDqgEk
+
+###
+### ACL Groups
+###
+acls:
+  - consumer: anon
+    group: anon
+  - consumer: service_role
+    group: admin
+
+###
+### Dashboard credentials
+###
+basicauth_credentials:
+  - consumer: DASHBOARD
+    username: staging-admin
+    password: 2xDa9H2k-C2uWM2J
+
+###
+### Lua helper — injects Authorization from apikey when absent
+### Used by rest, graphql, realtime, storage, and realtime-rest routes.
+###
+# NOTE: This snippet is referenced inline in each service that needs it.
+# Kong declarative config does not support YAML anchors in plugins,
+# so the Lua block is repeated per service.
+
+services:
+
+  # ── Open Auth Routes ────────────────────────────────────────
+
+  - name: auth-v1-open-verify
+    url: http://auth:9999/verify
+    routes:
+      - name: auth-v1-open-verify
+        strip_path: true
+        paths:
+          - /auth/v1/verify
+    plugins:
+      - name: cors
+
+  - name: auth-v1-open-callback
+    url: http://auth:9999/callback
+    routes:
+      - name: auth-v1-open-callback
+        strip_path: true
+        paths:
+          - /auth/v1/callback
+    plugins:
+      - name: cors
+
+  - name: auth-v1-open-authorize
+    url: http://auth:9999/authorize
+    routes:
+      - name: auth-v1-open-authorize
+        strip_path: true
+        paths:
+          - /auth/v1/authorize
+    plugins:
+      - name: cors
+
+  - name: auth-v1-open-jwks
+    url: http://auth:9999/.well-known/jwks.json
+    routes:
+      - name: auth-v1-open-jwks
+        strip_path: true
+        paths:
+          - /auth/v1/.well-known/jwks.json
+    plugins:
+      - name: cors
+
+  # ── Secure Auth Route ───────────────────────────────────────
+  # NO request-transformer here — user Bearer tokens must pass
+  # through to GoTrue unchanged. The key-auth plugin only gates
+  # API access; GoTrue validates the user JWT itself.
+
+  - name: auth-v1
+    url: http://auth:9999/
+    routes:
+      - name: auth-v1-all
+        strip_path: true
+        paths:
+          - /auth/v1/
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - admin
+            - anon
+
+  # ── PostgREST ───────────────────────────────────────────────
+
+  - name: rest-v1
+    url: http://rest:3000/
+    routes:
+      - name: rest-v1-all
+        strip_path: true
+        paths:
+          - /rest/v1/
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - admin
+            - anon
+      # Inject Authorization from apikey only when the client didn't send one.
+      # Supabase JS always sends Authorization, so this only fires for raw
+      # curl/Postman calls that omit it.
+      - name: post-function
+        config:
+          access:
+            - |
+              local auth = kong.request.get_header("authorization")
+              if not auth or auth == "" then
+                local apikey = kong.request.get_header("apikey")
+                if apikey == "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogInNlcnZpY2Vfcm9sZSIsICJpc3MiOiAic3VwYWJhc2UiLCAiaWF0IjogMTc3Njc4MzEyOCwgImV4cCI6IDIxNDc0ODM2NDd9.P-rpKJF8eGpZWYw6nIahUzAa93BWnS7eL_uJYcDqgEk" then
+                  kong.service.request.set_header("Authorization", "Bearer eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogInNlcnZpY2Vfcm9sZSIsICJpc3MiOiAic3VwYWJhc2UiLCAiaWF0IjogMTc3Njc4MzEyOCwgImV4cCI6IDIxNDc0ODM2NDd9.P-rpKJF8eGpZWYw6nIahUzAa93BWnS7eL_uJYcDqgEk")
+                else
+                  kong.service.request.set_header("Authorization", "Bearer eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogImFub24iLCAiaXNzIjogInN1cGFiYXNlIiwgImlhdCI6IDE3NzY3ODMxMjgsICJleHAiOiAyMDkyMTQzMTI4fQ.Z5I01wRI0aauyfS3sbEhhqDYhx_S5To5nGriVdgS9Yc")
+                end
+              end
+
+  # ── GraphQL ─────────────────────────────────────────────────
+
+  - name: graphql-v1
+    url: http://rest:3000/rpc/graphql
+    routes:
+      - name: graphql-v1-all
+        strip_path: true
+        paths:
+          - /graphql/v1
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - "Content-Profile: graphql_public"
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - admin
+            - anon
+      - name: post-function
+        config:
+          access:
+            - |
+              local auth = kong.request.get_header("authorization")
+              if not auth or auth == "" then
+                local apikey = kong.request.get_header("apikey")
+                if apikey == "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogInNlcnZpY2Vfcm9sZSIsICJpc3MiOiAic3VwYWJhc2UiLCAiaWF0IjogMTc3Njc4MzEyOCwgImV4cCI6IDIxNDc0ODM2NDd9.P-rpKJF8eGpZWYw6nIahUzAa93BWnS7eL_uJYcDqgEk" then
+                  kong.service.request.set_header("Authorization", "Bearer eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogInNlcnZpY2Vfcm9sZSIsICJpc3MiOiAic3VwYWJhc2UiLCAiaWF0IjogMTc3Njc4MzEyOCwgImV4cCI6IDIxNDc0ODM2NDd9.P-rpKJF8eGpZWYw6nIahUzAa93BWnS7eL_uJYcDqgEk")
+                else
+                  kong.service.request.set_header("Authorization", "Bearer eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogImFub24iLCAiaXNzIjogInN1cGFiYXNlIiwgImlhdCI6IDE3NzY3ODMxMjgsICJleHAiOiAyMDkyMTQzMTI4fQ.Z5I01wRI0aauyfS3sbEhhqDYhx_S5To5nGriVdgS9Yc")
+                end
+              end
+
+  # ── Realtime WebSocket ──────────────────────────────────────
+
+  - name: realtime-v1-ws
+    url: http://realtime-dev.supabase-realtime:4000/socket
+    protocol: ws
+    routes:
+      - name: realtime-v1-ws
+        strip_path: true
+        paths:
+          - /realtime/v1/
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - admin
+            - anon
+
+  - name: realtime-v1-rest
+    url: http://realtime-dev.supabase-realtime:4000/api
+    protocol: http
+    routes:
+      - name: realtime-v1-rest
+        strip_path: true
+        paths:
+          - /realtime/v1/api
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - admin
+            - anon
+      - name: post-function
+        config:
+          access:
+            - |
+              local auth = kong.request.get_header("authorization")
+              if not auth or auth == "" then
+                local apikey = kong.request.get_header("apikey")
+                if apikey == "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogInNlcnZpY2Vfcm9sZSIsICJpc3MiOiAic3VwYWJhc2UiLCAiaWF0IjogMTc3Njc4MzEyOCwgImV4cCI6IDIxNDc0ODM2NDd9.P-rpKJF8eGpZWYw6nIahUzAa93BWnS7eL_uJYcDqgEk" then
+                  kong.service.request.set_header("Authorization", "Bearer eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogInNlcnZpY2Vfcm9sZSIsICJpc3MiOiAic3VwYWJhc2UiLCAiaWF0IjogMTc3Njc4MzEyOCwgImV4cCI6IDIxNDc0ODM2NDd9.P-rpKJF8eGpZWYw6nIahUzAa93BWnS7eL_uJYcDqgEk")
+                else
+                  kong.service.request.set_header("Authorization", "Bearer eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogImFub24iLCAiaXNzIjogInN1cGFiYXNlIiwgImlhdCI6IDE3NzY3ODMxMjgsICJleHAiOiAyMDkyMTQzMTI4fQ.Z5I01wRI0aauyfS3sbEhhqDYhx_S5To5nGriVdgS9Yc")
+                end
+              end
+
+  # ── Storage API ─────────────────────────────────────────────
+
+  - name: storage-v1
+    url: http://storage:5000/
+    routes:
+      - name: storage-v1-all
+        strip_path: true
+        paths:
+          - /storage/v1/
+    plugins:
+      - name: cors
+      - name: post-function
+        config:
+          access:
+            - |
+              local auth = kong.request.get_header("authorization")
+              if not auth or auth == "" then
+                local apikey = kong.request.get_header("apikey")
+                if apikey == "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogInNlcnZpY2Vfcm9sZSIsICJpc3MiOiAic3VwYWJhc2UiLCAiaWF0IjogMTc3Njc4MzEyOCwgImV4cCI6IDIxNDc0ODM2NDd9.P-rpKJF8eGpZWYw6nIahUzAa93BWnS7eL_uJYcDqgEk" then
+                  kong.service.request.set_header("Authorization", "Bearer eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogInNlcnZpY2Vfcm9sZSIsICJpc3MiOiAic3VwYWJhc2UiLCAiaWF0IjogMTc3Njc4MzEyOCwgImV4cCI6IDIxNDc0ODM2NDd9.P-rpKJF8eGpZWYw6nIahUzAa93BWnS7eL_uJYcDqgEk")
+                else
+                  kong.service.request.set_header("Authorization", "Bearer eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogImFub24iLCAiaXNzIjogInN1cGFiYXNlIiwgImlhdCI6IDE3NzY3ODMxMjgsICJleHAiOiAyMDkyMTQzMTI4fQ.Z5I01wRI0aauyfS3sbEhhqDYhx_S5To5nGriVdgS9Yc")
+                end
+              end
+
+  # ── Edge Functions ──────────────────────────────────────────
+
+  - name: functions-v1
+    url: http://functions:9000/
+    read_timeout: 150000
+    routes:
+      - name: functions-v1-all
+        strip_path: true
+        paths:
+          - /functions/v1/
+    plugins:
+      - name: cors
+
+  # ── Postgres Meta ───────────────────────────────────────────
+
+  - name: meta
+    url: http://meta:8080/
+    routes:
+      - name: meta-all
+        strip_path: true
+        paths:
+          - /pg/
+    plugins:
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - admin
+
+  # ── Studio (catch-all) ──────────────────────────────────────
+
+  - name: dashboard
+    url: http://studio:3000/
+    routes:
+      - name: dashboard-all
+        strip_path: true
+        paths:
+          - /
+    plugins:
+      - name: cors
+      - name: basic-auth
+        config:
+          hide_credentials: true
