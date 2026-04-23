@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { loginSchema, inviteUserSchema, setPasswordSchema } from '@sentinel/shared'
 import type { AppRole } from '@sentinel/shared'
@@ -30,7 +31,20 @@ export async function loginAction(formData: FormData) {
 
 export async function logoutAction() {
   const supabase = createClient()
-  await supabase.auth.signOut()
+  // Best-effort signOut — if the session is stale/broken, GoTrue may
+  // reject it. We clear cookies unconditionally so the user is never stuck.
+  try { await supabase.auth.signOut() } catch { /* ignore */ }
+
+  // Force-clear all Supabase auth cookies regardless of signOut outcome
+  const cookieStore = cookies()
+  const allCookies = cookieStore.getAll()
+  const authCookieNames = allCookies
+    .map(c => c.name)
+    .filter(n => n.startsWith('sb-') || n.includes('supabase') || n.includes('auth-token'))
+  for (const name of authCookieNames) {
+    cookieStore.set(name, '', { maxAge: 0, path: '/' })
+  }
+
   revalidatePath('/', 'layout')
   redirect('/login')
 }
