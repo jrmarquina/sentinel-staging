@@ -1,7 +1,20 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { Loader2, AlertTriangle, Trash2, ChevronDown } from 'lucide-react'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import {
+  Plus, Search, Loader2, AlertTriangle, X,
+  ClipboardList, ChevronDown, Clock, Calendar,
+  Wrench, Building2,
+} from 'lucide-react'
+import {
+  FmCard, FmBadge, FmButton, FmModal,
+  FmModalFooter, FmSectionLabel, statusVariant,
+} from '@/components/fm'
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+interface FmProperty { id: string; name: string }
 
 interface FmWorkOrder {
   id: string
@@ -10,51 +23,54 @@ interface FmWorkOrder {
   status: string
   priority: string
   due_date: string | null
-  fm_properties?: { name: string } | null
+  assigned_to?: string | null
+  fm_properties?: { id: string; name: string } | null
 }
 
-type TabValue = 'ALL' | 'OVERDUE' | 'OPEN' | 'IN_PROGRESS' | 'COMPLETED'
-
-const PRIORITY_BADGE: Record<string, string> = {
-  HIGH: 'bg-red-100 text-red-700',
-  MEDIUM: 'bg-yellow-100 text-yellow-700',
-  LOW: 'bg-green-100 text-green-700',
+interface CreateForm {
+  title: string; description: string
+  priority: string; property_id: string; due_date: string
 }
 
-const STATUS_BADGE: Record<string, string> = {
-  OPEN: 'bg-blue-100 text-blue-700',
-  IN_PROGRESS: 'bg-yellow-100 text-yellow-700',
-  COMPLETED: 'bg-green-100 text-green-700',
-}
+type FilterTab = 'ALL' | 'OVERDUE' | 'OPEN' | 'IN_PROGRESS' | 'COMPLETED'
 
-const STATUS_TRANSITIONS: Record<string, string[]> = {
-  OPEN: ['IN_PROGRESS'],
-  IN_PROGRESS: ['OPEN', 'COMPLETED'],
-  COMPLETED: ['OPEN'],
-}
-
-const TABS: { value: TabValue; label: string }[] = [
-  { value: 'OVERDUE', label: 'Overdue' },
-  { value: 'ALL', label: 'All' },
-  { value: 'OPEN', label: 'Open' },
+const FILTER_TABS: { value: FilterTab; label: string }[] = [
+  { value: 'ALL',         label: 'All' },
+  { value: 'OVERDUE',     label: 'Overdue' },
+  { value: 'OPEN',        label: 'Open' },
   { value: 'IN_PROGRESS', label: 'In Progress' },
-  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'COMPLETED',   label: 'Completed' },
 ]
 
-function isOverdue(wo: FmWorkOrder): boolean {
+const PRIORITY_ORDER: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 }
+const PRIORITIES = ['HIGH', 'MEDIUM', 'LOW'] as const
+
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+  OPEN:        ['IN_PROGRESS'],
+  IN_PROGRESS: ['COMPLETED', 'OPEN'],
+  COMPLETED:   ['OPEN'],
+}
+
+const EMPTY_FORM: CreateForm = {
+  title: '', description: '', priority: 'MEDIUM', property_id: '', due_date: '',
+}
+
+function overdueWo(wo: FmWorkOrder): boolean {
   return wo.status !== 'COMPLETED' && !!wo.due_date && new Date(wo.due_date) < new Date()
 }
 
-function StatusPopover({
-  workOrder,
-  onUpdate,
-}: {
-  workOrder: FmWorkOrder
-  onUpdate: (id: string, status: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
+function priorityVariant(p: string) {
+  return p === 'HIGH' ? 'danger' as const :
+         p === 'MEDIUM' ? 'warning' as const : 'success' as const
+}
+
+// ── Status popover ─────────────────────────────────────────────────────────
+
+function StatusPopover({ wo, onUpdate }: { wo: FmWorkOrder; onUpdate: (id: string, status: string) => void }) {
+  const [open, setOpen]       = useState(false)
+  const [busy, setBusy]       = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const transitions = STATUS_TRANSITIONS[wo.status] ?? []
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -64,45 +80,75 @@ function StatusPopover({
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const transitions = STATUS_TRANSITIONS[workOrder.status] ?? []
-
-  async function changeStatus(newStatus: string) {
-    setLoading(true)
+  async function changeStatus(next: string) {
+    setBusy(true)
     try {
-      const res = await fetch(`/api/fm/work-orders/${workOrder.id}`, {
+      const res = await fetch(`/api/fm/work-orders/${wo.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: next }),
       })
-      if (res.ok) {
-        onUpdate(workOrder.id, newStatus)
-      }
+      if (res.ok) onUpdate(wo.id, next)
     } finally {
-      setLoading(false)
+      setBusy(false)
       setOpen(false)
     }
   }
 
+  const variant = statusVariant(wo.status)
+  const canTransition = transitions.length > 0
+
   return (
-    <div className="relative" ref={ref}>
+    <div style={{ position: 'relative' }} ref={ref}>
       <button
-        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o) }}
-        disabled={loading || transitions.length === 0}
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-opacity ${STATUS_BADGE[workOrder.status] ?? 'bg-slate-100 text-slate-600'} ${transitions.length > 0 ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+        onClick={(e) => { e.stopPropagation(); if (canTransition) setOpen((o) => !o) }}
+        disabled={busy || !canTransition}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+          padding: '0.2rem 0.5rem',
+          borderRadius: 9999, fontSize: '0.72rem', fontWeight: 700,
+          cursor: canTransition ? 'pointer' : 'default',
+          border: 'none',
+          background:
+            variant === 'success' ? 'var(--teal-c)'    :
+            variant === 'warning' ? 'var(--amber-c)'   :
+            variant === 'danger'  ? 'var(--red-c)'     :
+            variant === 'info'    ? 'var(--primary-c)' : 'var(--card-b)',
+          color:
+            variant === 'success' ? 'var(--teal)'    :
+            variant === 'warning' ? 'var(--amber)'   :
+            variant === 'danger'  ? 'var(--red)'     :
+            variant === 'info'    ? 'var(--primary)' : 'var(--muted)',
+          opacity: busy ? 0.7 : 1,
+          transition: 'opacity 0.15s ease',
+        }}
       >
-        {loading ? <Loader2 size={10} className="animate-spin" /> : null}
-        {workOrder.status.replace(/_/g, ' ')}
-        {transitions.length > 0 && <ChevronDown size={10} />}
+        {busy ? <Loader2 size={10} style={{ animation: 'spin 1s linear infinite' }} /> : null}
+        {wo.status.replace(/_/g, ' ')}
+        {canTransition && <ChevronDown size={10} />}
       </button>
-      {open && transitions.length > 0 && (
-        <div className="absolute left-0 top-full mt-1 z-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 min-w-[130px]">
+
+      {open && (
+        <div style={{
+          position: 'absolute', left: 0, top: '100%', marginTop: 4, zIndex: 30,
+          background: 'var(--card)', border: '1px solid var(--border)',
+          borderRadius: 10, boxShadow: 'var(--shadow-lg)',
+          minWidth: 140, overflow: 'hidden',
+        }}>
           {transitions.map((s) => (
             <button
               key={s}
               onClick={(e) => { e.stopPropagation(); changeStatus(s) }}
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+              style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '0.6rem 0.875rem', fontSize: '0.8rem',
+                color: 'var(--fg)', background: 'none', border: 'none',
+                cursor: 'pointer', transition: 'background 0.12s ease',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--card-b)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
             >
-              {s.replace(/_/g, ' ')}
+              → {s.replace(/_/g, ' ')}
             </button>
           ))}
         </div>
@@ -111,178 +157,376 @@ function StatusPopover({
   )
 }
 
-export default function FMWorkOrdersPage() {
-  const [workOrders, setWorkOrders] = useState<FmWorkOrder[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<TabValue>('ALL')
-  const [deleting, setDeleting] = useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+// ── Work Order Card ────────────────────────────────────────────────────────
 
-  function load() {
+function WoCard({
+  wo, focused, onStatusUpdate,
+}: {
+  wo: FmWorkOrder
+  focused: boolean
+  onStatusUpdate: (id: string, status: string) => void
+}) {
+  const overdue = overdueWo(wo)
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  // Scroll into view + flash when focused via deep-link
+  useEffect(() => {
+    if (!focused) return
+    cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [focused])
+
+  return (
+    <div
+      ref={cardRef}
+      style={{
+        background: overdue ? 'var(--red-c)' : focused ? 'var(--primary-c)' : 'var(--card)',
+        border: `1px solid ${overdue ? 'var(--red)' : focused ? 'var(--primary)' : 'var(--border)'}`,
+        borderRadius: 14,
+        padding: '1rem 1.125rem',
+        display: 'flex', flexDirection: 'column', gap: '0.625rem',
+        boxShadow: 'var(--shadow)',
+        transition: 'box-shadow 0.2s ease',
+      }}
+    >
+      {/* Title row */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem' }}>
+        <p style={{ flex: 1, fontWeight: 700, fontSize: '0.9rem', color: 'var(--fg)', margin: 0, lineHeight: 1.35 }}>
+          {wo.title}
+        </p>
+        <FmBadge variant={priorityVariant(wo.priority)}>{wo.priority}</FmBadge>
+      </div>
+
+      {/* Property */}
+      {wo.fm_properties && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', color: 'var(--muted)' }}>
+          <Building2 size={11} />
+          <span>{wo.fm_properties.name}</span>
+        </div>
+      )}
+
+      {/* Description */}
+      {wo.description && (
+        <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: 0, lineHeight: 1.45,
+          overflow: 'hidden', display: '-webkit-box',
+          WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>
+          {wo.description}
+        </p>
+      )}
+
+      {/* Footer */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginTop: 'auto', paddingTop: '0.375rem' }}>
+        <StatusPopover wo={wo} onUpdate={onStatusUpdate} />
+
+        {wo.due_date && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem',
+            color: overdue ? 'var(--red)' : 'var(--muted)', fontWeight: overdue ? 700 : 400 }}>
+            <Clock size={11} />
+            {overdue ? 'Overdue · ' : 'Due '}
+            {new Date(wo.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Main Page ──────────────────────────────────────────────────────────────
+
+export default function FMWorkOrdersPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const focusId = searchParams.get('focus')
+
+  const [workOrders, setWorkOrders] = useState<FmWorkOrder[]>([])
+  const [properties, setProperties] = useState<FmProperty[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState<string | null>(null)
+  const [activeTab, setActiveTab]   = useState<FilterTab>('ALL')
+  const [search, setSearch]         = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+  const [form, setForm]             = useState<CreateForm>(EMPTY_FORM)
+  const [saving, setSaving]         = useState(false)
+  const [formError, setFormError]   = useState<string | null>(null)
+
+  // Auto-open overdue tab when there's a ?focus
+  useEffect(() => {
+    if (focusId) setActiveTab('ALL')
+  }, [focusId])
+
+  const load = useCallback(() => {
     setLoading(true)
-    fetch('/api/fm/work-orders')
-      .then((r) => {
+    Promise.all([
+      fetch('/api/fm/work-orders').then((r) => {
         if (!r.ok) throw new Error('Failed to load work orders')
         return r.json() as Promise<FmWorkOrder[]>
+      }),
+      fetch('/api/fm/properties').then((r) => r.json() as Promise<FmProperty[]>),
+    ])
+      .then(([wo, p]) => {
+        // Sort: overdue first, then by priority, then newest
+        const sorted = [...wo].sort((a, b) => {
+          if (overdueWo(a) && !overdueWo(b)) return -1
+          if (!overdueWo(a) && overdueWo(b)) return 1
+          return (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3)
+        })
+        setWorkOrders(sorted)
+        setProperties(p)
       })
-      .then(setWorkOrders)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
       .finally(() => setLoading(false))
-  }
+  }, [])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [load])
 
   function handleStatusUpdate(id: string, status: string) {
-    setWorkOrders((prev) =>
-      prev.map((wo) => (wo.id === id ? { ...wo, status } : wo))
-    )
+    setWorkOrders((prev) => prev.map((wo) => wo.id === id ? { ...wo, status } : wo))
   }
 
-  async function handleDelete(id: string) {
-    setDeleting(id)
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    setFormError(null)
+    if (!form.title.trim()) { setFormError('Title is required'); return }
+
+    setSaving(true)
     try {
-      const res = await fetch(`/api/fm/work-orders/${id}`, { method: 'DELETE' })
-      if (res.ok) {
-        setWorkOrders((prev) => prev.filter((wo) => wo.id !== id))
+      const res = await fetch('/api/fm/work-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title:       form.title.trim(),
+          description: form.description.trim() || null,
+          priority:    form.priority,
+          property_id: form.property_id || null,
+          due_date:    form.due_date || null,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json() as { error?: string }
+        throw new Error(body.error ?? 'Failed to create work order')
       }
+      setForm(EMPTY_FORM)
+      setShowCreate(false)
+      load()
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : 'Unknown error')
     } finally {
-      setDeleting(null)
-      setConfirmDelete(null)
+      setSaving(false)
     }
   }
 
+  // ── Filter ──────────────────────────────────────────────────────────────
   const filtered = workOrders.filter((wo) => {
-    if (activeTab === 'ALL') return true
-    if (activeTab === 'OVERDUE') return isOverdue(wo)
-    return wo.status === activeTab
+    const q = search.toLowerCase()
+    const matchSearch =
+      !q ||
+      wo.title.toLowerCase().includes(q) ||
+      (wo.description ?? '').toLowerCase().includes(q) ||
+      (wo.fm_properties?.name ?? '').toLowerCase().includes(q)
+    const matchTab =
+      activeTab === 'ALL' ? true :
+      activeTab === 'OVERDUE' ? overdueWo(wo) :
+      wo.status === activeTab
+    return matchSearch && matchTab
   })
 
-  const tabCount = (tab: TabValue) => {
-    if (tab === 'ALL') return workOrders.length
-    if (tab === 'OVERDUE') return workOrders.filter(isOverdue).length
+  function tabCount(tab: FilterTab) {
+    if (tab === 'ALL')     return workOrders.length
+    if (tab === 'OVERDUE') return workOrders.filter(overdueWo).length
     return workOrders.filter((wo) => wo.status === tab).length
   }
 
+  const overdueCount = workOrders.filter(overdueWo).length
+
   return (
-    <div className="space-y-5">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">FM Work Orders</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{workOrders.length} total work orders</p>
+          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Work Orders</h1>
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
+            {workOrders.length} total
+            {overdueCount > 0 && (
+              <span style={{ color: 'var(--red)', fontWeight: 700, marginLeft: '0.4rem' }}>
+                · {overdueCount} overdue
+              </span>
+            )}
+          </p>
         </div>
+        <FmButton icon={<Plus size={15} />} onClick={() => setShowCreate(true)} size="sm">
+          New Work Order
+        </FmButton>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
-        {TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
-            className={[
-              'px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
-              activeTab === tab.value
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white',
-              tab.value === 'OVERDUE' && tabCount(tab.value) > 0 && activeTab !== 'OVERDUE'
-                ? 'text-red-500'
-                : '',
-            ].join(' ')}
-          >
-            {tab.label}
-            <span className="ml-1.5 text-xs text-slate-400">({tabCount(tab.value)})</span>
+      {/* Search */}
+      <div style={{ position: 'relative' }}>
+        <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', pointerEvents: 'none' }} />
+        <input
+          type="text"
+          placeholder="Search by title, description or property…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="fm-input"
+          style={{ paddingLeft: '2.25rem' }}
+        />
+        {search && (
+          <button onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex' }}>
+            <X size={14} />
           </button>
-        ))}
+        )}
+      </div>
+
+      {/* Filter pills */}
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        {FILTER_TABS.map((t) => {
+          const active  = activeTab === t.value
+          const count   = tabCount(t.value)
+          const isOverdueTab = t.value === 'OVERDUE'
+          const hasOverdue   = isOverdueTab && count > 0
+          return (
+            <button
+              key={t.value}
+              onClick={() => setActiveTab(t.value)}
+              style={{
+                padding: '0.3rem 0.75rem',
+                borderRadius: 9999,
+                fontSize: '0.72rem', fontWeight: 700,
+                border: `1px solid ${active ? (hasOverdue ? 'var(--red)' : 'var(--primary)') : 'var(--border)'}`,
+                background: active ? (hasOverdue ? 'var(--red-c)' : 'var(--primary-c)') : 'var(--card-b)',
+                color: active ? (hasOverdue ? 'var(--red)' : 'var(--primary)') : (hasOverdue && !active ? 'var(--red)' : 'var(--muted)'),
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                display: 'flex', alignItems: 'center', gap: '0.35rem',
+              }}
+            >
+              {t.label}
+              <span style={{ opacity: 0.7, fontWeight: 800 }}>{count}</span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 size={28} className="animate-spin text-slate-400" />
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem 0' }}>
+          <Loader2 size={26} style={{ animation: 'spin 1s linear infinite', color: 'var(--muted)' }} />
         </div>
       ) : error ? (
-        <div className="py-16 text-center text-red-500">
-          <AlertTriangle size={28} className="mx-auto mb-2" />
-          <p>{error}</p>
+        <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--red)' }}>
+          <AlertTriangle size={28} style={{ margin: '0 auto 0.75rem' }} />
+          <p style={{ fontSize: '0.875rem' }}>{error}</p>
+          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>Retry</FmButton>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="py-16 text-center text-slate-400">
-          <p>No work orders found</p>
+        <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--muted)', fontSize: '0.875rem' }}>
+          <ClipboardList size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
+          {search || activeTab !== 'ALL' ? 'No work orders match your filters' : 'No work orders yet'}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((wo) => {
-            const overdue = isOverdue(wo)
-            return (
-              <div
-                key={wo.id}
-                className={`bg-white dark:bg-slate-900 border rounded-xl p-5 flex flex-col gap-3 ${overdue ? 'border-red-300 dark:border-red-800' : 'border-slate-200 dark:border-slate-700'}`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-slate-900 dark:text-white leading-snug flex-1 min-w-0">
-                    {wo.title}
-                  </p>
-                  <span
-                    className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_BADGE[wo.priority] ?? 'bg-slate-100 text-slate-600'}`}
-                  >
-                    {wo.priority}
-                  </span>
-                </div>
-
-                {wo.fm_properties?.name && (
-                  <p className="text-xs text-slate-500">{wo.fm_properties.name}</p>
-                )}
-
-                {wo.description && (
-                  <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
-                    {wo.description.slice(0, 80)}{wo.description.length > 80 ? '…' : ''}
-                  </p>
-                )}
-
-                <div className="flex items-center justify-between gap-2 mt-auto">
-                  <StatusPopover workOrder={wo} onUpdate={handleStatusUpdate} />
-
-                  {wo.due_date && (
-                    <span className={`text-xs ${overdue ? 'text-red-600 font-medium' : 'text-slate-500'}`}>
-                      Due {new Date(wo.due_date).toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex justify-end">
-                  {confirmDelete === wo.id ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500">Confirm delete?</span>
-                      <button
-                        onClick={() => handleDelete(wo.id)}
-                        disabled={deleting === wo.id}
-                        className="text-xs text-red-600 hover:text-red-700 font-medium"
-                      >
-                        {deleting === wo.id ? 'Deleting...' : 'Yes'}
-                      </button>
-                      <button
-                        onClick={() => setConfirmDelete(null)}
-                        className="text-xs text-slate-500 hover:text-slate-700"
-                      >
-                        No
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setConfirmDelete(wo.id)}
-                      className="text-slate-400 hover:text-red-500 transition-colors"
-                      title="Delete work order"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.875rem' }}>
+          {filtered.map((wo) => (
+            <WoCard
+              key={wo.id}
+              wo={wo}
+              focused={wo.id === focusId}
+              onStatusUpdate={handleStatusUpdate}
+            />
+          ))}
         </div>
       )}
+
+      {/* Create Work Order Modal */}
+      <FmModal
+        open={showCreate}
+        onClose={() => { setShowCreate(false); setForm(EMPTY_FORM); setFormError(null) }}
+        title="New Work Order"
+        subtitle="Create a maintenance or repair work order"
+      >
+        <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+          {formError && (
+            <div style={{ background: 'var(--red-c)', border: '1px solid var(--red)', borderRadius: 8, padding: '0.625rem 0.875rem', fontSize: '0.8rem', color: 'var(--red)' }}>
+              {formError}
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            {/* Title */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
+                Title <span style={{ color: 'var(--red)' }}>*</span>
+              </label>
+              <input
+                className="fm-input"
+                type="text"
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="Replace HVAC filter — Building A"
+                autoFocus
+              />
+            </div>
+
+            {/* Priority */}
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Priority</label>
+              <select className="fm-input" value={form.priority}
+                onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
+                style={{ appearance: 'none' }}>
+                {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+
+            {/* Due date */}
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
+                Due Date <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+              </label>
+              <input
+                className="fm-input"
+                type="date"
+                value={form.due_date}
+                onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
+              />
+            </div>
+
+            {/* Property */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Property</label>
+              <select className="fm-input" value={form.property_id}
+                onChange={(e) => setForm((f) => ({ ...f, property_id: e.target.value }))}
+                style={{ appearance: 'none' }}>
+                <option value="">— None —</option>
+                {properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+
+            {/* Description */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
+                Description <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+              </label>
+              <textarea
+                className="fm-input"
+                rows={3}
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Describe the issue or maintenance task…"
+                style={{ resize: 'vertical', minHeight: 70 }}
+              />
+            </div>
+          </div>
+
+          <FmModalFooter>
+            <FmButton type="button" variant="secondary" size="sm"
+              onClick={() => { setShowCreate(false); setForm(EMPTY_FORM); setFormError(null) }}>
+              Cancel
+            </FmButton>
+            <FmButton type="submit" size="sm" loading={saving}>
+              {saving ? 'Creating…' : 'Create Work Order'}
+            </FmButton>
+          </FmModalFooter>
+        </form>
+      </FmModal>
+
     </div>
   )
 }

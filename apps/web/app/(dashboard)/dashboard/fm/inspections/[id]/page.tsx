@@ -1,9 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Loader2, AlertTriangle, CheckCircle, Download, Paperclip } from 'lucide-react'
+import {
+  ArrowLeft, Loader2, AlertTriangle, CheckCircle,
+  Download, FileText, User, Calendar, ClipboardCheck,
+  Play, ShieldAlert,
+} from 'lucide-react'
+import {
+  FmCard, FmBadge, FmButton, FmSectionLabel, statusVariant,
+} from '@/components/fm'
+
+// ── Types ──────────────────────────────────────────────────────────────────
 
 interface FmInspectionItem {
   id: string
@@ -18,6 +27,7 @@ interface FmAttachment {
   id: string
   filename: string
   file_size: number | null
+  mime_type: string | null
   signed_url: string | null
 }
 
@@ -29,38 +39,78 @@ interface FmInspection {
   completed_at: string | null
   scheduled_for: string | null
   fm_properties?: { id: string; name: string } | null
-  template?: { name: string } | null
-  inspector?: { full_name: string } | null
-  approved_by?: { full_name: string } | null
+  fm_templates?:  { name: string } | null
+  inspector?:     { full_name: string } | null
+  approved_by?:   { full_name: string } | null
   fm_inspection_items?: FmInspectionItem[]
   fm_attachments?: FmAttachment[]
 }
 
-const STATUS_BADGE: Record<string, string> = {
-  COMPLETED: 'bg-green-100 text-green-700',
-  IN_PROGRESS: 'bg-yellow-100 text-yellow-700',
-  PENDING_APPROVAL: 'bg-orange-100 text-orange-700',
-  DRAFT: 'bg-slate-100 text-slate-600',
-}
-
-const RESULT_BADGE: Record<string, string> = {
-  PASS: 'bg-green-100 text-green-700',
-  FAIL: 'bg-red-100 text-red-700',
-  NA: 'bg-slate-100 text-slate-500',
-}
-
-const SEVERITY_BADGE: Record<string, string> = {
-  LOW: 'bg-yellow-100 text-yellow-700',
-  MEDIUM: 'bg-orange-100 text-orange-700',
-  HIGH: 'bg-red-100 text-red-700',
-}
-
 function fileSize(bytes: number | null): string {
-  if (bytes == null) return ''
+  if (bytes == null) return '—'
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
+
+function resultVariant(r: string | null) {
+  if (r === 'PASS') return 'success' as const
+  if (r === 'FAIL') return 'danger' as const
+  return 'neutral' as const
+}
+
+function severityVariant(s: string | null) {
+  if (s === 'HIGH')   return 'danger' as const
+  if (s === 'MEDIUM') return 'warning' as const
+  if (s === 'LOW')    return 'info' as const
+  return 'neutral' as const
+}
+
+// ── Spec tile ──────────────────────────────────────────────────────────────
+
+function MetaTile({ label, value, icon }: { label: string; value: React.ReactNode; icon?: React.ReactNode }) {
+  return (
+    <div style={{ background: 'var(--card-b)', border: '1px solid var(--border)', borderRadius: 10, padding: '0.875rem 1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
+        {icon && <span style={{ color: 'var(--muted)', display: 'flex' }}>{icon}</span>}
+        <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.04em', textTransform: 'uppercase', margin: 0 }}>{label}</p>
+      </div>
+      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--fg)' }}>{value}</div>
+    </div>
+  )
+}
+
+// ── Score gauge ────────────────────────────────────────────────────────────
+
+function ScoreGauge({ score }: { score: number }) {
+  const color = score >= 80 ? 'var(--teal)' : score >= 60 ? 'var(--amber)' : 'var(--red)'
+  const pct   = Math.min(100, Math.max(0, score))
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', padding: '1rem 0' }}>
+      <div style={{ position: 'relative', width: 80, height: 80 }}>
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="var(--border)" strokeWidth="8" />
+          <circle
+            cx="40" cy="40" r="34" fill="none"
+            stroke={color} strokeWidth="8"
+            strokeDasharray={`${(pct / 100) * 213.6} 213.6`}
+            strokeLinecap="round"
+            transform="rotate(-90 40 40)"
+            style={{ transition: 'stroke-dasharray 0.6s ease' }}
+          />
+        </svg>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: '1.1rem', fontWeight: 800, color }}>{score}%</span>
+        </div>
+      </div>
+      <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+        Compliance Score
+      </p>
+    </div>
+  )
+}
+
+// ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function FMInspectionDetailPage() {
   const params = useParams()
@@ -68,12 +118,14 @@ export default function FMInspectionDetailPage() {
   const id = Array.isArray(params.id) ? params.id[0] : (params.id as string)
 
   const [inspection, setInspection] = useState<FmInspection | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [approving, setApproving] = useState(false)
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState<string | null>(null)
+  const [approving, setApproving]   = useState(false)
   const [approveError, setApproveError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true)
+    setError(null)
     fetch(`/api/fm/inspections/${id}`)
       .then((r) => {
         if (!r.ok) throw new Error('Inspection not found')
@@ -83,6 +135,8 @@ export default function FMInspectionDetailPage() {
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
       .finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => { load() }, [load])
 
   async function handleApprove() {
     setApproving(true)
@@ -102,164 +156,219 @@ export default function FMInspectionDetailPage() {
     }
   }
 
+  // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 size={28} className="animate-spin text-slate-400" />
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem 0' }}>
+        <Loader2 size={28} style={{ animation: 'spin 1s linear infinite', color: 'var(--muted)' }} />
       </div>
     )
   }
 
+  // ── Error ────────────────────────────────────────────────────────────────
   if (error || !inspection) {
     return (
-      <div className="py-16 text-center text-red-500">
-        <AlertTriangle size={28} className="mx-auto mb-2" />
-        <p>{error ?? 'Inspection not found'}</p>
-        <button onClick={() => router.push('/dashboard/fm/inspections')} className="mt-4 text-sm text-blue-600 hover:underline">
+      <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--red)' }}>
+        <AlertTriangle size={28} style={{ margin: '0 auto 0.75rem' }} />
+        <p style={{ fontSize: '0.875rem' }}>{error ?? 'Inspection not found'}</p>
+        <FmButton variant="secondary" size="sm" onClick={() => router.push('/dashboard/fm/inspections')} style={{ marginTop: '1rem' }}>
           Back to inspections
-        </button>
+        </FmButton>
       </div>
     )
   }
 
-  const items = inspection.fm_inspection_items ?? []
+  const items       = inspection.fm_inspection_items ?? []
   const attachments = inspection.fm_attachments ?? []
-  const isRunnable = inspection.status === 'DRAFT' || inspection.status === 'IN_PROGRESS'
-  const isPendingApproval = inspection.status === 'PENDING_APPROVAL'
+  const isRunnable  = inspection.status === 'DRAFT' || inspection.status === 'IN_PROGRESS'
+  const isPending   = inspection.status === 'PENDING_APPROVAL'
+  const failedItems = items.filter((i) => i.result === 'FAIL')
+  const criticalItems = items.filter((i) => i.severity === 'HIGH' && i.result === 'FAIL')
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start gap-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.875rem' }}>
         <button
           onClick={() => router.push('/dashboard/fm/inspections')}
-          className="mt-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
+          style={{
+            marginTop: '0.2rem', padding: '0.375rem',
+            background: 'var(--card-b)', border: '1px solid var(--border)',
+            borderRadius: 8, cursor: 'pointer', color: 'var(--muted)',
+            display: 'flex', alignItems: 'center',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--fg)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)' }}
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={17} />
         </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>
               {inspection.fm_properties?.name ?? 'Inspection'}
             </h1>
-            {inspection.template?.name && (
-              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                {inspection.template.name}
-              </span>
+            {inspection.fm_templates?.name && (
+              <FmBadge variant="info">{inspection.fm_templates.name}</FmBadge>
             )}
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[inspection.status] ?? 'bg-slate-100 text-slate-600'}`}>
+            <FmBadge variant={statusVariant(inspection.status)}>
               {inspection.status.replace(/_/g, ' ')}
-            </span>
-            {inspection.score != null && (
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Score: {inspection.score}%
-              </span>
-            )}
+            </FmBadge>
           </div>
+          {inspection.fm_properties && (
+            <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
+              <Link href={`/dashboard/fm/properties/${inspection.fm_properties.id}`} style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
+                {inspection.fm_properties.name}
+              </Link>
+            </p>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {isPendingApproval && (
-            <button
+        <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+          {isPending && (
+            <FmButton
+              icon={approving ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <CheckCircle size={14} />}
               onClick={handleApprove}
-              disabled={approving}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
+              size="sm"
             >
-              {approving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-              Approve
-            </button>
+              {approving ? 'Approving…' : 'Approve'}
+            </FmButton>
           )}
           {isRunnable && (
-            <Link
-              href={`/dashboard/fm/inspections/${id}/run`}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+            <FmButton
+              icon={<Play size={14} />}
+              size="sm"
+              onClick={() => router.push(`/dashboard/fm/inspections/${id}/run`)}
             >
-              Continue Inspection
-            </Link>
+              Continue
+            </FmButton>
           )}
         </div>
       </div>
 
+      {/* Approve error */}
       {approveError && (
-        <p className="text-sm text-red-600 bg-red-50 rounded-lg px-4 py-2">{approveError}</p>
+        <div style={{ background: 'var(--red-c)', border: '1px solid var(--red)', borderRadius: 8, padding: '0.625rem 0.875rem', fontSize: '0.8rem', color: 'var(--red)' }}>
+          {approveError}
+        </div>
       )}
 
-      {/* Meta info */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {inspection.inspector?.full_name && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
-            <p className="text-xs text-slate-500 mb-1">Inspector</p>
-            <p className="font-semibold text-slate-900 dark:text-white">{inspection.inspector.full_name}</p>
-          </div>
-        )}
-        {inspection.started_at && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
-            <p className="text-xs text-slate-500 mb-1">Started</p>
-            <p className="font-semibold text-slate-900 dark:text-white">
-              {new Date(inspection.started_at).toLocaleDateString()}
+      {/* Critical issues banner */}
+      {criticalItems.length > 0 && (
+        <div style={{
+          background: 'var(--red-c)', border: '1px solid var(--red)',
+          borderRadius: 12, padding: '0.875rem 1rem',
+          display: 'flex', alignItems: 'center', gap: '0.75rem',
+        }}>
+          <ShieldAlert size={18} style={{ color: 'var(--red)', flexShrink: 0 }} />
+          <div>
+            <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--red)', margin: 0 }}>
+              {criticalItems.length} Critical Issue{criticalItems.length !== 1 ? 's' : ''} Detected
+            </p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--red)', margin: 0, opacity: 0.8 }}>
+              Immediate attention required: {criticalItems.map((i) => i.label).join(', ')}
             </p>
           </div>
+        </div>
+      )}
+
+      {/* ── Score + Meta row ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: inspection.score != null ? 'auto 1fr' : '1fr', gap: '1rem', alignItems: 'start' }}>
+        {inspection.score != null && (
+          <FmCard style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ScoreGauge score={inspection.score} />
+          </FmCard>
         )}
-        {inspection.completed_at && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
-            <p className="text-xs text-slate-500 mb-1">Completed</p>
-            <p className="font-semibold text-slate-900 dark:text-white">
-              {new Date(inspection.completed_at).toLocaleDateString()}
-            </p>
-          </div>
-        )}
-        {inspection.approved_by?.full_name && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
-            <p className="text-xs text-slate-500 mb-1">Approved By</p>
-            <p className="font-semibold text-slate-900 dark:text-white">{inspection.approved_by.full_name}</p>
-          </div>
-        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
+          {inspection.inspector?.full_name && (
+            <MetaTile label="Inspector" value={inspection.inspector.full_name} icon={<User size={12} />} />
+          )}
+          {inspection.started_at && (
+            <MetaTile label="Started" value={new Date(inspection.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} icon={<Calendar size={12} />} />
+          )}
+          {inspection.completed_at && (
+            <MetaTile label="Completed" value={new Date(inspection.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} icon={<Calendar size={12} />} />
+          )}
+          {inspection.approved_by?.full_name && (
+            <MetaTile label="Approved By" value={inspection.approved_by.full_name} icon={<CheckCircle size={12} />} />
+          )}
+          {items.length > 0 && (
+            <MetaTile
+              label="Items"
+              value={
+                <span>
+                  {items.length} total
+                  {failedItems.length > 0 && (
+                    <span style={{ color: 'var(--red)', marginLeft: '0.4rem', fontWeight: 700 }}>
+                      · {failedItems.length} failed
+                    </span>
+                  )}
+                </span>
+              }
+              icon={<ClipboardCheck size={12} />}
+            />
+          )}
+        </div>
       </div>
 
-      {/* Checklist */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-          <h2 className="font-semibold text-slate-900 dark:text-white">
-            Checklist Items ({items.length})
-          </h2>
+      {/* ── Checklist ── */}
+      <FmCard style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
+          <FmSectionLabel>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ClipboardCheck size={13} style={{ color: 'var(--primary)' }} />
+              Checklist ({items.length} items)
+            </span>
+          </FmSectionLabel>
         </div>
+
         {items.length === 0 ? (
-          <div className="py-8 text-center text-sm text-slate-400">No checklist items</div>
+          <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
+            No checklist items recorded
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 dark:bg-slate-800/60">
+          <div style={{ overflowX: 'auto' }}>
+            <table className="fm-table">
+              <thead>
                 <tr>
-                  <th className="text-left px-5 py-3 font-medium text-slate-500">Item</th>
-                  <th className="text-left px-5 py-3 font-medium text-slate-500">Result</th>
-                  <th className="text-left px-5 py-3 font-medium text-slate-500 hidden md:table-cell">Severity</th>
-                  <th className="text-left px-5 py-3 font-medium text-slate-500 hidden lg:table-cell">Notes</th>
+                  <th>Item</th>
+                  <th>Result</th>
+                  <th>Severity</th>
+                  <th>Notes</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody>
                 {items.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{item.label}</td>
-                    <td className="px-5 py-3">
+                  <tr
+                    key={item.id}
+                    style={{
+                      background: item.result === 'FAIL' && item.severity === 'HIGH'
+                        ? 'var(--red-c)' : undefined,
+                    }}
+                  >
+                    <td>
+                      <span style={{ fontWeight: 600, color: 'var(--fg)' }}>{item.label}</span>
+                    </td>
+                    <td>
                       {item.result ? (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${RESULT_BADGE[item.result] ?? 'bg-slate-100 text-slate-600'}`}>
-                          {item.result}
-                        </span>
+                        <FmBadge variant={resultVariant(item.result)}>{item.result}</FmBadge>
                       ) : (
-                        <span className="text-slate-300 text-xs">—</span>
+                        <span style={{ color: 'var(--faint)', fontSize: '0.8rem' }}>—</span>
                       )}
                     </td>
-                    <td className="px-5 py-3 hidden md:table-cell">
+                    <td>
                       {item.severity ? (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${SEVERITY_BADGE[item.severity] ?? 'bg-slate-100 text-slate-600'}`}>
-                          {item.severity}
-                        </span>
+                        <FmBadge variant={severityVariant(item.severity)}>{item.severity}</FmBadge>
                       ) : (
-                        <span className="text-slate-300 text-xs">—</span>
+                        <span style={{ color: 'var(--faint)', fontSize: '0.8rem' }}>—</span>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-slate-500 hidden lg:table-cell max-w-xs truncate">
-                      {item.notes ?? '—'}
+                    <td>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                        {item.notes ?? '—'}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -267,35 +376,50 @@ export default function FMInspectionDetailPage() {
             </table>
           </div>
         )}
-      </div>
+      </FmCard>
 
-      {/* Attachments */}
+      {/* ── Attachments ── */}
       {attachments.length > 0 && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-            <h2 className="font-semibold text-slate-900 dark:text-white">Attachments</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-5">
+        <FmCard>
+          <FmSectionLabel>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FileText size={13} style={{ color: 'var(--primary)' }} />
+              Attachments ({attachments.length})
+            </span>
+          </FmSectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.625rem', marginTop: '0.75rem' }}>
             {attachments.map((att) => (
-              <div
-                key={att.id}
-                className="flex items-center gap-3 border border-slate-200 dark:border-slate-700 rounded-lg p-3"
-              >
-                <Paperclip size={16} className="text-slate-400 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{att.filename}</p>
-                  <p className="text-xs text-slate-400">{fileSize(att.file_size)}</p>
+              <div key={att.id} style={{
+                display: 'flex', alignItems: 'center', gap: '0.625rem',
+                background: 'var(--card-b)', border: '1px solid var(--border)',
+                borderRadius: 8, padding: '0.625rem 0.75rem',
+              }}>
+                <FileText size={15} style={{ color: 'var(--muted)', flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {att.filename}
+                  </p>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--muted)', margin: 0 }}>{fileSize(att.file_size)}</p>
                 </div>
                 {att.signed_url && (
-                  <a href={att.signed_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 shrink-0">
-                    <Download size={16} />
+                  <a
+                    href={att.signed_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: 'var(--muted)', display: 'flex', transition: 'color 0.15s' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--primary)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)' }}
+                    aria-label="Download"
+                  >
+                    <Download size={15} />
                   </a>
                 )}
               </div>
             ))}
           </div>
-        </div>
+        </FmCard>
       )}
+
     </div>
   )
 }

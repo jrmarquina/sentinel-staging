@@ -255,3 +255,255 @@ body {
     text-wrap: balance;
   }
 }
+
+/*──────────────────────────────────────────────────
+  GLASSMORPHISM DESIGN THEME
+  Activated by <html class="design-glass">.
+  Uses the same universal token names as Classic/CA
+  so every component adapts automatically.
+  Works best with dark mode; .design-glass.dark
+  deepens the background slightly.
+──────────────────────────────────────────────────*/
+.design-glass {
+  /* Surfaces — semi-transparent for blur effect */
+  --background:  #020817;
+  --foreground:  #f8fafc;
+  --bg:          #020817;
+  --fg:          #f8fafc;
+  --sidebar:     rgba(2, 6, 23, 0.88);
+  --card:        rgba(30, 41, 59, 0.45);
+  --card-b:      rgba(15, 23, 42, 0.72);
+  --border:      rgba(148, 163, 184, 0.12);
+
+  /* Text */
+  --muted:       #94a3b8;
+  --faint:       #64748b;
+
+  /* Brand — sky-blue accent for glass */
+  --primary:     #38bdf8;
+  --primary-c:   rgba(56, 189, 248, 0.15);
+
+  /* Semantic colours */
+  --teal:        #34d399;
+  --teal-c:      rgba(52, 211, 153, 0.15);
+  --red:         #fb7185;
+  --red-c:       rgba(251, 113, 133, 0.15);
+  --amber:       #fbbf24;
+  --amber-c:     rgba(251, 191, 36, 0.15);
+  --orange:      #fb923c;
+  --orange-c:    rgba(251, 146, 60, 0.15);
+  --violet:      #818cf8;
+  --violet-c:    rgba(129, 140, 248, 0.15);
+
+  /* Elevation */
+  --shadow:      0 4px 24px rgba(0,0,0,0.45);
+  --shadow-lg:   0 8px 40px rgba(0,0,0,0.65);
+}
+
+.design-glass.dark {
+  /* Slightly deeper in explicit dark mode */
+  --bg:          #010610;
+  --card:        rgba(20, 30, 50, 0.52);
+  --card-b:      rgba(8, 14, 32, 0.82);
+  --border:      rgba(148, 163, 184, 0.09);
+  --background:  #010610;
+}
+
+/* Apply backdrop blur to every card surface in glass mode */
+.design-glass .sentinel-card,
+.design-glass .fm-card,
+.design-glass .fm-modal-panel {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/*──────────────────────────────────────────────────
+  FACILITY MANAGEMENT MODULE — Shared UI Primitives
+  .fm-shell is a module-context class only —
+  it does NOT force a colour scheme.
+  All colours come from the active design theme
+  tokens (Classic / CA / Glass) + light/dark class.
+──────────────────────────────────────────────────*/
+.fm-shell {
+  min-height: 100%;
+  /* No colour overrides — inherits active theme */
+}
+
+/* ── FM Card ─────────────────────────────────── */
+.fm-card {
+  background:    var(--card);
+  border:        1px solid var(--border);
+  border-radius: 14px;
+  padding:       1.5rem;
+  box-shadow:    var(--shadow);
+  transition:    border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fm-card:hover {
+  border-color: var(--primary);
+  box-shadow:   var(--shadow-lg);
+}
+
+/* ── FM Input ────────────────────────────────── */
+.fm-input {
+  width:         100%;
+  min-width:     0;
+  padding:       0.6875rem 0.875rem;
+  background:    var(--card-b);
+  border:        1px solid var(--border);
+  border-radius: 8px;
+  color:         var(--fg);
+  outline:       none;
+  font-size:     0.9375rem;
+  transition:    border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fm-input:focus {
+  border-color: var(--primary);
+  box-shadow:   0 0 0 2px var(--primary-c);
+}
+
+.fm-input::placeholder { color: var(--faint); }
+
+/* ── FM Table ────────────────────────────────── */
+.fm-table { width: 100%; border-collapse: collapse; }
+
+.fm-table th {
+  text-align:      left;
+  padding:         0.75rem 1rem;
+  font-size:       0.7rem;
+  font-weight:     700;
+  text-transform:  uppercase;
+  letter-spacing:  0.08em;
+  color:           var(--muted);
+  border-bottom:   1px solid var(--border);
+  white-space:     nowrap;
+}
+
+.fm-table td {
+  padding:       0.75rem 1rem;
+  font-size:     0.9rem;
+  border-bottom: 1px solid var(--border);
+  color:         var(--fg);
+}
+
+.fm-table tr:hover td  { background: var(--card-b); }
+.fm-table tr:last-child td { border-bottom: none; }
+
+/* ── FM Scrollbar ────────────────────────────── */
+.fm-shell ::-webkit-scrollbar       { width: 5px; height: 5px; }
+.fm-shell ::-webkit-scrollbar-track { background: transparent; }
+.fm-shell ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+/* ── FM Badge ────────────────────────────────── */
+.fm-badge {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.3rem;
+  padding:       0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size:     0.7rem;
+  font-weight:   700;
+  letter-spacing: 0.03em;
+  white-space:   nowrap;
+}
+
+.fm-badge-success { background: var(--teal-c);    color: var(--teal); }
+.fm-badge-danger  { background: var(--red-c);     color: var(--red); }
+.fm-badge-warning { background: var(--amber-c);   color: var(--amber); }
+.fm-badge-info    { background: var(--primary-c); color: var(--primary); }
+.fm-badge-neutral { background: var(--card-b);    color: var(--muted); }
+
+/* ── FM Button ───────────────────────────────── */
+.fm-btn {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             0.5rem;
+  padding:         0.6rem 1.2rem;
+  border-radius:   8px;
+  font-weight:     600;
+  font-size:       0.875rem;
+  cursor:          pointer;
+  transition:      all 0.2s ease;
+  border:          none;
+  white-space:     nowrap;
+}
+
+.fm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.fm-btn-primary {
+  background: var(--primary);
+  color:      #fff;
+}
+.fm-btn-primary:hover:not(:disabled) {
+  opacity:    0.88;
+  transform:  translateY(-1px);
+  box-shadow: 0 4px 12px var(--primary-c);
+}
+
+.fm-btn-secondary {
+  background: var(--card-b);
+  color:      var(--fg);
+  border:     1px solid var(--border);
+}
+.fm-btn-secondary:hover:not(:disabled) { background: var(--border); }
+
+.fm-btn-danger {
+  background: var(--red-c);
+  color:      var(--red);
+  border:     1px solid var(--red-c);
+}
+.fm-btn-danger:hover:not(:disabled) { opacity: 0.85; }
+
+.fm-btn-ghost {
+  background: transparent;
+  color:      var(--muted);
+}
+.fm-btn-ghost:hover:not(:disabled) { background: var(--card-b); color: var(--fg); }
+
+/* ── FM Modal ────────────────────────────────── */
+.fm-modal-overlay {
+  position:        fixed;
+  inset:           0;
+  background:      rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  z-index:         200;
+  padding:         1rem;
+}
+
+.fm-modal-panel {
+  background:    var(--card);
+  border:        1px solid var(--border);
+  border-radius: 18px;
+  padding:       2rem;
+  box-shadow:    var(--shadow-lg);
+  width:         100%;
+  max-width:     520px;
+  max-height:    90vh;
+  overflow-y:    auto;
+  animation:     fm-slide-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fm-slide-up {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+/* ── FM Section Label ────────────────────────── */
+.fm-label {
+  font-size:      0.65rem;
+  font-weight:    900;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color:          var(--muted);
+}
+
+/* ── FM Hover-reveal ─────────────────────────── */
+.fm-hover-show { opacity: 0; transition: opacity 0.2s; }
+tr:hover .fm-hover-show,
+.fm-card:hover .fm-hover-show { opacity: 1; }

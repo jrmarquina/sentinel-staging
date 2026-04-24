@@ -184,6 +184,7 @@ export function Header({ onMenuClick, userEmail, userFullName, userAvatar }: Hea
                 <DropdownSection label={t('menu.design')}>
                   <ToggleBtn active={designTheme === 'classic'} onClick={() => setDesignTheme('classic')}>{t('menu.classic')}{designTheme === 'classic' && <Check size={11} />}</ToggleBtn>
                   <ToggleBtn active={designTheme === 'dev'}     onClick={() => setDesignTheme('dev')}>{t('menu.development')}{designTheme === 'dev' && <Check size={11} />}</ToggleBtn>
+                  <ToggleBtn active={designTheme === 'glass'}   onClick={() => setDesignTheme('glass')}>Glass{designTheme === 'glass' && <Check size={11} />}</ToggleBtn>
                 </DropdownSection>
               )}
 

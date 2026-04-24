@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 
-export type DesignTheme = 'classic' | 'dev'
+export type DesignTheme = 'classic' | 'dev' | 'glass'
 
 const STORAGE_KEY = 'sentinel-design'
 
@@ -12,25 +12,28 @@ interface DesignThemeContextValue {
 }
 
 const DesignThemeContext = createContext<DesignThemeContextValue>({
-  designTheme: 'dev',
+  designTheme: 'classic',
   setDesignTheme: () => {},
 })
 
 function applyDesignTheme(theme: DesignTheme) {
-  if (theme === 'dev') {
-    document.documentElement.classList.add('design-dev')
-  } else {
-    document.documentElement.classList.remove('design-dev')
-  }
+  const html = document.documentElement
+  // Remove all design-theme classes first
+  html.classList.remove('design-dev', 'design-glass')
+  if (theme === 'dev')   html.classList.add('design-dev')
+  if (theme === 'glass') html.classList.add('design-glass')
 }
 
 export function DesignThemeProvider({ children }: { children: React.ReactNode }) {
-  const [designTheme, setDesignThemeState] = useState<DesignTheme>('dev')
+  const [designTheme, setDesignThemeState] = useState<DesignTheme>('classic')
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY) as DesignTheme | null
-      const initial: DesignTheme = stored === 'classic' ? 'classic' : 'dev'
+      const valid: DesignTheme[] = ['classic', 'dev', 'glass']
+      const initial: DesignTheme = valid.includes(stored as DesignTheme)
+        ? (stored as DesignTheme)
+        : 'classic'
       setDesignThemeState(initial)
       applyDesignTheme(initial)
     } catch {}

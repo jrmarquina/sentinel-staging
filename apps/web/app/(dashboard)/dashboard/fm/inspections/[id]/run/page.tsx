@@ -2,44 +2,55 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
+
+// ── Types ──────────────────────────────────────────────────────────────────
 
 interface ChecklistItem {
-  id: string
-  key: string
-  label: string
-  result: string | null
-  severity: string | null
-  notes: string | null
+  id: string; key: string; label: string
+  result: string | null; severity: string | null; notes: string | null
 }
 
 interface FmInspection {
-  id: string
-  status: string
+  id: string; status: string
   fm_inspection_items?: ChecklistItem[]
 }
 
-type Result = 'PASS' | 'FAIL' | 'NA'
+type Result   = 'PASS' | 'FAIL' | 'NA'
 type Severity = 'LOW' | 'MEDIUM' | 'HIGH'
 
 interface ItemState {
-  result: string | null
-  severity: string | null
-  notes: string | null
+  result: string | null; severity: string | null; notes: string | null
 }
+
+// ── Result / Severity button styles ───────────────────────────────────────
+
+const RESULT_CONFIG: { value: Result; label: string; activeColor: string; activeBg: string; hoverBg: string }[] = [
+  { value: 'PASS', label: 'PASS',  activeColor: '#fff',          activeBg: 'var(--teal)',  hoverBg: 'var(--teal-c)' },
+  { value: 'FAIL', label: 'FAIL',  activeColor: '#fff',          activeBg: 'var(--red)',   hoverBg: 'var(--red-c)' },
+  { value: 'NA',   label: 'N / A', activeColor: 'var(--card)',   activeBg: 'var(--muted)', hoverBg: 'var(--card-b)' },
+]
+
+const SEVERITY_CONFIG: { value: Severity; label: string; color: string; bg: string }[] = [
+  { value: 'LOW',    label: 'Low',    color: 'var(--amber)', bg: 'var(--amber-c)' },
+  { value: 'MEDIUM', label: 'Medium', color: 'var(--red)',   bg: 'var(--red-c)' },
+  { value: 'HIGH',   label: 'High',   color: '#fff',         bg: 'var(--red)' },
+]
+
+// ── Main Component ─────────────────────────────────────────────────────────
 
 export default function InspectionRunPage() {
   const params = useParams()
   const router = useRouter()
   const id = Array.isArray(params.id) ? params.id[0] : (params.id as string)
 
-  const [items, setItems] = useState<ChecklistItem[]>([])
+  const [items, setItems]         = useState<ChecklistItem[]>([])
   const [itemState, setItemState] = useState<Record<string, ItemState>>({})
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [loading, setLoading]     = useState(true)
+  const [saving, setSaving]       = useState(false)
   const [completing, setCompleting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError]         = useState<string | null>(null)
 
   const dirty = useRef<Set<string>>(new Set())
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -55,11 +66,7 @@ export default function InspectionRunPage() {
         setItems(fetched)
         const state: Record<string, ItemState> = {}
         for (const item of fetched) {
-          state[item.key] = {
-            result: item.result,
-            severity: item.severity,
-            notes: item.notes,
-          }
+          state[item.key] = { result: item.result, severity: item.severity, notes: item.notes }
         }
         setItemState(state)
       })
@@ -87,7 +94,7 @@ export default function InspectionRunPage() {
     }
   }, [id, itemState])
 
-  // Debounced auto-save on itemState change
+  // Debounced auto-save
   useEffect(() => {
     if (saveTimeout.current) clearTimeout(saveTimeout.current)
     saveTimeout.current = setTimeout(() => { void saveDirty() }, 1500)
@@ -117,20 +124,26 @@ export default function InspectionRunPage() {
     }
   }
 
+  // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] gap-3">
-        <Loader2 size={32} className="animate-spin text-slate-400" />
-        <p className="text-sm text-slate-500">Loading inspection...</p>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', gap: '0.75rem' }}>
+        <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: 'var(--muted)' }} />
+        <p style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>Loading inspection…</p>
       </div>
     )
   }
 
+  // ── Error / Empty ─────────────────────────────────────────────────────────
   if (error || items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] gap-3 text-red-500">
-        <p className="text-lg font-medium">{error ?? 'No checklist items found'}</p>
-        <button onClick={() => router.push('/dashboard/fm/inspections')} className="text-sm text-blue-600 hover:underline">
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', gap: '0.75rem', color: 'var(--red)' }}>
+        <AlertTriangle size={28} />
+        <p style={{ fontSize: '1rem', fontWeight: 600 }}>{error ?? 'No checklist items found'}</p>
+        <button
+          onClick={() => router.push('/dashboard/fm/inspections')}
+          style={{ fontSize: '0.875rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+        >
           Back to inspections
         </button>
       </div>
@@ -138,124 +151,159 @@ export default function InspectionRunPage() {
   }
 
   const currentItem = items[currentIndex]
-  const currentKey = currentItem.key
-  const state = itemState[currentKey] ?? { result: null, severity: null, notes: null }
-  const isLast = currentIndex === items.length - 1
-  const progress = ((currentIndex + 1) / items.length) * 100
-
-  const RESULT_BUTTONS: { value: Result; label: string; active: string; inactive: string }[] = [
-    {
-      value: 'PASS',
-      label: 'PASS',
-      active: 'bg-green-500 text-white border-green-500',
-      inactive: 'bg-white dark:bg-slate-900 text-green-600 border-green-300 hover:bg-green-50',
-    },
-    {
-      value: 'FAIL',
-      label: 'FAIL',
-      active: 'bg-red-500 text-white border-red-500',
-      inactive: 'bg-white dark:bg-slate-900 text-red-600 border-red-300 hover:bg-red-50',
-    },
-    {
-      value: 'NA',
-      label: 'N/A',
-      active: 'bg-slate-500 text-white border-slate-500',
-      inactive: 'bg-white dark:bg-slate-900 text-slate-500 border-slate-300 hover:bg-slate-50',
-    },
-  ]
-
-  const SEVERITY_BUTTONS: { value: Severity; label: string; active: string; inactive: string }[] = [
-    { value: 'LOW', label: 'Low', active: 'bg-yellow-500 text-white border-yellow-500', inactive: 'bg-white dark:bg-slate-900 text-yellow-600 border-yellow-300 hover:bg-yellow-50' },
-    { value: 'MEDIUM', label: 'Medium', active: 'bg-orange-500 text-white border-orange-500', inactive: 'bg-white dark:bg-slate-900 text-orange-600 border-orange-300 hover:bg-orange-50' },
-    { value: 'HIGH', label: 'High', active: 'bg-red-700 text-white border-red-700', inactive: 'bg-white dark:bg-slate-900 text-red-700 border-red-300 hover:bg-red-50' },
-  ]
+  const currentKey  = currentItem.key
+  const state       = itemState[currentKey] ?? { result: null, severity: null, notes: null }
+  const isLast      = currentIndex === items.length - 1
+  const progress    = ((currentIndex + 1) / items.length) * 100
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-8rem)] max-w-lg mx-auto">
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      minHeight: 'calc(100vh - 8rem)',
+      maxWidth: 480, margin: '0 auto',
+    }}>
       {/* Progress bar */}
-      <div className="h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-blue-600 transition-all duration-300"
-          style={{ width: `${progress}%` }}
-        />
+      <div style={{ height: 4, background: 'var(--border)', borderRadius: 9999, overflow: 'hidden' }}>
+        <div style={{
+          height: '100%', background: 'var(--primary)',
+          width: `${progress}%`, transition: 'width 0.3s ease',
+          borderRadius: 9999,
+        }} />
       </div>
 
       {/* Top bar */}
-      <div className="flex items-center justify-between py-3 px-1">
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0.875rem 0.25rem',
+      }}>
         <button
           onClick={() => router.push(`/dashboard/fm/inspections/${id}`)}
-          className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.3rem',
+            fontSize: '0.875rem', color: 'var(--muted)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            transition: 'color 0.15s ease',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--fg)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)' }}
         >
           <ArrowLeft size={16} />
           Exit
         </button>
-        <div className="flex items-center gap-2">
-          {saving && <span className="text-xs text-slate-400 flex items-center gap-1"><Loader2 size={11} className="animate-spin" /> Saving</span>}
-          <span className="text-sm font-medium text-slate-500">
-            {currentIndex + 1} of {items.length}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+          {saving && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> Saving
+            </span>
+          )}
+          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--muted)' }}>
+            {currentIndex + 1} <span style={{ fontWeight: 400 }}>of</span> {items.length}
           </span>
         </div>
+
         <button
           onClick={saveDirty}
           disabled={saving}
-          className="text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
+          style={{
+            fontSize: '0.875rem', color: 'var(--primary)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontWeight: 600, opacity: saving ? 0.5 : 1,
+          }}
         >
           Save
         </button>
       </div>
 
       {/* Item card */}
-      <div className="flex-1 flex flex-col justify-center px-1 py-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-6">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0.5rem 0.25rem' }}>
+        <div style={{
+          background: 'var(--card)', border: '1px solid var(--border)',
+          borderRadius: 20, padding: '1.5rem 1.5rem',
+          boxShadow: 'var(--shadow)',
+          display: 'flex', flexDirection: 'column', gap: '1.5rem',
+        }}>
           {/* Label */}
           <div>
-            <p className="text-xs text-slate-400 uppercase tracking-wider mb-2">Item {currentIndex + 1}</p>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-snug">
+            <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+              Item {currentIndex + 1}
+            </p>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg)', lineHeight: 1.3, margin: 0 }}>
               {currentItem.label}
             </h2>
           </div>
 
-          {/* Result buttons */}
-          <div className="grid grid-cols-3 gap-3">
-            {RESULT_BUTTONS.map((btn) => (
-              <button
-                key={btn.value}
-                onClick={() => updateItem(currentKey, { result: btn.value, ...(btn.value !== 'FAIL' ? { severity: null } : {}) })}
-                className={`py-4 rounded-xl border-2 text-base font-bold transition-all ${state.result === btn.value ? btn.active : btn.inactive}`}
-              >
-                {btn.label}
-              </button>
-            ))}
+          {/* PASS / FAIL / NA buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+            {RESULT_CONFIG.map((btn) => {
+              const isActive = state.result === btn.value
+              return (
+                <button
+                  key={btn.value}
+                  onClick={() => updateItem(currentKey, {
+                    result: btn.value,
+                    ...(btn.value !== 'FAIL' ? { severity: null } : {}),
+                  })}
+                  style={{
+                    padding: '1rem 0.5rem',
+                    borderRadius: 14,
+                    border: `2px solid ${isActive ? btn.activeBg : 'var(--border)'}`,
+                    background: isActive ? btn.activeBg : 'var(--card-b)',
+                    color: isActive ? btn.activeColor : 'var(--fg)',
+                    fontSize: '1rem', fontWeight: 800,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    touchAction: 'manipulation',
+                  }}
+                >
+                  {btn.label}
+                </button>
+              )
+            })}
           </div>
 
-          {/* Severity (only if FAIL) */}
+          {/* Severity (shown only on FAIL) */}
           {state.result === 'FAIL' && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Severity</p>
-              <div className="grid grid-cols-3 gap-2">
-                {SEVERITY_BUTTONS.map((btn) => (
-                  <button
-                    key={btn.value}
-                    onClick={() => updateItem(currentKey, { severity: btn.value })}
-                    className={`py-2.5 rounded-lg border-2 text-sm font-semibold transition-all ${state.severity === btn.value ? btn.active : btn.inactive}`}
-                  >
-                    {btn.label}
-                  </button>
-                ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+              <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Severity</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+                {SEVERITY_CONFIG.map((btn) => {
+                  const isActive = state.severity === btn.value
+                  return (
+                    <button
+                      key={btn.value}
+                      onClick={() => updateItem(currentKey, { severity: btn.value })}
+                      style={{
+                        padding: '0.75rem 0.5rem',
+                        borderRadius: 12,
+                        border: `2px solid ${isActive ? btn.bg : 'var(--border)'}`,
+                        background: isActive ? btn.bg : 'var(--card-b)',
+                        color: isActive ? btn.color : 'var(--fg)',
+                        fontSize: '0.875rem', fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        touchAction: 'manipulation',
+                      }}
+                    >
+                      {btn.label}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}
 
-          {/* Notes (only if FAIL) */}
+          {/* Notes (shown only on FAIL) */}
           {state.result === 'FAIL' && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Notes</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Notes</p>
               <textarea
                 value={state.notes ?? ''}
                 onChange={(e) => updateItem(currentKey, { notes: e.target.value })}
                 rows={3}
-                placeholder="Describe the issue..."
-                className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                placeholder="Describe the issue…"
+                className="fm-input"
+                style={{ resize: 'vertical', fontSize: '0.9rem', minHeight: 70 }}
               />
             </div>
           )}
@@ -263,36 +311,64 @@ export default function InspectionRunPage() {
       </div>
 
       {/* Navigation */}
-      <div className="pb-4 space-y-3 px-1">
-        {isLast ? (
+      <div style={{ padding: '0.5rem 0.25rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {isLast && (
           <button
             onClick={handleComplete}
             disabled={completing}
-            className="w-full py-4 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-bold text-base rounded-xl transition-colors inline-flex items-center justify-center gap-2"
+            style={{
+              width: '100%', padding: '1.1rem',
+              background: completing ? 'var(--teal-c)' : 'var(--teal)',
+              border: 'none', borderRadius: 16,
+              color: '#fff', fontSize: '1.05rem', fontWeight: 800,
+              cursor: completing ? 'wait' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+              opacity: completing ? 0.8 : 1,
+              transition: 'opacity 0.15s ease',
+              touchAction: 'manipulation',
+            }}
           >
             {completing
-              ? <><Loader2 size={18} className="animate-spin" /> Completing...</>
-              : <><CheckCircle2 size={18} /> Complete Inspection</>
+              ? <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> Completing…</>
+              : <><CheckCircle2 size={20} /> Complete Inspection</>
             }
           </button>
-        ) : null}
+        )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem' }}>
           <button
             onClick={() => navigate(-1)}
             disabled={currentIndex === 0}
-            className="flex items-center justify-center gap-2 py-3 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium rounded-xl transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+              padding: '0.9rem',
+              background: 'var(--card-b)', border: '1px solid var(--border)',
+              borderRadius: 14, color: 'var(--fg)', fontSize: '0.95rem', fontWeight: 700,
+              cursor: currentIndex === 0 ? 'not-allowed' : 'pointer',
+              opacity: currentIndex === 0 ? 0.4 : 1,
+              transition: 'opacity 0.15s ease',
+              touchAction: 'manipulation',
+            }}
           >
-            <ArrowLeft size={18} />
-            Previous
+            <ArrowLeft size={18} /> Previous
           </button>
           <button
             onClick={() => navigate(1)}
             disabled={isLast}
-            className="flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+              padding: '0.9rem',
+              background: isLast ? 'var(--card-b)' : 'var(--primary)',
+              border: isLast ? '1px solid var(--border)' : 'none',
+              borderRadius: 14, color: isLast ? 'var(--muted)' : '#fff',
+              fontSize: '0.95rem', fontWeight: 700,
+              cursor: isLast ? 'not-allowed' : 'pointer',
+              opacity: isLast ? 0.4 : 1,
+              transition: 'all 0.15s ease',
+              touchAction: 'manipulation',
+            }}
           >
-            Next
-            <ArrowRight size={18} />
+            Next <ArrowRight size={18} />
           </button>
         </div>
       </div>

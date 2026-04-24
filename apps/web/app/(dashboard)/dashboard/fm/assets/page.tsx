@@ -2,67 +2,63 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Loader2, AlertTriangle, X } from 'lucide-react'
+import { Plus, Search, Loader2, AlertTriangle, X, Wrench } from 'lucide-react'
+import {
+  FmCard, FmBadge, FmButton, FmModal,
+  FmModalFooter, FmSectionLabel,
+} from '@/components/fm'
 
-interface FmProperty {
-  id: string
-  name: string
-}
+// ── Types ──────────────────────────────────────────────────────────────────
+
+interface FmProperty { id: string; name: string }
 
 interface FmAsset {
-  id: string
-  name: string
-  code: string
-  category: string
-  condition: string
-  location: string | null
-  property_id: string | null
+  id: string; name: string; code: string
+  category: string; condition: string
+  location: string | null; property_id: string | null
   fm_properties?: { name: string } | null
 }
 
-const CONDITION_BADGE: Record<string, string> = {
-  GOOD: 'bg-green-100 text-green-700',
-  FAIR: 'bg-yellow-100 text-yellow-700',
-  POOR: 'bg-red-100 text-red-700',
+interface AssetForm {
+  name: string; code: string; category: string
+  property_id: string; location: string; condition: string
 }
 
 const CATEGORIES = ['ELECTRICAL', 'PLUMBING', 'HVAC', 'STRUCTURAL', 'FIRE_SAFETY', 'OTHER'] as const
 const CONDITIONS = ['GOOD', 'FAIR', 'POOR'] as const
 
-interface AssetForm {
-  name: string
-  code: string
-  category: string
-  property_id: string
-  location: string
-  condition: string
+const EMPTY_FORM: AssetForm = {
+  name: '', code: '', category: 'OTHER',
+  property_id: '', location: '', condition: 'GOOD',
 }
 
-const EMPTY_FORM: AssetForm = {
-  name: '',
-  code: '',
-  category: 'OTHER',
-  property_id: '',
-  location: '',
-  condition: 'GOOD',
-}
+// condition → badge variant
+const conditionVariant = (c: string) =>
+  c === 'GOOD' ? 'success' as const :
+  c === 'FAIR' ? 'warning' as const : 'danger' as const
+
+// ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function FMAssetsPage() {
   const router = useRouter()
-  const [assets, setAssets] = useState<FmAsset[]>([])
+  const [assets, setAssets]         = useState<FmAsset[]>([])
   const [properties, setProperties] = useState<FmProperty[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
-  const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState<AssetForm>(EMPTY_FORM)
-  const [saving, setSaving] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState<string | null>(null)
+  const [search, setSearch]         = useState('')
+  const [catFilter, setCatFilter]   = useState<string>('ALL')
+  const [showModal, setShowModal]   = useState(false)
+  const [form, setForm]             = useState<AssetForm>(EMPTY_FORM)
+  const [saving, setSaving]         = useState(false)
+  const [formError, setFormError]   = useState<string | null>(null)
 
   function load() {
     setLoading(true)
     Promise.all([
-      fetch('/api/fm/assets').then((r) => r.json() as Promise<FmAsset[]>),
+      fetch('/api/fm/assets').then((r) => {
+        if (!r.ok) throw new Error('Failed to load assets')
+        return r.json() as Promise<FmAsset[]>
+      }),
       fetch('/api/fm/properties').then((r) => r.json() as Promise<FmProperty[]>),
     ])
       .then(([a, p]) => { setAssets(a); setProperties(p) })
@@ -72,16 +68,23 @@ export default function FMAssetsPage() {
 
   useEffect(() => { load() }, [])
 
+  // Filter
   const filtered = assets.filter((a) => {
     const q = search.toLowerCase()
-    return (
+    const matchSearch =
       !q ||
       a.name.toLowerCase().includes(q) ||
       a.code.toLowerCase().includes(q) ||
-      a.category.toLowerCase().includes(q) ||
       (a.fm_properties?.name ?? '').toLowerCase().includes(q)
-    )
+    const matchCat = catFilter === 'ALL' || a.category === catFilter
+    return matchSearch && matchCat
   })
+
+  // Category counts
+  const catCounts = assets.reduce<Record<string, number>>((acc, a) => {
+    acc[a.category] = (acc[a.category] ?? 0) + 1
+    return acc
+  }, {})
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -118,217 +121,243 @@ export default function FMAssetsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Assets</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{assets.length} registered assets</p>
+          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Assets</h1>
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
+            {assets.length} registered asset{assets.length !== 1 ? 's' : ''}
+          </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          <Plus size={16} />
+        <FmButton icon={<Plus size={15} />} onClick={() => setShowModal(true)} size="sm">
           Register Asset
-        </button>
+        </FmButton>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search assets..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+      {/* Search + Category filters */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ position: 'relative' }}>
+          <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', pointerEvents: 'none' }} />
+          <input
+            type="text"
+            placeholder="Search by name, code or property…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="fm-input"
+            style={{ paddingLeft: '2.25rem' }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex' }}>
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Category pills */}
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {(['ALL', ...CATEGORIES] as string[]).map((cat) => {
+            const active = catFilter === cat
+            const count  = cat === 'ALL' ? assets.length : (catCounts[cat] ?? 0)
+            const label  = cat === 'ALL' ? 'All' : cat.replace(/_/g, ' ').charAt(0) + cat.replace(/_/g, ' ').slice(1).toLowerCase()
+            return (
+              <button
+                key={cat}
+                onClick={() => setCatFilter(cat)}
+                style={{
+                  padding: '0.3rem 0.75rem',
+                  borderRadius: 9999,
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  border: `1px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
+                  background: active ? 'var(--primary-c)' : 'var(--card-b)',
+                  color: active ? 'var(--primary)' : 'var(--muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'flex', alignItems: 'center', gap: '0.35rem',
+                }}
+              >
+                {label}
+                <span style={{ opacity: 0.7, fontWeight: 800 }}>{count}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 size={28} className="animate-spin text-slate-400" />
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem 0' }}>
+          <Loader2 size={26} style={{ animation: 'spin 1s linear infinite', color: 'var(--muted)' }} />
         </div>
       ) : error ? (
-        <div className="py-16 text-center text-red-500">
-          <AlertTriangle size={28} className="mx-auto mb-2" />
-          <p>{error}</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="py-16 text-center text-slate-400">
-          <p>No assets found</p>
+        <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--red)' }}>
+          <AlertTriangle size={28} style={{ margin: '0 auto 0.75rem' }} />
+          <p style={{ fontSize: '0.875rem' }}>{error}</p>
+          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>Retry</FmButton>
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 dark:bg-slate-800/60">
-                <tr>
-                  <th className="text-left px-5 py-3 font-medium text-slate-500">Asset</th>
-                  <th className="text-left px-5 py-3 font-medium text-slate-500">Category</th>
-                  <th className="text-left px-5 py-3 font-medium text-slate-500 hidden md:table-cell">Property</th>
-                  <th className="text-left px-5 py-3 font-medium text-slate-500">Condition</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filtered.map((asset) => (
-                  <tr
-                    key={asset.id}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
-                    onClick={() => router.push(`/dashboard/fm/assets/${asset.id}`)}
-                  >
-                    <td className="px-5 py-3">
-                      <p className="font-medium text-slate-900 dark:text-white">{asset.name}</p>
-                      <p className="text-xs font-mono text-slate-500 mt-0.5">{asset.code}</p>
-                    </td>
-                    <td className="px-5 py-3 text-slate-600 dark:text-slate-400">
-                      {asset.category.replace(/_/g, ' ')}
-                    </td>
-                    <td className="px-5 py-3 text-slate-500 hidden md:table-cell">
-                      {asset.fm_properties?.name ?? <span className="text-slate-300">—</span>}
-                    </td>
-                    <td className="px-5 py-3">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${CONDITION_BADGE[asset.condition] ?? 'bg-slate-100 text-slate-600'}`}
-                      >
-                        {asset.condition}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <FmCard style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
+            <FmSectionLabel>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Wrench size={13} style={{ color: 'var(--primary)' }} />
+                {filtered.length} asset{filtered.length !== 1 ? 's' : ''}
+                {(search || catFilter !== 'ALL') && ` (filtered)`}
+              </span>
+            </FmSectionLabel>
           </div>
-        </div>
+
+          {filtered.length === 0 ? (
+            <div style={{ padding: '4rem 1rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
+              <Wrench size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
+              No assets match your filters
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="fm-table">
+                <thead>
+                  <tr>
+                    <th>Asset</th>
+                    <th>Category</th>
+                    <th style={{ display: 'none' }} className="md:table-cell">Property</th>
+                    <th>Condition</th>
+                    <th style={{ width: 80 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((asset) => (
+                    <tr
+                      key={asset.id}
+                      onClick={() => router.push(`/dashboard/fm/assets/${asset.id}`)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td>
+                        <p style={{ fontWeight: 600, color: 'var(--fg)', margin: 0 }}>{asset.name}</p>
+                        <p style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'var(--muted)', margin: '0.15rem 0 0' }}>{asset.code}</p>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                          {asset.category.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                          {asset.fm_properties?.name ?? '—'}
+                        </span>
+                      </td>
+                      <td>
+                        <FmBadge variant={conditionVariant(asset.condition)}>
+                          {asset.condition}
+                        </FmBadge>
+                      </td>
+                      <td>
+                        <span className="fm-hover-show" style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>
+                          View →
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </FmCard>
       )}
 
-      {/* Create modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900">
-              <h2 className="font-semibold text-slate-900 dark:text-white">Register Asset</h2>
-              <button
-                onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X size={18} />
-              </button>
+      {/* Register Asset Modal */}
+      <FmModal
+        open={showModal}
+        onClose={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}
+        title="Register Asset"
+        subtitle="Add a new asset to the facility inventory"
+      >
+        <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+          {formError && (
+            <div style={{ background: 'var(--red-c)', border: '1px solid var(--red)', borderRadius: 8, padding: '0.625rem 0.875rem', fontSize: '0.8rem', color: 'var(--red)' }}>
+              {formError}
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            {/* Name */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
+                Name <span style={{ color: 'var(--red)' }}>*</span>
+              </label>
+              <input className="fm-input" type="text" value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Main HVAC Unit" />
             </div>
 
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
-              {formError && (
-                <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{formError}</p>
-              )}
+            {/* Code */}
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
+                Code <span style={{ color: 'var(--red)' }}>*</span>
+              </label>
+              <input className="fm-input" style={{ fontFamily: 'monospace', textTransform: 'uppercase' }}
+                type="text" value={form.code}
+                onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
+                placeholder="HVAC-001" />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Main HVAC Unit"
-                />
-              </div>
+            {/* Category */}
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Category</label>
+              <select className="fm-input" value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                style={{ appearance: 'none' }}>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Code <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.code}
-                  onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="HVAC-001"
-                />
-              </div>
+            {/* Condition */}
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Condition</label>
+              <select className="fm-input" value={form.condition}
+                onChange={(e) => setForm((f) => ({ ...f, condition: e.target.value }))}
+                style={{ appearance: 'none' }}>
+                {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Category
-                </label>
-                <select
-                  value={form.category}
-                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>
-                  ))}
-                </select>
-              </div>
+            {/* Property */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Property</label>
+              <select className="fm-input" value={form.property_id}
+                onChange={(e) => setForm((f) => ({ ...f, property_id: e.target.value }))}
+                style={{ appearance: 'none' }}>
+                <option value="">— None —</option>
+                {properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Property
-                </label>
-                <select
-                  value={form.property_id}
-                  onChange={(e) => setForm((f) => ({ ...f, property_id: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">— None —</option>
-                  {properties.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Location <span className="text-slate-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.location}
-                  onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Roof level, Room 203..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Condition
-                </label>
-                <select
-                  value={form.condition}
-                  onChange={(e) => setForm((f) => ({ ...f, condition: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {CONDITIONS.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}
-                  className="flex-1 px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium rounded-lg transition-colors inline-flex items-center justify-center gap-2"
-                >
-                  {saving && <Loader2 size={14} className="animate-spin" />}
-                  {saving ? 'Saving...' : 'Register Asset'}
-                </button>
-              </div>
-            </form>
+            {/* Location */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
+                Location <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+              </label>
+              <input className="fm-input" type="text" value={form.location}
+                onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+                placeholder="Room 204, 2nd Floor" />
+            </div>
           </div>
-        </div>
-      )}
+
+          <FmModalFooter>
+            <FmButton type="button" variant="secondary" size="sm"
+              onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}>
+              Cancel
+            </FmButton>
+            <FmButton type="submit" size="sm" loading={saving}>
+              {saving ? 'Registering…' : 'Register Asset'}
+            </FmButton>
+          </FmModalFooter>
+        </form>
+      </FmModal>
+
     </div>
   )
 }
