@@ -12,6 +12,37 @@ import { useAppMode } from '@/lib/app-mode'
 import { ROLE_LABELS } from '@sentinel/shared'
 import { cn } from '@/lib/utils'
 
+// ── Shared dropdown sub-components ────────────────────────────────────────
+
+function DropdownSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+      <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--faint)', letterSpacing: '.1em' }}>
+        {label}
+      </p>
+      <div className="flex gap-2">{children}</div>
+    </div>
+  )
+}
+
+function ToggleBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
+      style={{
+        border: active ? '1px solid var(--primary)' : '1px solid var(--border)',
+        background: active ? 'var(--primary-c)' : 'var(--card-b)',
+        color: active ? 'var(--primary)' : 'var(--muted)',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface HeaderProps {
   onMenuClick: () => void
   userEmail?: string
@@ -45,11 +76,21 @@ export function Header({ onMenuClick, userEmail, userFullName, userAvatar }: Hea
   const initials = displayName[0]?.toUpperCase() ?? 'U'
 
   return (
-    <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 lg:px-6 flex-shrink-0 relative z-30">
+    <header
+      className="flex items-center justify-between px-4 lg:px-6 flex-shrink-0 relative z-30"
+      style={{
+        height: 48,
+        background: 'var(--card)',
+        borderBottom: '1px solid var(--border)',
+      }}
+    >
       {/* Mobile menu button */}
       <button
         onClick={onMenuClick}
-        className="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+        className="lg:hidden p-2 rounded-lg transition-colors"
+        style={{ color: 'var(--muted)' }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--card-b)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
         aria-label="Open menu"
       >
         <Menu size={20} />
@@ -65,195 +106,95 @@ export function Header({ onMenuClick, userEmail, userFullName, userAvatar }: Hea
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setOpen(!open)}
-            className="flex items-center gap-2 p-1.5 pr-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-2 p-1.5 pr-2 rounded-lg transition-colors"
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--card-b)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
           >
             {userAvatar ? (
               <img src={userAvatar} alt="" className="w-8 h-8 rounded-full object-cover" />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
+                style={{ background: 'var(--primary)' }}>
                 {initials}
               </div>
             )}
             <div className="hidden sm:block text-left">
-              <p className="text-xs font-medium text-slate-700 dark:text-slate-200 leading-none truncate max-w-[130px]">
+              <p className="text-xs font-medium leading-none truncate max-w-[130px]" style={{ color: 'var(--fg)' }}>
                 {userFullName || userEmail}
               </p>
-              <p className="text-xs text-slate-400 leading-none mt-0.5">
+              <p className="text-xs leading-none mt-0.5" style={{ color: 'var(--faint)' }}>
                 {role ? ROLE_LABELS[role] : '…'}
               </p>
             </div>
-            <ChevronDown size={14} className={cn('text-slate-400 transition-transform flex-shrink-0', open && 'rotate-180')} />
+            <ChevronDown size={14} className={cn('transition-transform flex-shrink-0', open && 'rotate-180')} style={{ color: 'var(--faint)' }} />
           </button>
 
           {/* Dropdown panel */}
           {open && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
+            <div
+              className="absolute right-0 top-full mt-2 w-56 rounded-xl z-50 overflow-hidden"
+              style={{ background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}
+            >
               {/* User info */}
-              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
                 {userFullName && (
-                  <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{userFullName}</p>
+                  <p className="text-xs font-semibold truncate" style={{ color: 'var(--fg)' }}>{userFullName}</p>
                 )}
-                <p className={`text-xs truncate ${userFullName ? 'text-slate-400' : 'font-semibold text-slate-900 dark:text-white'}`}>{userEmail}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{role ? ROLE_LABELS[role] : ''}</p>
+                <p className={`text-xs truncate ${userFullName ? '' : 'font-semibold'}`} style={{ color: userFullName ? 'var(--muted)' : 'var(--fg)' }}>{userEmail}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--faint)' }}>{role ? ROLE_LABELS[role] : ''}</p>
               </div>
 
               {/* Edit profile */}
-              <div className="p-1 border-b border-slate-100 dark:border-slate-800">
+              <div className="p-1" style={{ borderBottom: '1px solid var(--border)' }}>
                 <Link
                   href="/dashboard/profile"
                   onClick={() => setOpen(false)}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg transition-colors"
+                  style={{ color: 'var(--fg)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--card-b)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
                 >
-                  <UserCircle size={14} className="text-slate-400" />
+                  <UserCircle size={14} style={{ color: 'var(--faint)' }} />
                   Edit Profile
                 </Link>
               </div>
 
               {/* Appearance */}
-              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  {t('menu.appearance')}
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setTheme('light')}
-                    className={cn(
-                      'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-                      theme === 'light'
-                        ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-300'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                    )}
-                  >
-                    <Sun size={13} />
-                    {t('menu.light')}
-                    {theme === 'light' && <Check size={11} className="ml-0.5" />}
-                  </button>
-                  <button
-                    onClick={() => setTheme('dark')}
-                    className={cn(
-                      'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-                      theme === 'dark'
-                        ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-300'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                    )}
-                  >
-                    <Moon size={13} />
-                    {t('menu.dark')}
-                    {theme === 'dark' && <Check size={11} className="ml-0.5" />}
-                  </button>
-                </div>
-              </div>
+              <DropdownSection label={t('menu.appearance')}>
+                <ToggleBtn active={theme === 'light'} onClick={() => setTheme('light')}><Sun size={13} />{t('menu.light')}{theme === 'light' && <Check size={11} />}</ToggleBtn>
+                <ToggleBtn active={theme === 'dark'}  onClick={() => setTheme('dark')}><Moon size={13} />{t('menu.dark')}{theme === 'dark' && <Check size={11} />}</ToggleBtn>
+              </DropdownSection>
 
               {/* Language */}
-              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  {t('menu.language')}
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setLocale('en')}
-                    className={cn(
-                      'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-                      locale === 'en'
-                        ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-300'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                    )}
-                  >
-                    <Globe size={13} />
-                    EN
-                    {locale === 'en' && <Check size={11} className="ml-0.5" />}
-                  </button>
-                  <button
-                    onClick={() => setLocale('es')}
-                    className={cn(
-                      'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-                      locale === 'es'
-                        ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-300'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                    )}
-                  >
-                    <Globe size={13} />
-                    ES
-                    {locale === 'es' && <Check size={11} className="ml-0.5" />}
-                  </button>
-                </div>
-              </div>
+              <DropdownSection label={t('menu.language')}>
+                <ToggleBtn active={locale === 'en'} onClick={() => setLocale('en')}><Globe size={13} />EN{locale === 'en' && <Check size={11} />}</ToggleBtn>
+                <ToggleBtn active={locale === 'es'} onClick={() => setLocale('es')}><Globe size={13} />ES{locale === 'es' && <Check size={11} />}</ToggleBtn>
+              </DropdownSection>
 
               {/* Module — admin only */}
               {isAdmin && (
-                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                    Module
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setAppMode('pw')}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-                        appMode === 'pw'
-                          ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-300'
-                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      )}
-                    >
-                      Public Works
-                      {appMode === 'pw' && <Check size={11} className="ml-0.5" />}
-                    </button>
-                    <button
-                      onClick={() => setAppMode('fm')}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-                        appMode === 'fm'
-                          ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-300'
-                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      )}
-                    >
-                      Facility Mgmt
-                      {appMode === 'fm' && <Check size={11} className="ml-0.5" />}
-                    </button>
-                  </div>
-                </div>
+                <DropdownSection label="Module">
+                  <ToggleBtn active={appMode === 'pw'} onClick={() => setAppMode('pw')}>Public Works{appMode === 'pw' && <Check size={11} />}</ToggleBtn>
+                  <ToggleBtn active={appMode === 'fm'} onClick={() => setAppMode('fm')}>Facility Mgmt{appMode === 'fm' && <Check size={11} />}</ToggleBtn>
+                </DropdownSection>
               )}
 
               {/* Design — admin only */}
               {isAdmin && (
-                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                    {t('menu.design')}
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setDesignTheme('classic')}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-                        designTheme === 'classic'
-                          ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-300'
-                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      )}
-                    >
-                      {t('menu.classic')}
-                      {designTheme === 'classic' && <Check size={11} className="ml-0.5" />}
-                    </button>
-                    <button
-                      onClick={() => setDesignTheme('dev')}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-                        designTheme === 'dev'
-                          ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-300'
-                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      )}
-                    >
-                      {t('menu.development')}
-                      {designTheme === 'dev' && <Check size={11} className="ml-0.5" />}
-                    </button>
-                  </div>
-                </div>
+                <DropdownSection label={t('menu.design')}>
+                  <ToggleBtn active={designTheme === 'classic'} onClick={() => setDesignTheme('classic')}>{t('menu.classic')}{designTheme === 'classic' && <Check size={11} />}</ToggleBtn>
+                  <ToggleBtn active={designTheme === 'dev'}     onClick={() => setDesignTheme('dev')}>{t('menu.development')}{designTheme === 'dev' && <Check size={11} />}</ToggleBtn>
+                </DropdownSection>
               )}
 
-              {/* Sign out — plain link to avoid server-action bundle-mismatch on redeploy */}
+              {/* Sign out */}
               <div className="p-1">
                 <a
                   href="/api/auth/signout"
-                  className="block w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                  className="block w-full text-left px-3 py-2 text-sm rounded-lg transition-colors"
+                  style={{ color: 'var(--red)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--red-c)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
                 >
                   {t('menu.signOut')}
                 </a>

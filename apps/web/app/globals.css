@@ -2,100 +2,250 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Classic (default) ──────────────────────────────────────────────────── */
+/*──────────────────────────────────────────────────
+  CLASSIC DESIGN TOKENS  (default / light)
+  Matches dashboard-mockup.html :root exactly
+──────────────────────────────────────────────────*/
 :root {
+  /* Aliases kept for Tailwind background/foreground utilities */
   --background: #f8fafc;
   --foreground: #0f172a;
+
+  /* Surfaces */
+  --bg:        #f8fafc;
+  --fg:        #0f172a;
+  --sidebar:   #0D1B2E;
+  --card:      #ffffff;
+  --card-b:    #f1f5f9;
+  --border:    #e2e8f0;
+
+  /* Text */
+  --muted:     #64748b;
+  --faint:     #94a3b8;
+
+  /* Brand / accent */
+  --primary:   #2563eb;
+  --primary-c: #dbeafe;
+
+  /* Semantic colours */
+  --teal:      #059669;
+  --teal-c:    #d1fae5;
+  --red:       #dc2626;
+  --red-c:     #fee2e2;
+  --amber:     #d97706;
+  --amber-c:   #fef3c7;
+  --orange:    #ea580c;
+  --orange-c:  #ffedd5;
+  --violet:    #7c3aed;
+  --violet-c:  #ede9fe;
+
+  /* Elevation */
+  --shadow:    0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.04);
+  --shadow-lg: 0 4px 24px rgba(0,0,0,.12);
 }
 
+/*──────────────────────────────────────────────────
+  CLASSIC DESIGN TOKENS  (dark)
+──────────────────────────────────────────────────*/
 .dark {
   --background: #0a0f1a;
   --foreground: #f1f5f9;
+
+  --bg:        #0a0f1a;
+  --fg:        #f1f5f9;
+  --sidebar:   #080F1C;
+  --card:      #0f172a;
+  --card-b:    #1e293b;
+  --border:    #1e293b;
+
+  --muted:     #94a3b8;
+  --faint:     #475569;
+
+  --primary:   #3b82f6;
+  --primary-c: #1e3a5f;
+
+  --teal:      #10b981;
+  --teal-c:    #064e3b;
+  --red:       #f87171;
+  --red-c:     #450a0a;
+  --amber:     #fbbf24;
+  --amber-c:   #2d1f00;
+  --orange:    #fb923c;
+  --orange-c:  #431407;
+  --violet:    #a78bfa;
+  --violet-c:  #2e1065;
+
+  --shadow:    0 1px 4px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.2);
+  --shadow-lg: 0 4px 24px rgba(0,0,0,.4);
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
+  color: var(--fg);
+  background: var(--bg);
 }
 
-/* ── Civil Architect design tokens ──────────────────────────────────────────
-   Activated by <html class="design-dev">.
-   Classic styles are UNCHANGED — only new CA components use these tokens.
-   ───────────────────────────────────────────────────────────────────────── */
+/*──────────────────────────────────────────────────
+  ENTRY ANIMATIONS
+──────────────────────────────────────────────────*/
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.anim-fade-up  { animation: fadeUp  .45s cubic-bezier(.22,.68,0,1.2) both; }
+.anim-scale-in { animation: scaleIn .35s cubic-bezier(.22,.68,0,1.2) both; }
+
+/* Stagger children */
+.stagger > * { opacity: 0; animation: fadeUp .4s cubic-bezier(.22,.68,0,1.2) both; }
+.stagger > *:nth-child(1) { animation-delay: .05s; }
+.stagger > *:nth-child(2) { animation-delay: .10s; }
+.stagger > *:nth-child(3) { animation-delay: .15s; }
+.stagger > *:nth-child(4) { animation-delay: .20s; }
+.stagger > *:nth-child(5) { animation-delay: .25s; }
+.stagger > *:nth-child(6) { animation-delay: .30s; }
+.stagger > *:nth-child(7) { animation-delay: .35s; }
+.stagger > *:nth-child(8) { animation-delay: .40s; }
+
+/*──────────────────────────────────────────────────
+  CARD UTILITY  (matches mockup .card)
+──────────────────────────────────────────────────*/
+.sentinel-card {
+  background: var(--card);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.sentinel-card-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sentinel-card-title {
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .15em;
+  color: var(--muted);
+}
+
+/*──────────────────────────────────────────────────
+  CIVIL ARCHITECT DESIGN TOKENS
+  Activated by <html class="design-dev">.
+  Classic styles remain UNCHANGED; only new CA
+  components use these tokens.
+──────────────────────────────────────────────────*/
 .design-dev {
-  /* Surfaces */
+  /* CA-specific surfaces */
   --ca-base:          #f6fafe;
   --ca-section:       #eef4fa;
   --ca-card:          #ffffff;
   --ca-card-high:     #ddeaf3;
   --ca-card-highest:  #d5e5ef;
 
-  /* Ink */
+  /* CA-specific ink */
   --ca-ink:           #26343d;
   --ca-ink-muted:     #52616a;
   --ca-ink-faint:     #a4b4be;
 
-  /* Primary (blue-slate) */
+  /* CA-specific primary */
   --ca-primary:       #565e74;
   --ca-primary-dim:   #4a5268;
   --ca-primary-c:     #dae2fd;
   --ca-on-primary:    #f7f7ff;
 
-  /* Teal (success / on-track) */
+  /* CA-specific semantic */
   --ca-teal:          #006b62;
   --ca-teal-c:        #91feef;
-
-  /* Error / overdue */
   --ca-red:           #9f403d;
   --ca-red-c:         #fe8983;
-
-  /* Amber / at-risk / blocked */
   --ca-amber:         #b45309;
   --ca-amber-c:       #fef3c7;
-
-  /* Border (used sparingly) */
   --ca-border:        #a4b4be;
 
-  /* Remap body tokens for the CA palette */
+  /* Override Classic tokens so shared components work in CA mode */
+  --bg:               #f6fafe;
+  --fg:               #26343d;
+  --sidebar:          #eef4fa;
+  --card:             #ffffff;
+  --card-b:           #eef4fa;
+  --border:           #ddeaf3;
+  --muted:            #52616a;
+  --faint:            #a4b4be;
+  --primary:          #565e74;
+  --primary-c:        #dae2fd;
+  --teal:             #006b62;
+  --teal-c:           #91feef;
+  --red:              #9f403d;
+  --red-c:            #fe8983;
+  --amber:            #b45309;
+  --amber-c:          #fef3c7;
+  --shadow:           0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.03);
+  --shadow-lg:        0 4px 24px rgba(0,0,0,.08);
+
+  /* Remap Tailwind body tokens */
   --background:       #f6fafe;
   --foreground:       #26343d;
 }
 
 .design-dev.dark {
-  /* Surfaces */
+  /* CA-specific dark surfaces */
   --ca-base:          #0d1117;
   --ca-section:       #131b24;
   --ca-card:          #1a2533;
   --ca-card-high:     #1f2e3d;
   --ca-card-highest:  #243040;
 
-  /* Ink */
+  /* CA-specific dark ink */
   --ca-ink:           #e2eaf0;
   --ca-ink-muted:     #8fa4b4;
   --ca-ink-faint:     #4a5f6e;
 
-  /* Primary */
+  /* CA-specific dark primary */
   --ca-primary:       #8fa4c4;
   --ca-primary-dim:   #7a90b0;
   --ca-primary-c:     #1e3048;
   --ca-on-primary:    #0d1117;
 
-  /* Teal */
+  /* CA-specific dark semantic */
   --ca-teal:          #00c4b4;
   --ca-teal-c:        #003d38;
-
-  /* Error */
   --ca-red:           #ff7b78;
   --ca-red-c:         #3d0f0e;
-
-  /* Amber */
   --ca-amber:         #fbbf24;
   --ca-amber-c:       #2d1f00;
-
-  /* Border */
   --ca-border:        #2d3f4e;
 
-  /* Body tokens */
+  /* Override Classic tokens for CA dark */
+  --bg:               #0d1117;
+  --fg:               #e2eaf0;
+  --sidebar:          #131b24;
+  --card:             #1a2533;
+  --card-b:           #131b24;
+  --border:           #1f2e3d;
+  --muted:            #8fa4b4;
+  --faint:            #4a5f6e;
+  --primary:          #8fa4c4;
+  --primary-c:        #1e3048;
+  --teal:             #00c4b4;
+  --teal-c:           #003d38;
+  --red:              #ff7b78;
+  --red-c:            #3d0f0e;
+  --amber:            #fbbf24;
+  --amber-c:          #2d1f00;
+  --shadow:           0 1px 4px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.2);
+  --shadow-lg:        0 4px 24px rgba(0,0,0,.4);
+
+  /* Remap Tailwind body tokens */
   --background:       #0d1117;
   --foreground:       #e2eaf0;
 }

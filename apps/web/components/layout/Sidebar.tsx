@@ -25,11 +25,9 @@ import {
 import { useRole } from '@/hooks/useRole'
 import { useT } from '@/lib/locale'
 import { useDesignTheme } from '@/lib/design-theme'
-import { useTheme } from '@/lib/theme'
 import { useAppMode } from '@/lib/app-mode'
 import { cn } from '@/lib/utils'
 import type { TranslationKey } from '@/lib/translations/en'
-
 
 interface NavItem {
   labelKey: TranslationKey
@@ -47,10 +45,10 @@ const pwNavItems: NavItem[] = [
   { labelKey: 'nav.inspections', href: '/dashboard/inspections',    icon: ClipboardCheck },
   { labelKey: 'nav.calendar',    href: '/dashboard/calendar',       icon: Calendar },
   { labelKey: 'nav.contracts',   href: '/dashboard/contracts',      icon: FileText },
-  { labelKey: 'nav.team',          href: '/dashboard/team',            icon: Users,   roles: ['admin', 'supervisor'] },
+  { labelKey: 'nav.team',          href: '/dashboard/team',            icon: Users,    roles: ['admin', 'supervisor'] },
   { labelKey: 'nav.reports',       href: '/dashboard/reports',         icon: BarChart2, roles: ['admin', 'supervisor'] },
-  { labelKey: 'nav.designSettings',href: '/dashboard/design-settings', icon: Palette, roles: ['admin'] },
-  { labelKey: 'nav.settings',      href: '/dashboard/settings',        icon: Settings,roles: ['admin'] },
+  { labelKey: 'nav.designSettings',href: '/dashboard/design-settings', icon: Palette,  roles: ['admin'] },
+  { labelKey: 'nav.settings',      href: '/dashboard/settings',        icon: Settings, roles: ['admin'] },
 ]
 
 const fmNavItems: NavItem[] = [
@@ -59,11 +57,11 @@ const fmNavItems: NavItem[] = [
   { labelKey: 'nav.fmAssets',      href: '/dashboard/fm/assets',             icon: Wrench },
   { labelKey: 'nav.fmInspections', href: '/dashboard/fm/inspections',        icon: ClipboardCheck },
   { labelKey: 'nav.fmWorkOrders',  href: '/dashboard/fm/work-orders',        icon: ClipboardList },
-  { labelKey: 'nav.fmTemplates',   href: '/dashboard/fm/templates',          icon: ScrollText, roles: ['admin', 'supervisor'] },
+  { labelKey: 'nav.fmTemplates',   href: '/dashboard/fm/templates',          icon: ScrollText,    roles: ['admin', 'supervisor'] },
   { labelKey: 'nav.fmSchedules',   href: '/dashboard/fm/schedules',          icon: CalendarClock, roles: ['admin', 'supervisor'] },
-  { labelKey: 'nav.fmReports',     href: '/dashboard/fm/reports',            icon: ChartBar, roles: ['admin', 'supervisor'] },
-  { labelKey: 'nav.team',          href: '/dashboard/team',                  icon: Users,   roles: ['admin'] },
-  { labelKey: 'nav.settings',      href: '/dashboard/settings',              icon: Settings,roles: ['admin'] },
+  { labelKey: 'nav.fmReports',     href: '/dashboard/fm/reports',            icon: ChartBar,      roles: ['admin', 'supervisor'] },
+  { labelKey: 'nav.team',          href: '/dashboard/team',                  icon: Users,         roles: ['admin'] },
+  { labelKey: 'nav.settings',      href: '/dashboard/settings',              icon: Settings,      roles: ['admin'] },
 ]
 
 interface SidebarProps {
@@ -78,10 +76,8 @@ export function Sidebar({ mobileOpen, onClose, orgName }: SidebarProps) {
   const { role } = useRole()
   const t = useT()
   const { designTheme } = useDesignTheme()
-  const { theme } = useTheme()
   const { appMode } = useAppMode()
   const isCA = designTheme === 'dev'
-  const useDarkLogo = isCA && theme === 'light'
 
   const navItems = appMode === 'fm' ? fmNavItems : pwNavItems
   const visibleItems = navItems.filter(
@@ -99,30 +95,36 @@ export function Sidebar({ mobileOpen, onClose, orgName }: SidebarProps) {
         />
       )}
 
-      {/* Sidebar panel */}
+      {/* Sidebar panel — 240px matches mockup */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-30 w-64 flex flex-col transition-transform duration-200',
+          'fixed inset-y-0 left-0 z-30 flex flex-col transition-transform duration-200',
           'lg:relative lg:translate-x-0',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full',
-          isCA
-            ? 'border-r'
-            : 'bg-[#0D1B2E] dark:bg-[#080F1C] border-r border-white/10'
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
-        style={isCA ? {
-          background: 'var(--ca-section)',
-          borderColor: 'var(--ca-card-high)',
-        } : undefined}
+        style={{
+          width: 240,
+          background: isCA ? 'var(--card-b)' : 'var(--sidebar)',
+          borderRight: isCA
+            ? '1px solid var(--border)'
+            : '1px solid rgba(255,255,255,.06)',
+        }}
       >
-        {/* Logo */}
+        {/* ── Logo row (64px tall, matches mockup .sidebar-logo) ── */}
         <div
-          className={cn('flex items-center justify-between h-16 px-5 flex-shrink-0', isCA ? 'border-b' : 'border-b border-white/10')}
-          style={isCA ? { borderColor: 'var(--ca-card-high)' } : undefined}
+          className="flex items-center justify-between flex-shrink-0"
+          style={{
+            height: 64,
+            padding: '0 20px',
+            borderBottom: isCA
+              ? '1px solid var(--border)'
+              : '1px solid rgba(255,255,255,.08)',
+          }}
         >
-          <div className="flex items-center">
+          <div className="flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={useDarkLogo ? '/logo-black.png' : '/logo-white.png'}
+              src={isCA ? '/logo-black.png' : '/logo-white.png'}
               alt="Sentinel"
               style={{ height: 26, width: 'auto' }}
             />
@@ -130,14 +132,14 @@ export function Sidebar({ mobileOpen, onClose, orgName }: SidebarProps) {
           <button
             onClick={onClose}
             className="lg:hidden p-1"
-            style={isCA ? { color: 'var(--ca-ink-faint)' } : undefined}
+            style={{ color: isCA ? 'var(--faint)' : 'rgba(255,255,255,.4)' }}
           >
-            <X size={18} className={isCA ? '' : 'text-slate-400'} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {/* ── Nav (12px padding all around, matches .sidebar-nav) ── */}
+        <nav className="flex-1 overflow-y-auto" style={{ padding: 12 }}>
           {visibleItems.map((item) => {
             const isActive = item.href === '/dashboard'
               ? pathname === '/dashboard'
@@ -149,57 +151,112 @@ export function Sidebar({ mobileOpen, onClose, orgName }: SidebarProps) {
                   key={item.href}
                   href={item.href}
                   onClick={onClose}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors"
                   style={{
-                    background: isActive ? 'var(--ca-primary-c)' : 'transparent',
-                    color: isActive ? 'var(--ca-primary)' : 'var(--ca-ink-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '9px 12px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    marginBottom: 1,
+                    color: isActive ? 'var(--primary)' : 'var(--muted)',
+                    background: isActive ? 'var(--primary-c)' : 'transparent',
+                    transition: 'background .15s, color .15s, transform .15s',
+                    textDecoration: 'none',
                   }}
                   onMouseEnter={(e) => {
-                    if (!isActive) e.currentTarget.style.background = 'var(--ca-card)'
+                    if (!isActive) {
+                      e.currentTarget.style.color = 'var(--fg)'
+                      e.currentTarget.style.background = 'var(--card)'
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    if (!isActive) e.currentTarget.style.background = 'transparent'
+                    if (!isActive) {
+                      e.currentTarget.style.color = 'var(--muted)'
+                      e.currentTarget.style.background = 'transparent'
+                    }
                   }}
                 >
-                  <item.icon size={17} className="flex-shrink-0" />
+                  <item.icon size={17} style={{ flexShrink: 0 }} />
                   {t(item.labelKey)}
                 </Link>
               )
             }
 
+            // ── Classic dark-sidebar nav item ──────────────────────────────
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={onClose}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                )}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '9px 12px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  marginBottom: 1,
+                  color: isActive ? '#fff' : 'rgba(255,255,255,.5)',
+                  background: isActive ? '#2563eb' : 'transparent',
+                  boxShadow: isActive ? '0 2px 8px rgba(37,99,235,.4)' : 'none',
+                  transition: 'background .15s, color .15s, transform .15s, box-shadow .15s',
+                  textDecoration: 'none',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.color = 'rgba(255,255,255,.92)'
+                    e.currentTarget.style.transform = 'translateX(2px)'
+                    e.currentTarget.style.background = 'rgba(255,255,255,.08)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.color = 'rgba(255,255,255,.5)'
+                    e.currentTarget.style.transform = 'translateX(0)'
+                    e.currentTarget.style.background = 'transparent'
+                  }
+                }}
               >
-                <item.icon size={18} className="flex-shrink-0" />
+                <item.icon size={17} style={{ flexShrink: 0 }} />
                 {t(item.labelKey)}
               </Link>
             )
           })}
         </nav>
 
-        {/* Org badge */}
+        {/* ── Org footer (matches .sidebar-footer) ── */}
         <div
-          className={cn('px-5 py-4 flex-shrink-0', isCA ? 'border-t' : 'border-t border-white/10')}
-          style={isCA ? { borderColor: 'var(--ca-card-high)' } : undefined}
+          className="flex-shrink-0"
+          style={{
+            padding: '16px 20px',
+            borderTop: isCA
+              ? '1px solid var(--border)'
+              : '1px solid rgba(255,255,255,.08)',
+          }}
         >
           <p
-            className={cn('text-xs', isCA ? '' : 'text-slate-500')}
-            style={isCA ? { color: 'var(--ca-ink-faint)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' } : undefined}
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '.1em',
+              textTransform: 'uppercase',
+              color: isCA ? 'var(--faint)' : 'rgba(255,255,255,.3)',
+            }}
           >
             {t('nav.municipalityOf')}
           </p>
           <p
-            className={cn('text-sm font-medium mt-0.5', isCA ? '' : 'text-slate-300')}
-            style={isCA ? { color: 'var(--ca-ink-muted)', fontWeight: 600 } : undefined}
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              marginTop: 2,
+              color: isCA ? 'var(--muted)' : 'rgba(255,255,255,.7)',
+            }}
           >
             {orgName ?? 'Guaynabo, PR'}
           </p>

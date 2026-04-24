@@ -10,9 +10,34 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // ── Tailwind body aliases (used by Next.js defaults) ──────────────────
         background: "var(--background)",
         foreground: "var(--foreground)",
-        // Civil Architect design tokens — used only by dev-theme components
+
+        // ── Classic / shared token palette ────────────────────────────────────
+        // These map to var(--*) which are defined in globals.css for both
+        // Classic and CA modes, so any component using these tokens adapts
+        // automatically when the theme changes.
+        card:       "var(--card)",
+        "card-b":   "var(--card-b)",
+        border:     "var(--border)",
+        muted:      "var(--muted)",
+        faint:      "var(--faint)",
+        primary:    "var(--primary)",
+        "primary-c":"var(--primary-c)",
+        teal:       "var(--teal)",
+        "teal-c":   "var(--teal-c)",
+        red:        "var(--red)",
+        "red-c":    "var(--red-c)",
+        amber:      "var(--amber)",
+        "amber-c":  "var(--amber-c)",
+        orange:     "var(--orange)",
+        "orange-c": "var(--orange-c)",
+        violet:     "var(--violet)",
+        "violet-c": "var(--violet-c)",
+
+        // ── Civil Architect design tokens ─────────────────────────────────────
+        // Only used by design-dev (CA) components.
         ca: {
           base:          "var(--ca-base)",
           section:       "var(--ca-section)",
@@ -34,6 +59,11 @@ const config: Config = {
           "amber-c":     "var(--ca-amber-c)",
           border:        "var(--ca-border)",
         },
+      },
+
+      boxShadow: {
+        card:    "var(--shadow)",
+        "card-lg": "var(--shadow-lg)",
       },
     },
   },
