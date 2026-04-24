@@ -27,7 +27,7 @@ export async function GET(
         asset:asset_id(*),
         template:template_id(*),
         inspector:inspector_id(*),
-        approved_by:approved_by_id(id, full_name, role),
+        approved_by:approved_by_id(id, full_name),
         fm_inspection_items:fm_checklist_item_responses(*),
         fm_attachments(*),
         fm_reports(*)
@@ -36,7 +36,8 @@ export async function GET(
       .eq('org_id', session.orgId)
       .single()
 
-    if (error || !data) return err('Inspection not found', 404)
+    if (error) return err(error.message, 404)
+    if (!data) return err('Inspection not found', 404)
     return NextResponse.json(data)
   } catch (e) { return caught(e) }
 }
