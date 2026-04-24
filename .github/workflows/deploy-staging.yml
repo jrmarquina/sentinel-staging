@@ -59,7 +59,7 @@ jobs:
             cd "$REPO_DIR"
             git fetch origin
             git checkout staging
-            git pull origin staging
+            git reset --hard origin/staging
 
             # Load staging env for build-time NEXT_PUBLIC_ vars
             set -a
