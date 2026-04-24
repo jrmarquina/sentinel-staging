@@ -61,7 +61,7 @@ services:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
       KONG_DNS_ORDER: LAST,A,CNAME
-      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth,post-function,pre-function,http-log
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
       SUPABASE_ANON_KEY: ${ANON_KEY}
@@ -86,7 +86,7 @@ services:
       db:
         condition: service_healthy
       analytics:
-        condition: service_healthy
+        condition: service_started
     environment:
       GOTRUE_API_HOST: "0.0.0.0"
       GOTRUE_API_PORT: 9999
@@ -125,7 +125,7 @@ services:
       db:
         condition: service_healthy
       analytics:
-        condition: service_healthy
+        condition: service_started
     environment:
       PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres
       PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS}
@@ -151,7 +151,7 @@ services:
       db:
         condition: service_healthy
       analytics:
-        condition: service_healthy
+        condition: service_started
     environment:
       PORT: 4000
       DB_HOST: db
@@ -235,7 +235,7 @@ services:
       db:
         condition: service_healthy
       analytics:
-        condition: service_healthy
+        condition: service_started
     environment:
       PG_META_PORT: 8080
       PG_META_DB_HOST: db
@@ -252,7 +252,7 @@ services:
     restart: unless-stopped
     depends_on:
       analytics:
-        condition: service_healthy
+        condition: service_started
     environment:
       JWT_SECRET: ${JWT_SECRET}
       SUPABASE_URL: http://kong:8000
