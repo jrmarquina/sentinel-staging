@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
 import {
   Building2, Wrench, ClipboardCheck, AlertTriangle,
   Loader2, Activity, CheckCircle, Calendar,
-  Maximize2, Minimize2, MapPin, ArrowRight, Clock,
+  Maximize2, Minimize2, MapPin, ArrowRight,
 } from 'lucide-react'
 import { FmCard, FmBadge, FmSectionLabel, statusVariant } from '@/components/fm'
 
@@ -326,25 +326,19 @@ function TopProperties({ properties }: { properties: PropertyGeo[] }) {
   )
 }
 
-// ── Two-Week Calendar (heatmap: 1=blue, 2=yellow, 3+=red) ─────────────────
+// ── Two-Month Calendar (heatmap: 1=blue, 2=yellow, 3+=red) ───────────────
 
-const DOW_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const DOW_LABELS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
-function TwoWeekCalendar({ events, router }: { events: ScheduledEvent[]; router: ReturnType<typeof useRouter> }) {
+function TwoMonthCalendar({ events, router }: { events: ScheduledEvent[]; router: ReturnType<typeof useRouter> }) {
   const [selectedDay, setSelectedDay] = useState<string>('')
 
-  // Start from the Monday of the current week
-  const days = useMemo(() => {
-    const today = new Date()
-    const dow = today.getDay() // 0=Sun
-    const monday = new Date(today)
-    monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1))
-    monday.setHours(0, 0, 0, 0)
-    return Array.from({ length: 14 }, (_, i) => {
-      const d = new Date(monday)
-      d.setDate(monday.getDate() + i)
-      return d
-    })
+  const months = useMemo(() => {
+    const now = new Date()
+    return [
+      { month: now.getMonth(),       year: now.getFullYear() },
+      { month: (now.getMonth() + 1) % 12, year: now.getFullYear() + (now.getMonth() === 11 ? 1 : 0) },
+    ]
   }, [])
 
   const eventMap = useMemo(() => {
@@ -362,24 +356,27 @@ function TwoWeekCalendar({ events, router }: { events: ScheduledEvent[]; router:
     ? new Date(selectedDay + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     : ''
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      {/* DOW headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.375rem' }}>
-        {DOW_HEADERS.map((h) => (
-          <div key={h} style={{ textAlign: 'center', fontSize: '0.6rem', fontWeight: 900, color: 'var(--faint)', padding: '0.2rem 0' }}>{h}</div>
-        ))}
-      </div>
+  function renderMonth(month: number, year: number) {
+    const dayCount = getDayCount(year, month)
+    const firstDOW = new Date(year, month, 1).getDay()
+    const label    = new Date(year, month).toLocaleString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()
 
-      {/* Week 1 + Week 2 */}
-      {[0, 7].map((weekStart) => (
-        <div key={weekStart} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.375rem' }}>
-          {days.slice(weekStart, weekStart + 7).map((day) => {
-            const dateStr   = toYMD(day)
-            const dayEvs    = eventMap[dateStr] ?? []
-            const count     = dayEvs.length
+    return (
+      <div key={`${year}-${month}`} style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: '0.62rem', fontWeight: 900, color: 'var(--muted)', letterSpacing: '0.1em', textAlign: 'center', marginBottom: '0.625rem', margin: '0 0 0.625rem' }}>
+          {label}
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem' }}>
+          {DOW_LABELS_SHORT.map((d, i) => (
+            <div key={i} style={{ textAlign: 'center', fontSize: '0.52rem', fontWeight: 900, color: 'var(--faint)', paddingBottom: '0.2rem' }}>{d}</div>
+          ))}
+          {Array.from({ length: firstDOW }).map((_, i) => <div key={`pad-${i}`} />)}
+          {Array.from({ length: dayCount }, (_, i) => i + 1).map((day) => {
+            const dateStr    = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+            const dayEvs     = eventMap[dateStr] ?? []
+            const count      = dayEvs.length
             const { bg, textColor } = eventCountColor(count)
-            const isToday   = dateStr === todayStr
+            const isToday    = dateStr === todayStr
             const isSelected = dateStr === selectedDay
 
             return (
@@ -388,33 +385,35 @@ function TwoWeekCalendar({ events, router }: { events: ScheduledEvent[]; router:
                 onClick={() => count > 0 && setSelectedDay(isSelected ? '' : dateStr)}
                 style={{
                   aspectRatio: '1',
-                  borderRadius: 10,
+                  borderRadius: 5,
                   background: count === 0 ? 'var(--card-b)' : bg,
                   border: isSelected
                     ? '2px solid var(--fg)'
                     : isToday
-                    ? '2px solid var(--primary)'
-                    : '1px solid var(--border)',
+                    ? '1px solid var(--primary)'
+                    : '1px solid transparent',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.8rem', fontWeight: count > 0 ? 800 : 400,
+                  fontSize: '0.62rem', fontWeight: count > 0 ? 800 : 400,
                   color: count > 0 ? textColor : isToday ? 'var(--primary)' : 'var(--muted)',
                   cursor: count > 0 ? 'pointer' : 'default',
-                  transition: 'all 0.12s ease',
-                  position: 'relative',
+                  transition: 'all 0.1s ease',
                 }}
               >
-                {day.getDate()}
-                {count > 0 && (
-                  <span style={{
-                    position: 'absolute', bottom: 3, right: 3,
-                    fontSize: '0.5rem', fontWeight: 900, color: textColor, opacity: 0.8,
-                  }}>{count}</span>
-                )}
+                {day}
               </div>
             )
           })}
         </div>
-      ))}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+      {/* Two month grids side by side */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+        {months.map(({ month, year }) => renderMonth(month, year))}
+      </div>
 
       {/* Legend */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'flex-end' }}>
@@ -423,21 +422,21 @@ function TwoWeekCalendar({ events, router }: { events: ScheduledEvent[]; router:
           { color: 'var(--amber)',   label: '2 events' },
           { color: 'var(--red)',     label: '3+ events' },
         ].map(({ color, label }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.6rem', color: 'var(--muted)' }}>
-            <div style={{ width: 9, height: 9, borderRadius: 3, background: color, flexShrink: 0 }} />
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.58rem', color: 'var(--muted)' }}>
+            <div style={{ width: 8, height: 8, borderRadius: 3, background: color, flexShrink: 0 }} />
             {label}
           </div>
         ))}
       </div>
 
-      {/* Expanded day events */}
+      {/* Expanded day events — fixed max-height so calendar card doesn't grow unbounded */}
       {selectedDay && selectedEvents.length > 0 && (
-        <div style={{ background: 'var(--card-b)', borderRadius: 10, padding: '0.875rem', border: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <p style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--fg)', margin: 0 }}>{selectedLabel}</p>
-            <button onClick={() => setSelectedDay('')} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}>✕</button>
+        <div style={{ background: 'var(--card-b)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden' }}>
+          <div style={{ padding: '0.625rem 0.875rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--fg)', margin: 0 }}>{selectedLabel}</p>
+            <button onClick={() => setSelectedDay('')} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700, lineHeight: 1, padding: '0 2px' }}>✕</button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <div style={{ maxHeight: 180, overflowY: 'auto', padding: '0.5rem 0.875rem', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
             {selectedEvents.map((ev) => {
               const isInspection = ev.type === 'inspection'
               const time = ev.datetime
@@ -447,21 +446,21 @@ function TwoWeekCalendar({ events, router }: { events: ScheduledEvent[]; router:
                 <div
                   key={ev.id}
                   onClick={() => router.push(isInspection ? `/dashboard/fm/inspections/${ev.id}` : `/dashboard/fm/work-orders?focus=${ev.id}`)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.75rem', padding: '0.45rem 0.625rem', background: 'var(--card)', borderRadius: 7, cursor: 'pointer', transition: 'opacity 0.15s' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.75' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.5rem', background: 'var(--card)', borderRadius: 6, cursor: 'pointer', transition: 'opacity 0.12s' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.72' }}
                   onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
                 >
-                  {time && <div style={{ width: 52, fontWeight: 700, color: 'var(--muted)', flexShrink: 0, fontSize: '0.68rem' }}>{time}</div>}
+                  {time && <span style={{ width: 48, fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted)', flexShrink: 0 }}>{time}</span>}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontWeight: 700, color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.75rem' }}>
+                    <p style={{ fontWeight: 700, color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.72rem' }}>
                       {isInspection ? (ev.templateName ?? ev.title) : ev.title}
                     </p>
-                    <p style={{ fontSize: '0.62rem', color: 'var(--muted)', margin: 0 }}>{ev.propertyName}</p>
+                    <p style={{ fontSize: '0.6rem', color: 'var(--muted)', margin: 0 }}>{ev.propertyName}</p>
                   </div>
                   <div style={{
-                    padding: '2px 7px', borderRadius: 4, fontSize: '0.58rem', fontWeight: 900, flexShrink: 0,
+                    padding: '2px 6px', borderRadius: 4, fontSize: '0.57rem', fontWeight: 900, flexShrink: 0,
                     background: isInspection ? 'var(--primary-c)' : ev.isOverdue ? 'var(--red-c)' : 'var(--amber-c)',
-                    color:      isInspection ? 'var(--primary)' : ev.isOverdue ? 'var(--red)' : 'var(--amber)',
+                    color:      isInspection ? 'var(--primary)'   : ev.isOverdue ? 'var(--red)'   : 'var(--amber)',
                   }}>
                     {isInspection ? 'INSP' : ev.isOverdue ? 'OVERDUE' : 'WO'}
                   </div>
@@ -783,7 +782,7 @@ function MaintenanceTimeline({ events, properties }: { events: ScheduledEvent[];
 
       {viewMode === 'gantt'
         ? <GanttTimeline events={events} />
-        : <TwoWeekCalendar events={events} router={router} />
+        : <TwoMonthCalendar events={events} router={router} />
       }
 
       {isFullScreen && (
@@ -842,71 +841,53 @@ export default function FMDashboardPage() {
         </p>
       </div>
 
-      {/* ════════════════════════════════════════════════════════════════
-          5-COLUMN GRID
-          Columns: [1] [2] [3] [4] [5]
-          Row 1: StatCard × 5
-          Row 2: Map (1-4) | InspPanel (4-6, rows 2-5)
-          Row 3: TopProperties (1-4)
-          Row 4: Calendar/Timeline (1-4)
-         ════════════════════════════════════════════════════════════════ */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(5, 1fr)',
-        gap: '0.875rem',
-        alignItems: 'start',
-      }}>
+      {/* ── Row 1: 5 equal stat cards ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.875rem' }}>
+        <StatCard icon={<Building2 size={18} />}       label="Total Properties"     value={data.properties.total}       sub={`${data.properties.active} active`}          accent="primary" href="/dashboard/fm/properties" />
+        <StatCard icon={<ClipboardCheck size={18} />}  label="Upcoming Inspections" value={data.upcomingInspections}    sub="Next 30 days"                                accent="violet"  active={data.upcomingInspections > 0} href="/dashboard/fm/inspections" />
+        <StatCard icon={<Wrench size={18} />}          label="Open Work Orders"     value={data.workOrders.open}        sub={`${data.workOrders.inProgress} in progress`} accent="amber"   href="/dashboard/fm/work-orders" />
+        <StatCard icon={<AlertTriangle size={18} />}   label="Overdue Work Orders"  value={data.overdueWorkOrders}                                                         accent="red"     active={data.overdueWorkOrders > 0} href="/dashboard/fm/work-orders?filter=OVERDUE" />
+        <StatCard icon={<Activity size={18} />}        label="Compliance Rate"      value={data.complianceRate > 0 ? `${data.complianceRate}%` : '—'} sub="Avg score"   accent="teal"    trend={data.complianceRate >= 80 ? '↑ On track' : data.complianceRate > 0 ? '↓ Attention' : undefined} href="/dashboard/fm/inspections" />
+      </div>
 
-        {/* ── Row 1: Stat Cards ── */}
-        <div style={{ gridColumn: '1', gridRow: '1' }}>
-          <StatCard icon={<Building2 size={18} />}       label="Total Properties"      value={data.properties.total}       sub={`${data.properties.active} active`}         accent="primary" href="/dashboard/fm/properties" />
-        </div>
-        <div style={{ gridColumn: '2', gridRow: '1' }}>
-          <StatCard icon={<ClipboardCheck size={18} />}  label="Upcoming Inspections"  value={data.upcomingInspections}    sub="Next 30 days"                               accent="violet"  active={data.upcomingInspections > 0} href="/dashboard/fm/inspections" />
-        </div>
-        <div style={{ gridColumn: '3', gridRow: '1' }}>
-          <StatCard icon={<Wrench size={18} />}          label="Open Work Orders"       value={data.workOrders.open}        sub={`${data.workOrders.inProgress} in progress`} accent="amber"   href="/dashboard/fm/work-orders" />
-        </div>
-        <div style={{ gridColumn: '4', gridRow: '1' }}>
-          <StatCard icon={<AlertTriangle size={18} />}   label="Overdue Work Orders"    value={data.overdueWorkOrders}                                                        accent="red"     active={data.overdueWorkOrders > 0} href="/dashboard/fm/work-orders?filter=OVERDUE" />
-        </div>
-        <div style={{ gridColumn: '5', gridRow: '1' }}>
-          <StatCard icon={<Activity size={18} />}        label="Compliance Rate"        value={data.complianceRate > 0 ? `${data.complianceRate}%` : '—'} sub="Avg score"  accent="teal"    trend={data.complianceRate >= 80 ? '↑ On track' : data.complianceRate > 0 ? '↓ Attention' : undefined} href="/dashboard/fm/inspections" />
-        </div>
+      {/* ── Rows 2-4: 3-col left column + 2-col right panel ──────────────────
+          The outer grid maintains fixed 0.875rem gap between columns.
+          The left flex column maintains fixed 0.875rem gap between widgets.
+          The right InspectionsPanel stretches to match the left column height.
+         ─────────────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '0.875rem', alignItems: 'stretch' }}>
 
-        {/* ── Row 2: Map (3 cols) ── */}
-        <div style={{ gridColumn: '1 / 4', gridRow: '2', borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border)', position: 'relative', minHeight: 360, boxShadow: 'var(--shadow)' }}>
-          {/* Condition legend */}
-          <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, background: 'var(--card)', backdropFilter: 'blur(12px)', border: '1px solid var(--border)', borderRadius: 10, padding: '0.45rem 0.75rem' }}>
-            <p style={{ fontSize: '0.53rem', fontWeight: 900, color: 'var(--faint)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 0.25rem' }}>Legend</p>
-            {[{ color: '#34d399', label: 'Active' }, { color: '#fbbf24', label: 'Inactive' }, { color: '#fb7185', label: 'Archived' }].map(({ color, label }) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.62rem', color: 'var(--muted)', marginBottom: 2 }}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                {label}
-              </div>
-            ))}
+        {/* Left column: Map → Top Properties → Calendar (fixed gaps) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+
+          {/* Map — explicit height so MapLibre canvas renders */}
+          <div style={{ height: 360, borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border)', position: 'relative', flexShrink: 0, boxShadow: 'var(--shadow)' }}>
+            <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, background: 'var(--card)', backdropFilter: 'blur(12px)', border: '1px solid var(--border)', borderRadius: 10, padding: '0.45rem 0.75rem' }}>
+              <p style={{ fontSize: '0.53rem', fontWeight: 900, color: 'var(--faint)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 0.25rem' }}>Legend</p>
+              {[{ color: '#34d399', label: 'Active' }, { color: '#fbbf24', label: 'Inactive' }, { color: '#fb7185', label: 'Archived' }].map(({ color, label }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.62rem', color: 'var(--muted)', marginBottom: 2 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                  {label}
+                </div>
+              ))}
+            </div>
+            <MapView markers={mapMarkers} center={{ lat: 18.3830, lng: -66.0858 }} zoom={13} showOutsideOverlay={false} />
           </div>
-          <MapView markers={mapMarkers} center={{ lat: 18.3830, lng: -66.0858 }} zoom={13} showOutsideOverlay={false} />
-        </div>
 
-        {/* ── Rows 2–4: Inspections Panel (2 cols, spans 3 rows) ── */}
-        <div style={{ gridColumn: '4 / 6', gridRow: '2 / 5' }}>
-          <InspectionsPanel
-            inspections={data.recentInspections}
-            pendingApprovals={data.pendingApprovals}
-            totals={data.inspections}
-          />
-        </div>
-
-        {/* ── Row 3: Top Properties (3 cols) ── */}
-        <div style={{ gridColumn: '1 / 4', gridRow: '3' }}>
+          {/* Top Properties */}
           <TopProperties properties={data.propertiesGeo} />
+
+          {/* Calendar / Gantt timeline */}
+          <MaintenanceTimeline events={data.scheduledEvents} properties={data.propertiesGeo} />
+
         </div>
 
-        {/* ── Row 4: Maintenance Timeline / Calendar (3 cols) ── */}
-        <div style={{ gridColumn: '1 / 4', gridRow: '4' }}>
-          <MaintenanceTimeline events={data.scheduledEvents} properties={data.propertiesGeo} />
-        </div>
+        {/* Right column: Inspections panel — stretches to match left column height */}
+        <InspectionsPanel
+          inspections={data.recentInspections}
+          pendingApprovals={data.pendingApprovals}
+          totals={data.inspections}
+        />
 
       </div>
     </div>
