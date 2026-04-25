@@ -79,22 +79,22 @@ export async function GET() {
       // Inspections with scheduled_for (for calendar)
       supabase
         .from('fm_inspections')
-        .select('id, scheduled_for, status, fm_properties(name)')
+        .select('id, scheduled_for, status, property_id, fm_properties(name), fm_templates(name)')
         .eq('org_id', orgId)
         .is('deleted_at', null)
         .not('scheduled_for', 'is', null)
         .order('scheduled_for', { ascending: true })
-        .limit(100),
+        .limit(200),
 
       // Work orders with due_date (for calendar)
       supabase
         .from('fm_work_orders')
-        .select('id, title, due_date, status, priority, fm_properties(name)')
+        .select('id, title, due_date, status, priority, property_id, fm_properties(name)')
         .eq('org_id', orgId)
         .is('deleted_at', null)
         .not('due_date', 'is', null)
         .order('due_date', { ascending: true })
-        .limit(100),
+        .limit(200),
     ])
 
     if (propertiesRes.error)  return err(propertiesRes.error.message)
@@ -116,7 +116,9 @@ export async function GET() {
     // Build scheduled events list for calendar
     const scheduledEvents: Array<{
       id: string; title: string; type: 'inspection' | 'work_order'
-      date: string; propertyName: string; isOverdue: boolean; status: string
+      date: string; datetime: string; propertyId: string | null
+      propertyName: string; templateName: string | null
+      isOverdue: boolean; status: string
     }> = []
 
     for (const insp of scheduledInspRes.data ?? []) {
@@ -126,7 +128,10 @@ export async function GET() {
         title: (insp.fm_properties as { name?: string } | null)?.name ?? 'Inspection',
         type: 'inspection',
         date: insp.scheduled_for.slice(0, 10),
+        datetime: insp.scheduled_for,
+        propertyId: insp.property_id ?? null,
         propertyName: (insp.fm_properties as { name?: string } | null)?.name ?? '—',
+        templateName: (insp.fm_templates as { name?: string } | null)?.name ?? null,
         isOverdue: false,
         status: insp.status,
       })
@@ -140,7 +145,10 @@ export async function GET() {
         title: wo.title,
         type: 'work_order',
         date: wo.due_date.slice(0, 10),
+        datetime: wo.due_date,
+        propertyId: wo.property_id ?? null,
         propertyName: (wo.fm_properties as { name?: string } | null)?.name ?? '—',
+        templateName: null,
         isOverdue,
         status: wo.status,
       })

@@ -141,8 +141,10 @@ export function Sidebar({ mobileOpen, onClose, orgName }: SidebarProps) {
         {/* ── Nav (12px padding all around, matches .sidebar-nav) ── */}
         <nav className="flex-1 overflow-y-auto" style={{ padding: 12 }}>
           {visibleItems.map((item) => {
-            const isActive = item.href === '/dashboard'
-              ? pathname === '/dashboard'
+            // Root dashboard items use exact match so sub-pages don't keep them highlighted
+            const exactMatchHrefs = ['/dashboard', '/dashboard/fm']
+            const isActive = exactMatchHrefs.includes(item.href)
+              ? pathname === item.href
               : pathname.startsWith(item.href)
 
             if (isCA) {
