@@ -32,6 +32,7 @@ export async function GET() {
       overdueWoRes,
       scheduledInspRes,
       scheduledWoRes,
+      recentInspRes,
     ] = await Promise.all([
       // Core counts
       supabase.from('fm_properties').select('id, status').eq('org_id', orgId).is('deleted_at', null),
@@ -42,7 +43,7 @@ export async function GET() {
       // Pending approvals feed
       supabase
         .from('fm_inspections')
-        .select('id, status, score, updated_at, fm_properties(name), fm_templates(name)')
+        .select('id, status, score, updated_at, fm_properties(name), fm_inspection_templates(name)')
         .eq('org_id', orgId)
         .eq('status', 'PENDING_APPROVAL')
         .is('deleted_at', null)
@@ -79,7 +80,7 @@ export async function GET() {
       // Inspections with scheduled_for (for calendar)
       supabase
         .from('fm_inspections')
-        .select('id, scheduled_for, status, property_id, fm_properties(name), fm_templates(name)')
+        .select('id, scheduled_for, status, property_id, fm_properties(name), fm_inspection_templates(name)')
         .eq('org_id', orgId)
         .is('deleted_at', null)
         .not('scheduled_for', 'is', null)
@@ -95,6 +96,15 @@ export async function GET() {
         .not('due_date', 'is', null)
         .order('due_date', { ascending: true })
         .limit(200),
+
+      // Recent inspections for the inspections panel (right sidebar)
+      supabase
+        .from('fm_inspections')
+        .select('id, status, score, scheduled_for, updated_at, fm_properties(name), fm_inspection_templates(name)')
+        .eq('org_id', orgId)
+        .is('deleted_at', null)
+        .order('updated_at', { ascending: false })
+        .limit(30),
     ])
 
     if (propertiesRes.error)  return err(propertiesRes.error.message)
@@ -131,7 +141,7 @@ export async function GET() {
         datetime: insp.scheduled_for,
         propertyId: insp.property_id ?? null,
         propertyName: (insp.fm_properties as { name?: string } | null)?.name ?? '—',
-        templateName: (insp.fm_templates as { name?: string } | null)?.name ?? null,
+        templateName: (insp.fm_inspection_templates as { name?: string } | null)?.name ?? null,
         isOverdue: false,
         status: insp.status,
       })
@@ -153,6 +163,17 @@ export async function GET() {
         status: wo.status,
       })
     }
+
+    // Build recent inspections list for the right-panel
+    const recentInspections = (recentInspRes.data ?? []).map(i => ({
+      id: i.id,
+      status: i.status as string,
+      score: i.score as number | null,
+      scheduled_for: (i.scheduled_for as string | null) ?? null,
+      updated_at: i.updated_at as string,
+      property_name: (i.fm_properties as { name?: string } | null)?.name ?? '—',
+      template_name: (i.fm_inspection_templates as { name?: string } | null)?.name ?? null,
+    }))
 
     return NextResponse.json({
       // Core stats
@@ -182,15 +203,14 @@ export async function GET() {
         completed: workOrders.filter(w => w.status === 'COMPLETED').length,
         highPriority: workOrders.filter(w => w.priority === 'HIGH' && w.status !== 'COMPLETED').length,
       },
-      // New fields for redesigned dashboard
+      // Dashboard panel data
       upcomingInspections: upcomingRes.count ?? 0,
       overdueWorkOrders: overdueWoRes.count ?? 0,
       complianceRate,
       pendingApprovals: pendingRes.data ?? [],
       propertiesGeo: propertiesGeoRes.data ?? [],
       scheduledEvents,
-      // Legacy — kept for compatibility
-      recentInspections: [],
+      recentInspections,
     })
   } catch (e) { return caught(e) }
 }
