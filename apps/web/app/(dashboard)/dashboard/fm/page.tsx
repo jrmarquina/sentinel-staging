@@ -132,16 +132,16 @@ function StatCard({
   )
 }
 
-// ── Inspections Panel (right column, spans 3 rows) ─────────────────────────
+// ── Inspections Panel (right column) ──────────────────────────────────────
 
 function inspStatusStyle(status: string): { bg: string; color: string; label: string } {
   switch (status) {
-    case 'PENDING_APPROVAL': return { bg: 'var(--amber-c)',  color: 'var(--amber)',   label: 'Approval' }
+    case 'PENDING_APPROVAL': return { bg: 'var(--amber-c)',   color: 'var(--amber)',   label: 'Approval' }
     case 'IN_PROGRESS':      return { bg: 'var(--primary-c)', color: 'var(--primary)', label: 'In Progress' }
-    case 'SCHEDULED':        return { bg: 'var(--violet-c)', color: 'var(--violet)',  label: 'Scheduled' }
-    case 'COMPLETED':        return { bg: 'var(--teal-c)',   color: 'var(--teal)',    label: 'Done' }
-    case 'DRAFT':            return { bg: 'var(--card-b)',   color: 'var(--muted)',   label: 'Draft' }
-    default:                 return { bg: 'var(--card-b)',   color: 'var(--muted)',   label: status }
+    case 'SCHEDULED':        return { bg: 'var(--violet-c)',  color: 'var(--violet)',  label: 'Scheduled' }
+    case 'COMPLETED':        return { bg: 'var(--teal-c)',    color: 'var(--teal)',    label: 'Done' }
+    case 'DRAFT':            return { bg: 'var(--card-b)',    color: 'var(--muted)',   label: 'Draft' }
+    default:                 return { bg: 'var(--card-b)',    color: 'var(--muted)',   label: status }
   }
 }
 
@@ -154,9 +154,10 @@ function InspectionsPanel({
 }) {
   const router = useRouter()
 
-  // Sort: PENDING_APPROVAL first, then IN_PROGRESS, then SCHEDULED, then rest
-  const ORDER: Record<string, number> = { PENDING_APPROVAL: 0, IN_PROGRESS: 1, SCHEDULED: 2, DRAFT: 3, COMPLETED: 4 }
-  const sorted = [...inspections].sort((a, b) => (ORDER[a.status] ?? 5) - (ORDER[b.status] ?? 5))
+  // Exclude pending approvals from the recent list (shown separately above)
+  const recentNonPending = inspections.filter(i => i.status !== 'PENDING_APPROVAL')
+  const ORDER: Record<string, number> = { IN_PROGRESS: 0, SCHEDULED: 1, DRAFT: 2, COMPLETED: 3 }
+  const sortedRecent = [...recentNonPending].sort((a, b) => (ORDER[a.status] ?? 9) - (ORDER[b.status] ?? 9))
 
   return (
     <div style={{
@@ -168,8 +169,10 @@ function InspectionsPanel({
       overflow: 'hidden',
       boxShadow: 'var(--shadow)',
       height: '100%',
+      minWidth: 0,
     }}>
-      {/* Header */}
+
+      {/* ── Header: title + quick stats ── */}
       <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
           <ClipboardCheck size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
@@ -180,8 +183,6 @@ function InspectionsPanel({
             {totals.total}
           </span>
         </div>
-
-        {/* Quick stats row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
           {[
             { label: 'Pending',     value: totals.pending,    color: 'var(--amber)' },
@@ -196,65 +197,90 @@ function InspectionsPanel({
         </div>
       </div>
 
-      {/* Scrollable list */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-        {sorted.length === 0 ? (
-          <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.8rem', padding: '3rem 1rem' }}>
-            No inspections yet.
-          </p>
-        ) : (
-          sorted.map((insp) => {
-            const { bg, color, label } = inspStatusStyle(insp.status)
-            const dateStr = insp.scheduled_for
-              ? new Date(insp.scheduled_for).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-              : new Date(insp.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-
-            return (
-              <div
-                key={insp.id}
-                onClick={() => router.push(`/dashboard/fm/inspections/${insp.id}`)}
-                style={{
-                  padding: '0.75rem 1.25rem',
-                  cursor: 'pointer',
-                  borderBottom: '1px solid var(--border)',
-                  transition: 'background 0.12s ease',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '0.625rem',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--card-b)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-              >
-                {/* Status dot */}
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0, marginTop: 5 }} />
-
-                {/* Content */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {insp.template_name ?? 'Inspection'}
-                  </p>
-                  <p style={{ fontSize: '0.7rem', color: 'var(--muted)', margin: '0.15rem 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {insp.property_name}
-                  </p>
-                </div>
-
-                {/* Right side: score or date + status */}
-                <div style={{ flexShrink: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
-                  <span style={{ fontSize: '0.6rem', fontWeight: 800, background: bg, color, padding: '0.1rem 0.45rem', borderRadius: 4 }}>
-                    {label}
-                  </span>
-                  {insp.score != null ? (
-                    <span style={{ fontSize: '0.72rem', fontWeight: 800, color: insp.score >= 80 ? 'var(--teal)' : insp.score >= 60 ? 'var(--amber)' : 'var(--red)' }}>
-                      {Math.round(insp.score)}%
-                    </span>
-                  ) : (
-                    <span style={{ fontSize: '0.68rem', color: 'var(--faint)' }}>{dateStr}</span>
-                  )}
-                </div>
+      {/* ── Inspections Ready to Approve ── */}
+      {pendingApprovals.length > 0 && (
+        <div style={{ flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
+          {/* Section label */}
+          <div style={{ padding: '0.6rem 1.25rem 0.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <CheckCircle size={12} style={{ color: 'var(--amber)', flexShrink: 0 }} />
+            <span style={{ fontSize: '0.6rem', fontWeight: 900, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', flex: 1 }}>
+              Ready to Approve
+            </span>
+            <span style={{ fontSize: '0.68rem', fontWeight: 800, background: 'var(--amber-c)', color: 'var(--amber)', padding: '0.1rem 0.45rem', borderRadius: 9999 }}>
+              {pendingApprovals.length}
+            </span>
+          </div>
+          {/* Approval rows */}
+          {pendingApprovals.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => router.push(`/dashboard/fm/inspections/${item.id}`)}
+              style={{ padding: '0.6rem 1.25rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.625rem', transition: 'background 0.12s ease', borderTop: '1px solid var(--border)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--amber-c)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+            >
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--amber)', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {(item.fm_templates as { name?: string } | null)?.name ?? 'Inspection'}
+                </p>
+                <p style={{ fontSize: '0.68rem', color: 'var(--muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {(item.fm_properties as { name?: string } | null)?.name ?? '—'}
+                </p>
               </div>
-            )
-          })
-        )}
+              <span style={{ fontSize: '0.65rem', color: 'var(--faint)', flexShrink: 0 }}>
+                {new Date(item.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Recent Inspections ── */}
+      <div style={{ padding: '0.6rem 1.25rem 0.4rem', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <Activity size={12} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+        <span style={{ fontSize: '0.6rem', fontWeight: 900, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+          Recent Activity
+        </span>
+      </div>
+
+      {/* Scrollable recent list */}
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+        {sortedRecent.length === 0 ? (
+          <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.8rem', padding: '2rem 1rem' }}>No recent activity.</p>
+        ) : sortedRecent.map((insp) => {
+          const { bg, color, label } = inspStatusStyle(insp.status)
+          const dateStr = insp.scheduled_for
+            ? new Date(insp.scheduled_for).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : new Date(insp.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+          return (
+            <div
+              key={insp.id}
+              onClick={() => router.push(`/dashboard/fm/inspections/${insp.id}`)}
+              style={{ padding: '0.625rem 1.25rem', cursor: 'pointer', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', transition: 'background 0.12s ease' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--card-b)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+            >
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0, marginTop: 5 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {insp.template_name ?? 'Inspection'}
+                </p>
+                <p style={{ fontSize: '0.68rem', color: 'var(--muted)', margin: '0.1rem 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {insp.property_name}
+                </p>
+              </div>
+              <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
+                <span style={{ fontSize: '0.58rem', fontWeight: 800, background: bg, color, padding: '0.1rem 0.4rem', borderRadius: 4 }}>{label}</span>
+                {insp.score != null
+                  ? <span style={{ fontSize: '0.7rem', fontWeight: 800, color: insp.score >= 80 ? 'var(--teal)' : insp.score >= 60 ? 'var(--amber)' : 'var(--red)' }}>{Math.round(insp.score)}%</span>
+                  : <span style={{ fontSize: '0.65rem', color: 'var(--faint)' }}>{dateStr}</span>
+                }
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {/* Footer */}
@@ -281,7 +307,7 @@ function TopProperties({ properties }: { properties: PropertyGeo[] }) {
   const router = useRouter()
   if (properties.length === 0) return null
   return (
-    <FmCard style={{ padding: '1.25rem' }}>
+    <FmCard style={{ padding: '1.25rem', overflow: 'hidden', minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <FmSectionLabel>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -748,7 +774,7 @@ function MaintenanceTimeline({ events, properties }: { events: ScheduledEvent[];
   const [isFullScreen, setIsFullScreen] = useState(false)
 
   return (
-    <FmCard>
+    <FmCard style={{ overflow: 'hidden', minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
           <FmSectionLabel>
@@ -857,8 +883,10 @@ export default function FMDashboardPage() {
          ─────────────────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '0.875rem', alignItems: 'stretch' }}>
 
-        {/* Left column: Map → Top Properties → Calendar (fixed gaps) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+        {/* Left column: Map → Top Properties → Calendar (fixed gaps)
+            minWidth:0 + overflow:hidden prevent children from inflating
+            the column past its 3fr allocation (fixes horizontal scroll). */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', minWidth: 0, overflow: 'hidden' }}>
 
           {/* Map — explicit height so MapLibre canvas renders */}
           <div style={{ height: 360, borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border)', position: 'relative', flexShrink: 0, boxShadow: 'var(--shadow)' }}>
@@ -882,12 +910,15 @@ export default function FMDashboardPage() {
 
         </div>
 
-        {/* Right column: Inspections panel — stretches to match left column height */}
-        <InspectionsPanel
-          inspections={data.recentInspections}
-          pendingApprovals={data.pendingApprovals}
-          totals={data.inspections}
-        />
+        {/* Right column: minWidth:0 prevents the panel from
+            overflowing its 2fr allocation. */}
+        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <InspectionsPanel
+            inspections={data.recentInspections}
+            pendingApprovals={data.pendingApprovals}
+            totals={data.inspections}
+          />
+        </div>
 
       </div>
     </div>
