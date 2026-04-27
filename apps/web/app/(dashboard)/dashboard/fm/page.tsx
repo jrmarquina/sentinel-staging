@@ -68,39 +68,64 @@ function getDayCount(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate()
 }
 
-/** Solid heatmap colors: 1=blue, 2=yellow/amber, 3+=red */
+// ── Fixed event palette — same vibrant colors across ALL design themes ────────
+// Reference: glass theme (the best-looking one). These values are hardcoded
+// so inspections, work orders and calendar heatmap look identical in classic
+// light, classic dark, dev/CA and glass modes.
+const EV = {
+  blue:   { bg: '#3b82f6', text: '#fff',     border: '#3b82f6' }, // Inspection SCHEDULED
+  sky:    { bg: '#60a5fa', text: '#fff',     border: '#60a5fa' }, // Inspection IN_PROGRESS
+  amber:  { bg: '#f59e0b', text: '#3d1f00', border: '#f59e0b' }, // Inspection PENDING_APPROVAL / WO OPEN
+  orange: { bg: '#f97316', text: '#fff',     border: '#f97316' }, // WO IN_PROGRESS
+  teal:   { bg: '#10b981', text: '#fff',     border: '#10b981' }, // COMPLETED (any type)
+  red:    { bg: '#f87171', text: '#fff',     border: '#f87171' }, // OVERDUE (any type)
+  muted:  { bg: '#334155', text: '#94a3b8', border: '#475569' }, // DRAFT / unknown
+} as const
+
+/** Solid heatmap colors: 1=blue, 2=amber, 3+=red — fixed across all themes */
 function eventCountColor(count: number): { bg: string; textColor: string } {
-  if (count >= 3) return { bg: 'var(--red)',     textColor: '#fff' }
-  if (count === 2) return { bg: 'var(--amber)',   textColor: '#1a1000' }
-  if (count === 1) return { bg: 'var(--primary)', textColor: '#fff' }
+  if (count >= 3) return { bg: EV.red.bg,   textColor: EV.red.text }
+  if (count === 2) return { bg: EV.amber.bg, textColor: EV.amber.text }
+  if (count === 1) return { bg: EV.blue.bg,  textColor: EV.blue.text }
   return { bg: 'transparent', textColor: 'var(--fg)' }
 }
 
 /**
- * Per-event color: overdue=red; inspection status: SCHEDULED=primary blue,
- * IN_PROGRESS=sky, PENDING_APPROVAL=amber, COMPLETED=teal, DRAFT=muted.
- * Work order status: OPEN=amber, IN_PROGRESS=orange, COMPLETED=teal.
+ * Per-event color — consistent across all design themes.
+ * Overdue overrides all other statuses.
  */
 function eventColor(ev: ScheduledEvent): { bg: string; text: string; border: string } {
-  if (ev.isOverdue) return { bg: 'var(--red)',  text: '#fff',        border: 'var(--red)' }
+  if (ev.isOverdue) return EV.red
 
   if (ev.type === 'inspection') {
     switch (ev.status) {
-      case 'SCHEDULED':        return { bg: 'var(--primary)',   text: '#fff',        border: 'var(--primary)' }
-      case 'IN_PROGRESS':      return { bg: '#60a5fa',          text: '#fff',        border: '#60a5fa' }
-      case 'PENDING_APPROVAL': return { bg: 'var(--amber)',     text: '#1a1000',     border: 'var(--amber)' }
-      case 'COMPLETED':        return { bg: 'var(--teal)',      text: '#fff',        border: 'var(--teal)' }
-      case 'DRAFT':            return { bg: 'var(--card-b)',    text: 'var(--faint)', border: 'var(--border)' }
-      default:                 return { bg: 'var(--primary-c)', text: 'var(--primary)', border: 'var(--primary)' }
+      case 'SCHEDULED':        return EV.blue
+      case 'IN_PROGRESS':      return EV.sky
+      case 'PENDING_APPROVAL': return EV.amber
+      case 'COMPLETED':        return EV.teal
+      case 'DRAFT':            return EV.muted
+      default:                 return EV.blue
     }
   }
 
   // work_order
   switch (ev.status) {
-    case 'OPEN':        return { bg: 'var(--amber)',   text: '#1a1000',  border: 'var(--amber)' }
-    case 'IN_PROGRESS': return { bg: '#f97316',        text: '#fff',     border: '#f97316' }
-    case 'COMPLETED':   return { bg: 'var(--teal)',    text: '#fff',     border: 'var(--teal)' }
-    default:            return { bg: 'var(--amber-c)', text: 'var(--amber)', border: 'var(--amber)' }
+    case 'OPEN':        return EV.amber
+    case 'IN_PROGRESS': return EV.orange
+    case 'COMPLETED':   return EV.teal
+    default:            return EV.amber
+  }
+}
+
+/** Inspection status badge — fixed colors, all themes */
+function inspStatusStyle(status: string): { bg: string; color: string; label: string } {
+  switch (status) {
+    case 'PENDING_APPROVAL': return { bg: `${EV.amber.bg}22`, color: EV.amber.bg, label: 'Approval' }
+    case 'IN_PROGRESS':      return { bg: `${EV.blue.bg}22`,  color: EV.blue.bg,  label: 'In Progress' }
+    case 'SCHEDULED':        return { bg: '#6366f122',         color: '#6366f1',   label: 'Scheduled' }
+    case 'COMPLETED':        return { bg: `${EV.teal.bg}22`,  color: EV.teal.bg,  label: 'Done' }
+    case 'DRAFT':            return { bg: '#33415522',         color: '#94a3b8',   label: 'Draft' }
+    default:                 return { bg: '#33415522',         color: '#94a3b8',   label: status }
   }
 }
 
@@ -162,17 +187,6 @@ function StatCard({
 
 // ── Inspections Panel (right column) ──────────────────────────────────────
 
-function inspStatusStyle(status: string): { bg: string; color: string; label: string } {
-  switch (status) {
-    case 'PENDING_APPROVAL': return { bg: 'var(--amber-c)',   color: 'var(--amber)',   label: 'Approval' }
-    case 'IN_PROGRESS':      return { bg: 'var(--primary-c)', color: 'var(--primary)', label: 'In Progress' }
-    case 'SCHEDULED':        return { bg: 'var(--violet-c)',  color: 'var(--violet)',  label: 'Scheduled' }
-    case 'COMPLETED':        return { bg: 'var(--teal-c)',    color: 'var(--teal)',    label: 'Done' }
-    case 'DRAFT':            return { bg: 'var(--card-b)',    color: 'var(--muted)',   label: 'Draft' }
-    default:                 return { bg: 'var(--card-b)',    color: 'var(--muted)',   label: status }
-  }
-}
-
 function InspectionsPanel({
   inspections, pendingApprovals, totals,
 }: {
@@ -213,9 +227,9 @@ function InspectionsPanel({
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
           {[
-            { label: 'Pending',     value: totals.pending,    color: 'var(--amber)' },
-            { label: 'In Progress', value: totals.inProgress, color: 'var(--primary)' },
-            { label: 'Completed',   value: totals.completed,  color: 'var(--teal)' },
+            { label: 'Pending',     value: totals.pending,    color: EV.amber.bg },
+            { label: 'In Progress', value: totals.inProgress, color: EV.blue.bg },
+            { label: 'Completed',   value: totals.completed,  color: EV.teal.bg },
           ].map(({ label, value, color }) => (
             <div key={label} style={{ background: 'var(--card-b)', borderRadius: 8, padding: '0.375rem 0.5rem', textAlign: 'center', border: '1px solid var(--border)' }}>
               <p style={{ fontSize: '1rem', fontWeight: 800, color, margin: 0, lineHeight: 1 }}>{value}</p>
@@ -230,11 +244,11 @@ function InspectionsPanel({
         <div style={{ flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
           {/* Section label */}
           <div style={{ padding: '0.6rem 1.25rem 0.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <CheckCircle size={12} style={{ color: 'var(--amber)', flexShrink: 0 }} />
+            <CheckCircle size={12} style={{ color: EV.amber.bg, flexShrink: 0 }} />
             <span style={{ fontSize: '0.6rem', fontWeight: 900, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', flex: 1 }}>
               Ready to Approve
             </span>
-            <span style={{ fontSize: '0.68rem', fontWeight: 800, background: 'var(--amber-c)', color: 'var(--amber)', padding: '0.1rem 0.45rem', borderRadius: 9999 }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: 800, background: `${EV.amber.bg}22`, color: EV.amber.bg, padding: '0.1rem 0.45rem', borderRadius: 9999 }}>
               {pendingApprovals.length}
             </span>
           </div>
@@ -244,10 +258,10 @@ function InspectionsPanel({
               key={item.id}
               onClick={() => router.push(`/dashboard/fm/inspections/${item.id}`)}
               style={{ padding: '0.6rem 1.25rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.625rem', transition: 'background 0.12s ease', borderTop: '1px solid var(--border)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--amber-c)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = `${EV.amber.bg}15` }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
             >
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--amber)', flexShrink: 0 }} />
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: EV.amber.bg, flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {(item.fm_inspection_templates as { name?: string } | null)?.name ?? 'Inspection'}
@@ -302,7 +316,7 @@ function InspectionsPanel({
               <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
                 <span style={{ fontSize: '0.58rem', fontWeight: 800, background: bg, color, padding: '0.1rem 0.4rem', borderRadius: 4 }}>{label}</span>
                 {insp.score != null
-                  ? <span style={{ fontSize: '0.7rem', fontWeight: 800, color: insp.score >= 80 ? 'var(--teal)' : insp.score >= 60 ? 'var(--amber)' : 'var(--red)' }}>{Math.round(insp.score)}%</span>
+                  ? <span style={{ fontSize: '0.7rem', fontWeight: 800, color: insp.score >= 80 ? EV.teal.bg : insp.score >= 60 ? EV.amber.bg : EV.red.bg }}>{Math.round(insp.score)}%</span>
                   : <span style={{ fontSize: '0.65rem', color: 'var(--faint)' }}>{dateStr}</span>
                 }
               </div>
@@ -604,8 +618,118 @@ function GanttTimeline({ events }: { events: ScheduledEvent[] }) {
 
 // ── Full-screen Portal ─────────────────────────────────────────────────────
 
-type FsTab = 'property-gantt' | 'detailed-calendar' | 'heat-map'
+type FsTab = 'property-gantt' | 'calendar-grid' | 'list-view' | 'heat-map'
 const DOW_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+
+/** 2-Week Calendar Grid — day columns with event pills (populated by date, not hour) */
+function FullScreenCalendarGrid({ events }: { events: ScheduledEvent[] }) {
+  const router = useRouter()
+
+  const days = useMemo(() => Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() + i); return d
+  }), [])
+
+  const eventMap = useMemo(() => {
+    const map: Record<string, ScheduledEvent[]> = {}
+    for (const ev of events) {
+      if (!map[ev.date]) map[ev.date] = []
+      map[ev.date].push(ev)
+    }
+    return map
+  }, [events])
+
+  const todayStr = toYMD(new Date())
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      {/* Legend */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+        {[
+          { color: EV.blue.bg,   label: 'Insp · Scheduled' },
+          { color: EV.sky.bg,    label: 'Insp · In Progress' },
+          { color: EV.amber.bg,  label: 'Insp · Approval / WO · Open' },
+          { color: EV.orange.bg, label: 'WO · In Progress' },
+          { color: EV.teal.bg,   label: 'Completed' },
+          { color: EV.red.bg,    label: 'Overdue' },
+        ].map(({ color, label }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.7rem', color: 'var(--muted)' }}>
+            <div style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} />
+            {label}
+          </div>
+        ))}
+      </div>
+
+      {/* Grid: 14 day columns */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: '0.5rem', minWidth: 980 }}>
+        {/* Day headers */}
+        {days.map((d) => {
+          const dateStr = toYMD(d)
+          const isToday = dateStr === todayStr
+          return (
+            <div key={dateStr} style={{
+              textAlign: 'center', padding: '0.625rem 0.25rem',
+              background: isToday ? `${EV.blue.bg}20` : 'var(--card-b)',
+              borderRadius: 10,
+              border: isToday ? `1px solid ${EV.blue.bg}50` : '1px solid var(--border)',
+            }}>
+              <div style={{ fontSize: '0.6rem', fontWeight: 900, color: isToday ? EV.blue.bg : 'var(--faint)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                {d.toLocaleDateString('en-US', { weekday: 'short' })}
+              </div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 900, color: isToday ? EV.blue.bg : 'var(--fg)', lineHeight: 1.2 }}>
+                {d.getDate()}
+              </div>
+              <div style={{ fontSize: '0.58rem', color: 'var(--faint)', marginTop: 1 }}>
+                {d.toLocaleDateString('en-US', { month: 'short' })}
+              </div>
+            </div>
+          )
+        })}
+
+        {/* Event cells — one cell per day */}
+        {days.map((d) => {
+          const dateStr = toYMD(d)
+          const dayEvs  = eventMap[dateStr] ?? []
+          return (
+            <div key={`events-${dateStr}`} style={{
+              minHeight: 120, padding: '0.375rem 0.25rem',
+              display: 'flex', flexDirection: 'column', gap: 4,
+            }}>
+              {dayEvs.length === 0 ? (
+                <div style={{ flex: 1, borderRadius: 6, border: '1px dashed var(--border)', opacity: 0.4 }} />
+              ) : dayEvs.map((ev) => {
+                const { bg, text } = eventColor(ev)
+                const href = ev.type === 'inspection'
+                  ? `/dashboard/fm/inspections/${ev.id}`
+                  : `/dashboard/fm/work-orders?focus=${ev.id}`
+                return (
+                  <div
+                    key={ev.id}
+                    onClick={() => router.push(href)}
+                    title={`${ev.type === 'inspection' ? (ev.templateName ?? ev.title) : ev.title} · ${ev.propertyName} · ${ev.status}`}
+                    style={{
+                      padding: '3px 6px', borderRadius: 5,
+                      background: bg, color: text,
+                      fontSize: '0.58rem', fontWeight: 800,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      cursor: 'pointer',
+                      border: `1px solid ${bg}80`,
+                      transition: 'opacity 0.12s, transform 0.12s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.75'; e.currentTarget.style.transform = 'scale(1.03)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none' }}
+                  >
+                    <span style={{ opacity: 0.75, marginRight: 3 }}>{ev.type === 'inspection' ? '●' : '◆'}</span>
+                    {ev.type === 'inspection' ? (ev.templateName ?? ev.title) : ev.title}
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 function FullScreenHeatMap({ events }: { events: ScheduledEvent[] }) {
   const router = useRouter()
@@ -761,7 +885,7 @@ function FullScreenHeatMap({ events }: { events: ScheduledEvent[] }) {
   )
 }
 
-function FullScreenDetailedCalendar({ events }: { events: ScheduledEvent[] }) {
+function FullScreenListView({ events }: { events: ScheduledEvent[] }) {
   const router = useRouter()
 
   // Build a 14-day list from today
@@ -985,9 +1109,10 @@ function FullScreenTimeline({ events, properties, onClose }: { events: Scheduled
   }, [onClose])
 
   const TABS: { id: FsTab; label: string }[] = [
-    { id: 'property-gantt',    label: 'Property Gantt' },
-    { id: 'detailed-calendar', label: '2-Week Schedule' },
-    { id: 'heat-map',          label: '6-Month Heatmap' },
+    { id: 'property-gantt', label: 'Property Gantt' },
+    { id: 'calendar-grid',  label: '2-Week Schedule' },
+    { id: 'list-view',      label: 'List View' },
+    { id: 'heat-map',       label: '6-Month Heatmap' },
   ]
 
   if (!mounted) return null
@@ -1004,8 +1129,8 @@ function FullScreenTimeline({ events, properties, onClose }: { events: Scheduled
               <button key={t.id} onClick={() => setTab(t.id)} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em',
-                color: tab === t.id ? 'var(--primary)' : 'var(--muted)',
-                borderBottom: tab === t.id ? '2px solid var(--primary)' : '2px solid transparent',
+                color: tab === t.id ? EV.blue.bg : 'var(--muted)',
+                borderBottom: tab === t.id ? `2px solid ${EV.blue.bg}` : '2px solid transparent',
                 padding: '0.5rem 0.875rem', transition: 'color 0.15s ease',
               }}>
                 {t.label}
@@ -1021,9 +1146,10 @@ function FullScreenTimeline({ events, properties, onClose }: { events: Scheduled
         </button>
       </header>
       <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '2rem' }}>
-        {tab === 'property-gantt'    && <FullScreenPropertyGantt events={events} properties={properties} />}
-        {tab === 'detailed-calendar' && <FullScreenDetailedCalendar events={events} />}
-        {tab === 'heat-map'          && <FullScreenHeatMap events={events} />}
+        {tab === 'property-gantt' && <FullScreenPropertyGantt events={events} properties={properties} />}
+        {tab === 'calendar-grid'  && <FullScreenCalendarGrid events={events} />}
+        {tab === 'list-view'      && <FullScreenListView events={events} />}
+        {tab === 'heat-map'       && <FullScreenHeatMap events={events} />}
       </main>
     </div>,
     document.body
