@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Edit2, KeyRound, Trash2, X, Eye, EyeOff, Shield, ChevronDown, History } from 'lucide-react'
 import { format, parseISO, isToday, isYesterday } from 'date-fns'
 import { createUser, updateUser, resetUserPassword, deleteUser } from './actions'
+import { DevThemeCustomiser } from '@/components/settings/DevThemeCustomiser'
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -669,6 +670,9 @@ export function SettingsClient({ members: initialMembers, auditLog = [] }: { mem
 
       {/* Audit log */}
       <AuditLogSection entries={auditLog} />
+
+      {/* Development view colour customisation — admin only */}
+      <DevThemeCustomiser />
 
       {/* ── Modals ─────────────────────────────────────────────────────────── */}
 
