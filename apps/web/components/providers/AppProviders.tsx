@@ -3,6 +3,7 @@
 import { ThemeProvider } from '@/lib/theme'
 import { LocaleProvider } from '@/lib/locale'
 import { DesignThemeProvider } from '@/lib/design-theme'
+import { DevThemeOverridesProvider } from '@/lib/dev-theme-overrides'
 import { MapPrefsProvider } from '@/lib/map-prefs'
 import { AppModeProvider } from '@/lib/app-mode'
 
@@ -11,11 +12,14 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       <LocaleProvider>
         <DesignThemeProvider>
-          <AppModeProvider>
-            <MapPrefsProvider>
-              {children}
-            </MapPrefsProvider>
-          </AppModeProvider>
+          {/* Must be inside both ThemeProvider + DesignThemeProvider — reads both contexts */}
+          <DevThemeOverridesProvider>
+            <AppModeProvider>
+              <MapPrefsProvider>
+                {children}
+              </MapPrefsProvider>
+            </AppModeProvider>
+          </DevThemeOverridesProvider>
         </DesignThemeProvider>
       </LocaleProvider>
     </ThemeProvider>

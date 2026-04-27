@@ -25,6 +25,8 @@ import {
 import { useRole } from '@/hooks/useRole'
 import { useT } from '@/lib/locale'
 import { useDesignTheme } from '@/lib/design-theme'
+import { useDevThemeOverrides } from '@/lib/dev-theme-overrides'
+import { useTheme } from '@/lib/theme'
 import { useAppMode } from '@/lib/app-mode'
 import { cn } from '@/lib/utils'
 import type { TranslationKey } from '@/lib/translations/en'
@@ -76,8 +78,15 @@ export function Sidebar({ mobileOpen, onClose, orgName }: SidebarProps) {
   const { role } = useRole()
   const t = useT()
   const { designTheme } = useDesignTheme()
+  const { theme } = useTheme()
+  const { overrides } = useDevThemeOverrides()
   const { appMode } = useAppMode()
   const isCA = designTheme === 'dev'
+
+  // In dev mode, use the admin-configured logo; otherwise use theme default
+  const logoSrc = isCA
+    ? (overrides[theme === 'dark' ? 'dark' : 'light'].logo === 'white' ? '/logo-white.png' : '/logo-black.png')
+    : '/logo-white.png'
 
   const navItems = appMode === 'fm' ? fmNavItems : pwNavItems
   const visibleItems = navItems.filter(
@@ -124,7 +133,7 @@ export function Sidebar({ mobileOpen, onClose, orgName }: SidebarProps) {
           <div className="flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={isCA ? '/logo-black.png' : '/logo-white.png'}
+              src={logoSrc}
               alt="Sentinel"
               style={{ height: 26, width: 'auto' }}
             />
