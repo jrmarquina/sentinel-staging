@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import {
-  Plus, Search, MapPin, ChevronRight,
+  Plus, Search, MapPin,
   Loader2, AlertTriangle, X, Building2,
 } from 'lucide-react'
 import {
@@ -21,8 +21,25 @@ interface FmProperty {
   status: string
   latitude: number | null
   longitude: number | null
+  image_url?: string | null
   fm_assets?: Array<{ id: string }>
   fm_inspections?: Array<{ id: string }>
+}
+
+// ── Gradient helper ────────────────────────────────────────────────────────
+
+const PROP_GRADIENTS = [
+  'linear-gradient(145deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
+  'linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+  'linear-gradient(145deg, #0d1b2a 0%, #1b263b 50%, #415a77 100%)',
+  'linear-gradient(145deg, #10002b 0%, #240046 50%, #3c096c 100%)',
+  'linear-gradient(145deg, #03071e 0%, #370617 50%, #6a040f 100%)',
+  'linear-gradient(145deg, #004e92 0%, #000428 100%)',
+  'linear-gradient(145deg, #134e5e 0%, #71b280 100%)',
+]
+function propGradient(id: string) {
+  const n = id.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+  return PROP_GRADIENTS[n % PROP_GRADIENTS.length]
 }
 
 interface NewPropertyForm {
@@ -39,65 +56,81 @@ type StatusFilter = typeof STATUS_FILTERS[number]
 function PropertyCard({ prop }: { prop: FmProperty }) {
   const assetCount  = prop.fm_assets?.length      ?? 0
   const inspCount   = prop.fm_inspections?.length ?? 0
+  const [hovered, setHovered] = useState(false)
 
-  // status → badge variant
   const badgeVariant =
     prop.status === 'ACTIVE'      ? 'success' as const :
     prop.status === 'MAINTENANCE' ? 'warning' as const : 'danger' as const
 
+  const bgImage = prop.image_url
+    ? `url(${prop.image_url}) center/cover no-repeat`
+    : propGradient(prop.id)
+
   return (
-    <FmCard style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-      {/* Top row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', minWidth: 0 }}>
+    <Link
+      href={`/dashboard/fm/properties/${prop.id}`}
+      style={{ textDecoration: 'none', display: 'block' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div style={{
+        overflow: 'hidden',
+        borderRadius: 16,
+        border: '1px solid var(--border)',
+        background: 'var(--card)',
+        cursor: 'pointer',
+        transform: hovered ? 'translateY(-4px)' : 'none',
+        boxShadow: hovered ? 'var(--shadow-lg)' : 'var(--shadow)',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+      }}>
+        {/* Image / gradient header */}
+        <div style={{ height: 160, background: bgImage, position: 'relative' }}>
+          {/* Status badge — top right */}
+          <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', backdropFilter: 'blur(8px)' }}>
+            <FmBadge variant={badgeVariant}>{prop.status}</FmBadge>
+          </div>
+          {/* Code badge — bottom left */}
           <div style={{
-            width: 36, height: 36, borderRadius: 9, flexShrink: 0,
-            background: 'var(--primary-c)', border: '1px solid var(--primary)30',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--primary)',
+            position: 'absolute', bottom: '0.75rem', left: '0.75rem',
+            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)',
+            borderRadius: 6, padding: '0.15rem 0.5rem',
+            fontSize: '0.65rem', fontFamily: 'monospace', fontWeight: 700, color: 'rgba(255,255,255,0.85)',
           }}>
-            <Building2 size={18} />
+            {prop.code}
           </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {prop.name}
-            </p>
-            <p style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--primary)', margin: 0, fontFamily: 'monospace' }}>
-              {prop.code}
-            </p>
+          {/* Building icon texture (no-image only) */}
+          {!prop.image_url && (
+            <div style={{ position: 'absolute', bottom: '0.5rem', right: '0.75rem', opacity: 0.1 }}>
+              <Building2 size={48} color="#fff" />
+            </div>
+          )}
+        </div>
+
+        {/* Content area */}
+        <div style={{ padding: '1rem 1.25rem' }}>
+          {/* Name + address */}
+          <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {prop.name}
+          </p>
+          {prop.address && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <MapPin size={11} style={{ flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prop.address}</span>
+            </div>
+          )}
+
+          {/* Stats row */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', paddingTop: '0.625rem', borderTop: '1px solid var(--border)' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--card-b)', color: 'var(--muted)', padding: '0.2rem 0.5rem', borderRadius: 9999, border: '1px solid var(--border)' }}>
+              {assetCount} asset{assetCount !== 1 ? 's' : ''}
+            </span>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--card-b)', color: 'var(--muted)', padding: '0.2rem 0.5rem', borderRadius: 9999, border: '1px solid var(--border)' }}>
+              {inspCount} inspection{inspCount !== 1 ? 's' : ''}
+            </span>
           </div>
         </div>
-        <FmBadge variant={badgeVariant}>{prop.status}</FmBadge>
       </div>
-
-      {/* Address */}
-      {prop.address && (
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--muted)' }}>
-          <MapPin size={13} style={{ marginTop: 2, flexShrink: 0 }} />
-          <span style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>
-            {prop.address}
-          </span>
-        </div>
-      )}
-
-      {/* Counters + link */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--card-b)', color: 'var(--muted)', padding: '0.2rem 0.5rem', borderRadius: 9999, border: '1px solid var(--border)' }}>
-            {assetCount} asset{assetCount !== 1 ? 's' : ''}
-          </span>
-          <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--card-b)', color: 'var(--muted)', padding: '0.2rem 0.5rem', borderRadius: 9999, border: '1px solid var(--border)' }}>
-            {inspCount} inspection{inspCount !== 1 ? 's' : ''}
-          </span>
-        </div>
-        <Link
-          href={`/dashboard/fm/properties/${prop.id}`}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.78rem', fontWeight: 600, color: 'var(--primary)', textDecoration: 'none' }}
-        >
-          Details <ChevronRight size={14} />
-        </Link>
-      </div>
-    </FmCard>
+    </Link>
   )
 }
 
@@ -277,7 +310,7 @@ export default function FMPropertiesPage() {
           </p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
           {filtered.map((prop) => <PropertyCard key={prop.id} prop={prop} />)}
         </div>
       )}

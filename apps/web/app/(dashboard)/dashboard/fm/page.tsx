@@ -370,21 +370,35 @@ function TopProperties({ properties }: { properties: PropertyGeo[] }) {
             onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)' }}
             onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none' }}
           >
-            <div style={{ height: 110, background: CARD_GRADIENTS[i % CARD_GRADIENTS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            {/* Image area — 160px with gradient overlay + name overlay */}
+            <div style={{ height: 160, background: CARD_GRADIENTS[i % CARD_GRADIENTS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               <Building2 size={36} style={{ color: 'rgba(255,255,255,0.12)' }} />
-              <div style={{ position: 'absolute', bottom: '0.5rem', left: '0.5rem', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', borderRadius: 6, padding: '0.15rem 0.45rem', fontSize: '0.6rem', fontFamily: 'monospace', fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>
+              {/* Bottom gradient overlay */}
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)' }} />
+              {/* Property name overlay — bottom left */}
+              <p style={{
+                position: 'absolute', bottom: '0.5rem', left: '0.625rem', right: '0.625rem',
+                margin: 0, color: '#fff', fontSize: '0.78rem', fontWeight: 700,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {prop.name}
+              </p>
+              {/* Code badge — bottom left (above name, actually place in a stack) */}
+              <div style={{ position: 'absolute', bottom: '0.5rem', left: '0.5rem', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', borderRadius: 6, padding: '0.15rem 0.45rem', fontSize: '0.6rem', fontFamily: 'monospace', fontWeight: 700, color: 'rgba(255,255,255,0.8)', display: 'none' }}>
                 {prop.code}
               </div>
+              {/* Status badge — top right */}
               <div style={{ position: 'absolute', top: '0.5rem', right: '0.5rem' }}>
                 <FmBadge variant={prop.status === 'ACTIVE' ? 'success' : prop.status === 'ARCHIVED' ? 'danger' : 'warning'}>
                   {prop.status}
                 </FmBadge>
               </div>
             </div>
+            {/* Card body — code + location only (name is now in the overlay) */}
             <div style={{ padding: '0.625rem', background: 'var(--card)' }}>
-              <p style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prop.name}</p>
+              <p style={{ fontWeight: 700, fontSize: '0.7rem', fontFamily: 'monospace', color: 'var(--primary)', margin: 0 }}>{prop.code}</p>
               <p style={{ fontSize: '0.68rem', color: 'var(--muted)', margin: '0.2rem 0 0', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <MapPin size={9} /> Puerto Rico
+                <MapPin size={10} /> Puerto Rico
               </p>
             </div>
           </div>
