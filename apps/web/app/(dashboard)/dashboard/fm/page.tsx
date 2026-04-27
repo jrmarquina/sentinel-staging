@@ -27,8 +27,8 @@ interface PropertyGeo { id: string; name: string; code: string; status: string; 
 
 interface PendingApproval {
   id: string; updated_at: string
-  fm_properties: { name: string } | null
-  fm_templates:  { name: string } | null
+  fm_properties:          { name: string } | null
+  fm_inspection_templates: { name: string } | null
 }
 
 interface RecentInspection {
@@ -74,6 +74,34 @@ function eventCountColor(count: number): { bg: string; textColor: string } {
   if (count === 2) return { bg: 'var(--amber)',   textColor: '#1a1000' }
   if (count === 1) return { bg: 'var(--primary)', textColor: '#fff' }
   return { bg: 'transparent', textColor: 'var(--fg)' }
+}
+
+/**
+ * Per-event color: overdue=red; inspection status: SCHEDULED=primary blue,
+ * IN_PROGRESS=sky, PENDING_APPROVAL=amber, COMPLETED=teal, DRAFT=muted.
+ * Work order status: OPEN=amber, IN_PROGRESS=orange, COMPLETED=teal.
+ */
+function eventColor(ev: ScheduledEvent): { bg: string; text: string; border: string } {
+  if (ev.isOverdue) return { bg: 'var(--red)',  text: '#fff',        border: 'var(--red)' }
+
+  if (ev.type === 'inspection') {
+    switch (ev.status) {
+      case 'SCHEDULED':        return { bg: 'var(--primary)',   text: '#fff',        border: 'var(--primary)' }
+      case 'IN_PROGRESS':      return { bg: '#60a5fa',          text: '#fff',        border: '#60a5fa' }
+      case 'PENDING_APPROVAL': return { bg: 'var(--amber)',     text: '#1a1000',     border: 'var(--amber)' }
+      case 'COMPLETED':        return { bg: 'var(--teal)',      text: '#fff',        border: 'var(--teal)' }
+      case 'DRAFT':            return { bg: 'var(--card-b)',    text: 'var(--faint)', border: 'var(--border)' }
+      default:                 return { bg: 'var(--primary-c)', text: 'var(--primary)', border: 'var(--primary)' }
+    }
+  }
+
+  // work_order
+  switch (ev.status) {
+    case 'OPEN':        return { bg: 'var(--amber)',   text: '#1a1000',  border: 'var(--amber)' }
+    case 'IN_PROGRESS': return { bg: '#f97316',        text: '#fff',     border: '#f97316' }
+    case 'COMPLETED':   return { bg: 'var(--teal)',    text: '#fff',     border: 'var(--teal)' }
+    default:            return { bg: 'var(--amber-c)', text: 'var(--amber)', border: 'var(--amber)' }
+  }
 }
 
 // ── Stat Card ──────────────────────────────────────────────────────────────
@@ -222,7 +250,7 @@ function InspectionsPanel({
               <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--amber)', flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {(item.fm_templates as { name?: string } | null)?.name ?? 'Inspection'}
+                  {(item.fm_inspection_templates as { name?: string } | null)?.name ?? 'Inspection'}
                 </p>
                 <p style={{ fontSize: '0.68rem', color: 'var(--muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {(item.fm_properties as { name?: string } | null)?.name ?? '—'}
@@ -503,7 +531,8 @@ function TwoMonthCalendar({ events, router }: { events: ScheduledEvent[]; router
 // ── Gantt Timeline (inline 14-day) ─────────────────────────────────────────
 
 function GanttTimeline({ events }: { events: ScheduledEvent[] }) {
-  const days = useMemo(() => Array.from({ length: 14 }, (_, i) => {
+  const router  = useRouter()
+  const days    = useMemo(() => Array.from({ length: 14 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() + i); return d
   }), [])
 
@@ -517,6 +546,7 @@ function GanttTimeline({ events }: { events: ScheduledEvent[] }) {
   return (
     <div style={{ overflowX: 'auto' }}>
       <div style={{ minWidth: 600 }}>
+        {/* Header row */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', marginBottom: '0.25rem' }}>
           <div style={{ width: 150, flexShrink: 0, fontSize: '0.6rem', fontWeight: 900, color: 'var(--muted)', textTransform: 'uppercase' }}>Property / Task</div>
           {days.map((d, i) => (
@@ -532,26 +562,35 @@ function GanttTimeline({ events }: { events: ScheduledEvent[] }) {
           </p>
         ) : items.map((item) => {
           const dayIdx = Math.floor((new Date(item.date).getTime() - todayMs) / 86_400_000)
-          const isInsp = item.type === 'inspection'
-          const color  = item.isOverdue ? 'var(--red)' : isInsp ? 'var(--primary)' : 'var(--amber)'
+          const { bg, text } = eventColor(item)
+          const href = item.type === 'inspection'
+            ? `/dashboard/fm/inspections/${item.id}`
+            : `/dashboard/fm/work-orders?focus=${item.id}`
 
           return (
-            <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '0.45rem 0', borderBottom: '1px solid var(--border)10' }}>
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '0.45rem 0', borderBottom: '1px solid var(--border)' }}>
               <div style={{ width: 150, flexShrink: 0, fontSize: '0.72rem', fontWeight: 600, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '0.5rem' }}>
                 {item.propertyName || item.title}
               </div>
               <div style={{ flex: 14, display: 'flex', position: 'relative', height: 22 }}>
                 {dayIdx >= 0 && dayIdx < 14 && (
-                  <div style={{
-                    position: 'absolute',
-                    left: `${(dayIdx / 14) * 100}%`,
-                    width: 'calc(100% / 14 - 3px)', height: '100%',
-                    background: color, borderRadius: 4,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.58rem', fontWeight: 900, color: '#fff',
-                    cursor: 'pointer',
-                  }} title={item.title}>
-                    {isInsp ? 'I' : 'W'}
+                  <div
+                    onClick={() => router.push(href)}
+                    title={`${item.title} — ${item.status}`}
+                    style={{
+                      position: 'absolute',
+                      left: `${(dayIdx / 14) * 100}%`,
+                      width: 'calc(100% / 14 - 3px)', height: '100%',
+                      background: bg, borderRadius: 4,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '0.58rem', fontWeight: 900, color: text,
+                      cursor: 'pointer',
+                      transition: 'opacity 0.12s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.75' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
+                  >
+                    {item.type === 'inspection' ? 'I' : 'W'}
                   </div>
                 )}
               </div>
@@ -569,41 +608,271 @@ type FsTab = 'property-gantt' | 'detailed-calendar' | 'heat-map'
 const DOW_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
 function FullScreenHeatMap({ events }: { events: ScheduledEvent[] }) {
-  const now = new Date()
+  const router = useRouter()
+  const now    = new Date()
+  const todayStr = toYMD(now)
+
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
     return { month: d.getMonth(), year: d.getFullYear() }
   })
 
+  // Map dateStr → full event array (not just count) so popup can render them
   const eventMap = useMemo(() => {
-    const map: Record<string, number> = {}
-    for (const ev of events) { map[ev.date] = (map[ev.date] ?? 0) + 1 }
+    const map: Record<string, ScheduledEvent[]> = {}
+    for (const ev of events) {
+      if (!map[ev.date]) map[ev.date] = []
+      map[ev.date].push(ev)
+    }
     return map
   }, [events])
 
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
+
+  const selectedEvents = selectedDay ? (eventMap[selectedDay] ?? []) : []
+  const selectedLabel  = selectedDay
+    ? new Date(selectedDay + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    : ''
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3rem' }}>
-      {months.map(({ month, year }) => {
-        const dayCount = getDayCount(year, month)
-        const firstDOW = new Date(year, month, 1).getDay()
-        return (
-          <div key={`${year}-${month}`}>
-            <p style={{ fontSize: '1rem', fontWeight: 900, color: 'var(--fg)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', marginBottom: '1.25rem' }}>
-              {new Date(year, month).toLocaleString('en-US', { month: 'long', year: 'numeric' })}
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
-              {DOW_LABELS.map((d, i) => <div key={i} style={{ textAlign: 'center', fontSize: '0.6rem', fontWeight: 900, color: 'var(--faint)', paddingBottom: 4 }}>{d}</div>)}
-              {Array.from({ length: firstDOW }).map((_, i) => <div key={`p-${i}`} />)}
-              {Array.from({ length: dayCount }, (_, i) => i + 1).map((day) => {
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-                const count = eventMap[dateStr] ?? 0
-                const { bg, textColor } = eventCountColor(count)
-                return (
-                  <div key={day} style={{ aspectRatio: '1', borderRadius: 8, background: count === 0 ? 'var(--card-b)' : bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 800, color: count > 0 ? textColor : 'var(--faint)' }}>
-                    {day}
+    <div style={{ position: 'relative' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3rem' }}>
+        {months.map(({ month, year }) => {
+          const dayCount = getDayCount(year, month)
+          const firstDOW = new Date(year, month, 1).getDay()
+          return (
+            <div key={`${year}-${month}`}>
+              <p style={{ fontSize: '1rem', fontWeight: 900, color: 'var(--fg)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', marginBottom: '1.25rem' }}>
+                {new Date(year, month).toLocaleString('en-US', { month: 'long', year: 'numeric' })}
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
+                {DOW_LABELS.map((d, i) => (
+                  <div key={i} style={{ textAlign: 'center', fontSize: '0.6rem', fontWeight: 900, color: 'var(--faint)', paddingBottom: 4 }}>{d}</div>
+                ))}
+                {Array.from({ length: firstDOW }).map((_, i) => <div key={`p-${i}`} />)}
+                {Array.from({ length: dayCount }, (_, i) => i + 1).map((day) => {
+                  const dateStr   = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                  const dayEvs    = eventMap[dateStr] ?? []
+                  const count     = dayEvs.length
+                  const { bg, textColor } = eventCountColor(count)
+                  const isToday   = dateStr === todayStr
+                  const isSelected = dateStr === selectedDay
+                  return (
+                    <div
+                      key={day}
+                      onClick={() => count > 0 && setSelectedDay(isSelected ? null : dateStr)}
+                      title={count > 0 ? `${count} event${count > 1 ? 's' : ''}` : undefined}
+                      style={{
+                        aspectRatio: '1', borderRadius: 8,
+                        background: count === 0 ? 'var(--card-b)' : bg,
+                        border: isSelected
+                          ? '2px solid var(--fg)'
+                          : isToday
+                          ? '2px solid var(--primary)'
+                          : '2px solid transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.8rem', fontWeight: count > 0 ? 800 : 400,
+                        color: count > 0 ? textColor : isToday ? 'var(--primary)' : 'var(--faint)',
+                        cursor: count > 0 ? 'pointer' : 'default',
+                        transition: 'transform 0.1s',
+                      }}
+                      onMouseEnter={(e) => { if (count > 0) e.currentTarget.style.transform = 'scale(1.15)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
+                    >
+                      {day}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Floating popup — fixed bottom-center so it never covers days */}
+      {selectedDay && selectedEvents.length > 0 && (
+        <div style={{
+          position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
+          zIndex: 10001,
+          background: 'var(--card)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          boxShadow: '0 16px 48px rgba(0,0,0,0.35)',
+          width: 420,
+          maxWidth: 'calc(100vw - 2rem)',
+          overflow: 'hidden',
+        }}>
+          {/* Popup header */}
+          <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <p style={{ fontSize: '0.9rem', fontWeight: 900, color: 'var(--fg)', margin: 0 }}>{selectedLabel}</p>
+              <p style={{ fontSize: '0.68rem', color: 'var(--muted)', margin: '0.15rem 0 0' }}>{selectedEvents.length} event{selectedEvents.length > 1 ? 's' : ''} scheduled</p>
+            </div>
+            <button
+              onClick={() => setSelectedDay(null)}
+              style={{ background: 'var(--card-b)', border: '1px solid var(--border)', borderRadius: 8, width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--muted)', fontSize: '0.9rem', fontWeight: 700, flexShrink: 0 }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--fg)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)' }}
+            >
+              ✕
+            </button>
+          </div>
+          {/* Event list */}
+          <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+            {selectedEvents.map((ev) => {
+              const { bg, text, border } = eventColor(ev)
+              const href = ev.type === 'inspection'
+                ? `/dashboard/fm/inspections/${ev.id}`
+                : `/dashboard/fm/work-orders?focus=${ev.id}`
+              return (
+                <div
+                  key={ev.id}
+                  onClick={() => router.push(href)}
+                  style={{ padding: '0.875rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderTop: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.12s' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--card-b)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                >
+                  <div style={{ width: 4, height: 36, borderRadius: 4, background: bg, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {ev.type === 'inspection' ? (ev.templateName ?? ev.title) : ev.title}
+                    </p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--muted)', margin: '0.1rem 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {ev.propertyName}
+                    </p>
                   </div>
-                )
-              })}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', flexShrink: 0 }}>
+                    <span style={{ fontSize: '0.58rem', fontWeight: 900, background: bg, color: text, border: `1px solid ${border}`, padding: '2px 7px', borderRadius: 4 }}>
+                      {ev.type === 'inspection' ? 'INSP' : 'WO'}
+                    </span>
+                    {ev.isOverdue && (
+                      <span style={{ fontSize: '0.55rem', fontWeight: 900, background: 'var(--red-c)', color: 'var(--red)', padding: '1px 5px', borderRadius: 4 }}>OVERDUE</span>
+                    )}
+                    <span style={{ fontSize: '0.6rem', color: 'var(--faint)' }}>{ev.status.replace('_', ' ')}</span>
+                  </div>
+                  <ArrowRight size={14} style={{ color: 'var(--muted)', flexShrink: 0 }} />
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FullScreenDetailedCalendar({ events }: { events: ScheduledEvent[] }) {
+  const router = useRouter()
+
+  // Build a 14-day list from today
+  const days = useMemo(() => Array.from({ length: 14 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() + i)
+    return d
+  }), [])
+
+  // Group events by date string
+  const eventMap = useMemo(() => {
+    const map: Record<string, ScheduledEvent[]> = {}
+    for (const ev of events) {
+      if (!map[ev.date]) map[ev.date] = []
+      map[ev.date].push(ev)
+    }
+    return map
+  }, [events])
+
+  const todayStr = toYMD(new Date())
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      {/* Legend */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
+        {[
+          { color: 'var(--primary)', label: 'Scheduled (Insp)' },
+          { color: '#60a5fa',        label: 'In Progress (Insp)' },
+          { color: 'var(--amber)',   label: 'Open / Approval' },
+          { color: '#f97316',        label: 'In Progress (WO)' },
+          { color: 'var(--teal)',    label: 'Completed' },
+          { color: 'var(--red)',     label: 'Overdue' },
+        ].map(({ color, label }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.7rem', color: 'var(--muted)' }}>
+            <div style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} />
+            {label}
+          </div>
+        ))}
+      </div>
+
+      {/* Day rows */}
+      {days.map((d) => {
+        const dateStr = toYMD(d)
+        const dayEvs  = eventMap[dateStr] ?? []
+        const isToday = dateStr === todayStr
+        const weekday = d.toLocaleDateString('en-US', { weekday: 'short' })
+        const dateNum = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+        return (
+          <div key={dateStr} style={{
+            display: 'flex', gap: '1.25rem', alignItems: 'flex-start',
+            padding: '0.75rem 1rem',
+            background: isToday ? 'var(--primary-c)' : dayEvs.length > 0 ? 'var(--card-b)' : 'transparent',
+            borderRadius: 12,
+            border: isToday ? '1px solid var(--primary)30' : '1px solid transparent',
+          }}>
+            {/* Date label */}
+            <div style={{ width: 64, flexShrink: 0, textAlign: 'center' }}>
+              <p style={{ fontSize: '0.6rem', fontWeight: 900, color: isToday ? 'var(--primary)' : 'var(--faint)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>{weekday}</p>
+              <p style={{ fontSize: '1rem', fontWeight: 900, color: isToday ? 'var(--primary)' : 'var(--fg)', margin: '0.1rem 0 0' }}>{d.getDate()}</p>
+              <p style={{ fontSize: '0.58rem', color: 'var(--faint)', margin: '0.1rem 0 0' }}>{dateNum.split(' ')[0]}</p>
+            </div>
+
+            {/* Events */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {dayEvs.length === 0 ? (
+                <p style={{ fontSize: '0.75rem', color: 'var(--faint)', margin: '0.375rem 0 0', fontStyle: 'italic' }}>No events</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {dayEvs.map((ev) => {
+                    const { bg, text, border } = eventColor(ev)
+                    const href = ev.type === 'inspection'
+                      ? `/dashboard/fm/inspections/${ev.id}`
+                      : `/dashboard/fm/work-orders?focus=${ev.id}`
+                    return (
+                      <div
+                        key={ev.id}
+                        onClick={() => router.push(href)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.75rem',
+                          padding: '0.625rem 0.875rem',
+                          background: 'var(--card)', border: `1px solid ${border}30`,
+                          borderLeft: `3px solid ${bg}`,
+                          borderRadius: 8, cursor: 'pointer', transition: 'opacity 0.12s',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.75' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {ev.type === 'inspection' ? (ev.templateName ?? ev.title) : ev.title}
+                          </p>
+                          <p style={{ fontSize: '0.7rem', color: 'var(--muted)', margin: '0.1rem 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {ev.propertyName}
+                          </p>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                          {ev.isOverdue && (
+                            <span style={{ fontSize: '0.58rem', fontWeight: 900, background: 'var(--red-c)', color: 'var(--red)', padding: '2px 6px', borderRadius: 4 }}>OVERDUE</span>
+                          )}
+                          <span style={{ fontSize: '0.6rem', fontWeight: 800, background: bg, color: text, padding: '2px 7px', borderRadius: 4 }}>
+                            {ev.type === 'inspection' ? 'INSP' : 'WO'}
+                          </span>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--faint)' }}>{ev.status.replace(/_/g, ' ')}</span>
+                          <ArrowRight size={13} style={{ color: 'var(--muted)' }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )
@@ -612,63 +881,15 @@ function FullScreenHeatMap({ events }: { events: ScheduledEvent[] }) {
   )
 }
 
-function FullScreenDetailedCalendar({ events }: { events: ScheduledEvent[] }) {
-  const days  = useMemo(() => Array.from({ length: 14 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i); return d }), [])
-  const hours = Array.from({ length: 12 }, (_, i) => i + 8)
-
-  function eventsForCell(day: Date, hour: number) {
-    return events.filter((ev) => {
-      if (!ev.datetime) return false
-      const d = new Date(ev.datetime)
-      return d.toDateString() === day.toDateString() && d.getHours() === hour
-    })
-  }
-
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: `80px repeat(14, minmax(80px, 1fr))`, gap: 1, background: 'var(--border)', minWidth: 1200 }}>
-        <div style={{ background: 'var(--bg)', padding: '1rem' }} />
-        {days.map((d) => (
-          <div key={d.toISOString()} style={{ background: 'var(--bg)', padding: '0.875rem 0.5rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.65rem', color: 'var(--muted)', fontWeight: 800 }}>{d.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--fg)' }}>{d.getDate()}</div>
-          </div>
-        ))}
-        {hours.map((h) => (
-          <>
-            <div key={`h-${h}`} style={{ background: 'var(--bg)', padding: '1rem 0.75rem', fontSize: '0.7rem', color: 'var(--muted)', textAlign: 'right', fontWeight: 700 }}>
-              {h > 12 ? `${h - 12} PM` : `${h} AM`}
-            </div>
-            {days.map((d) => {
-              const cellEvs = eventsForCell(d, h)
-              return (
-                <div key={`${d.toISOString()}-${h}`} style={{ background: 'var(--bg)', padding: 4, minHeight: 64 }}>
-                  {cellEvs.map((ev, i) => (
-                    <div key={i} style={{
-                      padding: '3px 6px', borderRadius: 4, fontSize: '0.6rem', fontWeight: 700, marginBottom: 2,
-                      background: ev.type === 'inspection' ? 'var(--primary-c)' : 'var(--amber-c)',
-                      border: `1px solid ${ev.type === 'inspection' ? 'var(--primary)' : 'var(--amber)'}`,
-                      color: ev.type === 'inspection' ? 'var(--primary)' : 'var(--amber)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>
-                      {ev.propertyName}: {ev.templateName ?? ev.title}
-                    </div>
-                  ))}
-                </div>
-              )
-            })}
-          </>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function FullScreenPropertyGantt({ events, properties }: { events: ScheduledEvent[]; properties: PropertyGeo[] }) {
-  const days = useMemo(() => Array.from({ length: 14 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i); return d }), [])
+  const router = useRouter()
+  const days   = useMemo(() => Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() + i); return d
+  }), [])
 
   return (
     <div style={{ minWidth: 1000 }}>
+      {/* Column headers */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', paddingBottom: '0.875rem', marginBottom: '0.5rem' }}>
         <div style={{ width: 250, fontSize: '0.7rem', fontWeight: 900, color: 'var(--muted)', textTransform: 'uppercase' }}>Property Name</div>
         {days.map((d, i) => (
@@ -677,24 +898,64 @@ function FullScreenPropertyGantt({ events, properties }: { events: ScheduledEven
           </div>
         ))}
       </div>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.875rem', marginBottom: '1rem' }}>
+        {[
+          { color: 'var(--primary)', label: 'Insp · Scheduled' },
+          { color: '#60a5fa',        label: 'Insp · In Progress' },
+          { color: 'var(--amber)',   label: 'Insp · Approval / WO · Open' },
+          { color: '#f97316',        label: 'WO · In Progress' },
+          { color: 'var(--teal)',    label: 'Completed' },
+          { color: 'var(--red)',     label: 'Overdue' },
+        ].map(({ color, label }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.65rem', color: 'var(--muted)' }}>
+            <div style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} />
+            {label}
+          </div>
+        ))}
+      </div>
+
+      {/* Property rows */}
       {properties.map((p) => {
         const propEvents = events.filter((ev) => ev.propertyId === p.id)
         return (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '0.875rem 0', borderBottom: '1px solid var(--border)10' }}>
-            <div style={{ width: 250, fontWeight: 800, fontSize: '0.9rem', color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '1rem' }}>{p.name}</div>
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '0.875rem 0', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ width: 250, fontWeight: 800, fontSize: '0.9rem', color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '1rem' }}>
+              {p.name}
+            </div>
             <div style={{ flex: 14, display: 'flex', position: 'relative', height: 32 }}>
               {days.map((d, dayIdx) => {
                 const dayEvs = propEvents.filter((ev) => new Date(ev.date).toDateString() === d.toDateString())
                 if (dayEvs.length === 0) return <div key={dayIdx} style={{ flex: 1 }} />
                 return (
-                  <div key={dayIdx} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '0 3px' }}>
-                    {dayEvs.map((ev, ei) => (
-                      <div key={ei} title={ev.templateName ?? ev.title} style={{
-                        flex: 1, height: 24, borderRadius: 5,
-                        background: ev.type === 'inspection' ? 'var(--primary)' : ev.isOverdue ? 'var(--red)' : 'var(--amber)',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                      }} />
-                    ))}
+                  <div key={dayIdx} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '0 2px' }}>
+                    {dayEvs.map((ev, ei) => {
+                      const { bg, text } = eventColor(ev)
+                      const href = ev.type === 'inspection'
+                        ? `/dashboard/fm/inspections/${ev.id}`
+                        : `/dashboard/fm/work-orders?focus=${ev.id}`
+                      return (
+                        <div
+                          key={ei}
+                          onClick={() => router.push(href)}
+                          title={`${ev.templateName ?? ev.title} — ${ev.status}`}
+                          style={{
+                            flex: 1, height: 28, borderRadius: 5,
+                            background: bg,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                            cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.6rem', fontWeight: 900, color: text,
+                            transition: 'opacity 0.12s, transform 0.12s',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.75'; e.currentTarget.style.transform = 'scaleY(1.15)' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none' }}
+                        >
+                          {ev.type === 'inspection' ? 'I' : 'W'}
+                        </div>
+                      )
+                    })}
                   </div>
                 )
               })}
@@ -702,8 +963,11 @@ function FullScreenPropertyGantt({ events, properties }: { events: ScheduledEven
           </div>
         )
       })}
+
       {properties.length === 0 && (
-        <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem', padding: '3rem' }}>No properties with coordinates available</p>
+        <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem', padding: '3rem' }}>
+          No properties with coordinates available
+        </p>
       )}
     </div>
   )
