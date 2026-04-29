@@ -16,8 +16,16 @@ export interface SessionProfile {
   orgSlug: string
   fullName: string | null
   avatarUrl: string | null
-  role: AppRole
+  role: AppRole           // legacy app_role — still used by PW RLS
   email: string | undefined
+  // Two-layer role fields (from migration 026).
+  // Null for users whose user_roles row hasn't been migrated yet;
+  // callers should fall back to `role` in that case.
+  department: string | null   // 'pw' | 'fm' | 'both'
+  capability: string | null   // 'org_admin' | 'org_manager' | 'org_viewer' | 'contributor' | 'worker'
+  roleSlug: string | null     // e.g. 'facilities_manager', 'zone_manager'
+  roleName: string | null     // display name e.g. 'Facilities Manager'
+  roleColor: string | null    // hex colour for UI badge
 }
 
 /**
@@ -56,17 +64,27 @@ export async function getSession(): Promise<SessionProfile | null> {
       full_name: string | null
       avatar_url: string | null
       role: string
+      department: string | null
+      capability: string | null
+      role_slug: string | null
+      role_name: string | null
+      role_color: string | null
     }
 
     return {
-      userId:   row.user_id,
-      orgId:    row.org_id,
-      orgName:  row.org_name,
-      orgSlug:  row.org_slug,
-      fullName: row.full_name,
-      avatarUrl: row.avatar_url,
-      role:     row.role as AppRole,
-      email:    user.email,
+      userId:     row.user_id,
+      orgId:      row.org_id,
+      orgName:    row.org_name,
+      orgSlug:    row.org_slug,
+      fullName:   row.full_name,
+      avatarUrl:  row.avatar_url,
+      role:       row.role as AppRole,
+      email:      user.email,
+      department: row.department ?? null,
+      capability: row.capability ?? null,
+      roleSlug:   row.role_slug ?? null,
+      roleName:   row.role_name ?? null,
+      roleColor:  row.role_color ?? null,
     }
   }
 
@@ -75,14 +93,19 @@ export async function getSession(): Promise<SessionProfile | null> {
   // in a loop. The user will see a viewer-level dashboard until an
   // admin assigns their profile (or the handle_new_user trigger catches up).
   return {
-    userId:    user.id,
-    orgId:     '00000000-0000-0000-0000-000000000001', // default org
-    orgName:   'Sentinel',
-    orgSlug:   'sentinel',
-    fullName:  user.user_metadata?.full_name ?? null,
-    avatarUrl: null,
-    role:      'viewer' as AppRole,
-    email:     user.email,
+    userId:     user.id,
+    orgId:      '00000000-0000-0000-0000-000000000001', // default org
+    orgName:    'Sentinel',
+    orgSlug:    'sentinel',
+    fullName:   user.user_metadata?.full_name ?? null,
+    avatarUrl:  null,
+    role:       'viewer' as AppRole,
+    email:      user.email,
+    department: null,
+    capability: null,
+    roleSlug:   null,
+    roleName:   null,
+    roleColor:  null,
   }
 }
 
