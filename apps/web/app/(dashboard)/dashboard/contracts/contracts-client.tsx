@@ -3,7 +3,7 @@
 import { useState, useMemo, useTransition } from 'react'
 import { isPast, parseISO } from 'date-fns'
 import Link from 'next/link'
-import { Plus, Search, ChevronRight, FileText, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Search, ChevronRight, FileText, ChevronUp, ChevronDown, GitCommitHorizontal } from 'lucide-react'
 import { LoadMoreButton } from '@/components/ui/LoadMoreButton'
 import { loadMoreContracts } from '../pagination-actions'
 import { format } from 'date-fns'
@@ -15,6 +15,22 @@ import type { TranslationKey } from '@/lib/translations/en'
 type Contract = Database['public']['Tables']['contracts']['Row']
 type SortKey = 'number' | 'title' | 'status' | 'vendor_name' | 'contract_value' | 'end_date'
 type SortDir = 'asc' | 'desc'
+
+// ── Amendment ghost rows ───────────────────────────────────────────────────────
+// Amended contracts are stored as a single DB row (the current/valid version).
+// The previous values are kept in previous_value / previous_end_date / amended_at.
+// In the table we render a "ghost" row immediately above the valid row to show
+// what the contract looked like before the amendment.
+interface GhostRow {
+  __ghost: true
+  ghostId: string          // stable key
+  parentContract: Contract // the current (valid) contract
+}
+type DisplayRow = Contract | GhostRow
+
+function isGhost(row: DisplayRow): row is GhostRow {
+  return '__ghost' in row && row.__ghost === true
+}
 
 function effectiveStatus(c: Contract): ContractStatus {
   if (c.status === 'active' && c.end_date && isPast(parseISO(c.end_date))) return 'expired'
@@ -81,6 +97,7 @@ export function ContractsClient({ contracts: initial, totalCount, orgId }: Props
     else { setSortKey(key); setSortDir('asc') }
   }
 
+  // filtered = sorted list of real contracts (no ghost rows yet)
   const filtered = useMemo(() => {
     const base = rows.filter((c) => {
       const matchesStatus = activeStatus === 'all' || c.status === activeStatus
@@ -97,6 +114,18 @@ export function ContractsClient({ contracts: initial, totalCount, orgId }: Props
       return sortDir === 'asc' ? v : -v
     })
   }, [rows, activeStatus, search, sortKey, sortDir])
+
+  // displayRows = filtered list with ghost rows injected before each amended contract
+  const displayRows = useMemo((): DisplayRow[] => {
+    const result: DisplayRow[] = []
+    for (const c of filtered) {
+      if (c.amended_at != null && c.previous_value != null) {
+        result.push({ __ghost: true, ghostId: `ghost-${c.id}`, parentContract: c })
+      }
+      result.push(c)
+    }
+    return result
+  }, [filtered])
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: totalCount }
@@ -197,29 +226,78 @@ export function ContractsClient({ contracts: initial, totalCount, orgId }: Props
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filtered.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
-                    onClick={() => { window.location.href = `/dashboard/contracts/${c.id}` }}
-                  >
-                    <td className="px-4 py-3 font-mono text-xs text-slate-500 whitespace-nowrap">{c.number}</td>
-                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white max-w-xs truncate">{c.title}</td>
-                    <td className="px-4 py-3 whitespace-nowrap"><ContractStatusBadge status={effectiveStatus(c)} /></td>
-                    <td className="px-4 py-3 text-slate-500 hidden md:table-cell max-w-[160px] truncate">
-                      {c.vendor_name ?? <span className="text-slate-300">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap hidden lg:table-cell">
-                      {c.contract_value != null
-                        ? `$${c.contract_value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-                        : <span className="text-slate-300">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap hidden lg:table-cell">
-                      {c.end_date ? format(new Date(c.end_date), 'MMM d, yyyy') : <span className="text-slate-300">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-slate-400"><ChevronRight size={16} /></td>
-                  </tr>
-                ))}
+                {displayRows.map((row) => {
+                  // ── Ghost row (superseded / amended version) ─────────────
+                  if (isGhost(row)) {
+                    const c = row.parentContract
+                    return (
+                      <tr
+                        key={row.ghostId}
+                        className="bg-amber-50 dark:bg-amber-900/20 opacity-75"
+                        title="This contract was amended — values below were valid before the amendment"
+                      >
+                        <td className="px-4 py-2 font-mono text-xs text-amber-700 dark:text-amber-400 whitespace-nowrap">
+                          <span className="flex items-center gap-1.5">
+                            <GitCommitHorizontal size={13} className="text-amber-500 flex-shrink-0" />
+                            {c.number}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-amber-700 dark:text-amber-400 max-w-xs truncate">
+                          <span className="flex items-center gap-2">
+                            <span className="text-xs line-through opacity-70">{c.title}</span>
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 uppercase tracking-wide flex-shrink-0">
+                              Modified
+                            </span>
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap">
+                          <span className="text-xs text-amber-600 dark:text-amber-500 italic">superseded</span>
+                        </td>
+                        <td className="px-4 py-2 text-amber-600 dark:text-amber-500 hidden md:table-cell max-w-[160px] truncate text-xs opacity-70">
+                          {c.vendor_name ?? <span className="opacity-50">—</span>}
+                        </td>
+                        <td className="px-4 py-2 text-amber-700 dark:text-amber-400 whitespace-nowrap hidden lg:table-cell text-xs">
+                          {c.previous_value != null
+                            ? <span className="line-through opacity-70">${c.previous_value.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                            : <span className="opacity-40">—</span>}
+                        </td>
+                        <td className="px-4 py-2 text-amber-700 dark:text-amber-400 whitespace-nowrap hidden lg:table-cell text-xs">
+                          {c.previous_end_date
+                            ? <span className="line-through opacity-70">{format(new Date(c.previous_end_date), 'MMM d, yyyy')}</span>
+                            : <span className="opacity-40">—</span>}
+                        </td>
+                        <td className="px-4 py-2 text-amber-400 opacity-30"><ChevronRight size={16} /></td>
+                      </tr>
+                    )
+                  }
+
+                  // ── Current (valid) contract row ─────────────────────────
+                  // TypeScript narrows `row` to Contract after the isGhost guard above
+                  const c = row
+                  return (
+                    <tr
+                      key={c.id}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
+                      onClick={() => { window.location.href = `/dashboard/contracts/${c.id}` }}
+                    >
+                      <td className="px-4 py-3 font-mono text-xs text-slate-500 whitespace-nowrap">{c.number}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900 dark:text-white max-w-xs truncate">{c.title}</td>
+                      <td className="px-4 py-3 whitespace-nowrap"><ContractStatusBadge status={effectiveStatus(c)} /></td>
+                      <td className="px-4 py-3 text-slate-500 hidden md:table-cell max-w-[160px] truncate">
+                        {c.vendor_name ?? <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap hidden lg:table-cell">
+                        {c.contract_value != null
+                          ? `$${c.contract_value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                          : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap hidden lg:table-cell">
+                        {c.end_date ? format(new Date(c.end_date), 'MMM d, yyyy') : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-slate-400"><ChevronRight size={16} /></td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

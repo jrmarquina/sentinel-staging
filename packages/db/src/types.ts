@@ -317,6 +317,12 @@ export interface Database {
           created_at: string
           updated_at: string
           deleted_at: string | null
+          /** Previous contract value before the most recent amendment (null = never amended) */
+          previous_value: number | null
+          /** Previous end date before the most recent amendment (null = never amended) */
+          previous_end_date: string | null
+          /** Timestamp of the most recent amendment; null means the contract has never been amended */
+          amended_at: string | null
         }
         Insert: {
           id?: string
@@ -339,6 +345,9 @@ export interface Database {
           created_at?: string
           updated_at?: string
           deleted_at?: string | null
+          previous_value?: number | null
+          previous_end_date?: string | null
+          amended_at?: string | null
         }
         Update: {
           title?: string
@@ -356,6 +365,9 @@ export interface Database {
           notes?: string | null
           updated_at?: string
           deleted_at?: string | null
+          previous_value?: number | null
+          previous_end_date?: string | null
+          amended_at?: string | null
         }
         Relationships: GenericRelationship[]
       }

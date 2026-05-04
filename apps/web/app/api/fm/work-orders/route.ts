@@ -31,23 +31,42 @@ const VALID_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'] as const
 
 // ── Capability helpers ─────────────────────────────────────────────────────
 
-/**
- * Returns true when the session has FM manager-level access.
- * Checks the new capability field first; falls back to legacy app_role
- * so users whose user_roles row hasn't been migrated yet still work.
- */
-function isFmManager(capability: string | null, role: string): boolean {
-  if (capability) return ['org_admin', 'org_manager'].includes(capability)
-  return ['admin', 'supervisor'].includes(role)
-}
+type FmAccessLevel = 'manager' | 'viewer' | 'contributor' | 'worker'
 
 /**
- * Returns true when the session can submit (but not triage) work orders.
- * Contributors go through PENDING_REVIEW; managers go straight to OPEN.
+ * Maps a session to a FM access level.
+ * Checks the new capability field first; falls back to legacy app_role
+ * so users whose user_roles row hasn't been migrated yet still work.
+ * Returns null when the user has no FM access at all.
  */
+function getFmAccessLevel(
+  capability: string | null,
+  role: string,
+): FmAccessLevel | null {
+  if (capability) {
+    if (['org_admin', 'org_manager'].includes(capability)) return 'manager'
+    if (capability === 'org_viewer')  return 'viewer'
+    if (capability === 'contributor') return 'contributor'
+    if (capability === 'worker')      return 'worker'
+    return null
+  }
+  // Legacy app_role fallback
+  if (['admin', 'supervisor'].includes(role)) return 'manager'
+  if (role === 'viewer')    return 'viewer'
+  if (role === 'inspector') return 'contributor'
+  if (role === 'vendor')    return 'worker'
+  return null
+}
+
+/** Convenience — true for org_admin / org_manager / legacy admin+supervisor */
+function isFmManager(capability: string | null, role: string): boolean {
+  return getFmAccessLevel(capability, role) === 'manager'
+}
+
+/** True for any role that can submit a new WO (manager or contributor) */
 function canSubmitWO(capability: string | null, role: string): boolean {
-  if (capability) return ['org_admin', 'org_manager', 'contributor'].includes(capability)
-  return ['admin', 'supervisor', 'inspector'].includes(role)
+  const level = getFmAccessLevel(capability, role)
+  return level === 'manager' || level === 'contributor'
 }
 
 // ── Validation schemas ──────────────────────────────────────────────────────
@@ -110,44 +129,124 @@ const managerSchema = baseSchema.merge(managerExtras)
 const contributorSchema = baseSchema
 
 // ── GET /api/fm/work-orders ────────────────────────────────────────────────
-// NOTE: This is the existing implementation — full capability-scoping
-// is handled in API-3. For now it preserves current behaviour.
+//
+// Row visibility by access level:
+//
+//   manager     — all rows, all statuses (including PENDING_REVIEW queue)
+//   viewer      — all rows except PENDING_REVIEW (read-only operational view)
+//   contributor — only rows where submitted_by_id = their userId
+//   worker      — only rows where assigned_to_id  = their userId,
+//                 excluding PENDING_REVIEW (nothing assigned yet at that stage)
+//
+// Explicit ?status=PENDING_REVIEW from non-managers returns 403 rather than
+// silently returning empty results — makes misconfigured clients visible.
+//
+// Filter params (all optional, combinable):
+//   propertyId, assetId, inspectionId, checklistItemId  — existing
+//   status, category, assigneeType, source               — new
+//   pendingReview=true                                   — shortcut for the
+//                                                          triage queue (managers only)
 
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession()
     if (!session) return err('Unauthorized', 401)
-    if (!canSubmitWO(session.capability, session.role)) return err('Forbidden', 403)
 
-    const supabase = createClient()
+    const accessLevel = getFmAccessLevel(session.capability, session.role)
+    if (!accessLevel) return err('Forbidden', 403)
+
     const { searchParams } = new URL(req.url)
-    const propertyId       = searchParams.get('propertyId')
-    const assetId          = searchParams.get('assetId')
-    const status           = searchParams.get('status')
-    const inspectionId     = searchParams.get('inspectionId')
-    const checklistItemId  = searchParams.get('checklistItemId')
+
+    // ── Parse filter params ────────────────────────────────────────────────
+    const propertyId      = searchParams.get('propertyId')
+    const assetId         = searchParams.get('assetId')
+    const statusFilter    = searchParams.get('status')
+    const inspectionId    = searchParams.get('inspectionId')
+    const checklistItemId = searchParams.get('checklistItemId')
+    const categoryFilter  = searchParams.get('category')
+    const assigneeType    = searchParams.get('assigneeType')
+    const sourceFilter    = searchParams.get('source')
+    const pendingReview   = searchParams.get('pendingReview') === 'true'
+
+    // Non-managers requesting the triage queue get an explicit 403
+    if (
+      (pendingReview || statusFilter === 'PENDING_REVIEW') &&
+      accessLevel !== 'manager'
+    ) {
+      return err('Forbidden', 403)
+    }
+
+    // ── Build base query ───────────────────────────────────────────────────
+    const supabase = createClient()
 
     let query = supabase
       .from('fm_work_orders')
       .select(`
         *,
-        fm_properties!inner(name, code),
+        fm_properties(name, code),
         assigned_to:assigned_to_id(full_name),
-        submitted_by:submitted_by_id(full_name)
+        submitted_by:submitted_by_id(full_name),
+        engaged_by:engaged_by_id(full_name),
+        resolved_by:resolved_by_id(full_name)
       `)
       .eq('org_id', session.orgId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
 
+    // ── Capability scoping ─────────────────────────────────────────────────
+
+    switch (accessLevel) {
+      case 'manager':
+        // No row-level restriction — managers see everything
+        break
+
+      case 'viewer':
+        // Viewers see operational data; triage queue is internal to FM Manager
+        query = query.neq('status', 'PENDING_REVIEW')
+        break
+
+      case 'contributor':
+        // Zone/Nutrition Managers see only their own submissions
+        query = query.eq('submitted_by_id', session.userId)
+        break
+
+      case 'worker':
+        // Maintenance workers and suppliers see only their assigned WOs.
+        // PENDING_REVIEW rows have no assignee yet so this is also naturally
+        // empty for workers, but we exclude explicitly for clarity.
+        query = query
+          .eq('assigned_to_id', session.userId)
+          .neq('status', 'PENDING_REVIEW')
+        break
+    }
+
+    // ── Apply caller-supplied filters (on top of capability scope) ─────────
+
+    // Triage queue shortcut — overrides any status filter
+    if (pendingReview) {
+      query = query.eq('status', 'PENDING_REVIEW')
+    } else if (statusFilter) {
+      query = query.eq('status', statusFilter)
+    }
+
     if (propertyId)      query = query.eq('property_id', propertyId)
     if (assetId)         query = query.eq('asset_id', assetId)
-    if (status)          query = query.eq('status', status)
     if (inspectionId)    query = query.eq('inspection_id', inspectionId)
     if (checklistItemId) query = query.eq('checklist_item_id', checklistItemId)
+    if (categoryFilter)  query = query.eq('category', categoryFilter)
+    if (assigneeType)    query = query.eq('assignee_type', assigneeType)
+    if (sourceFilter)    query = query.eq('source', sourceFilter)
 
+    // ── Execute ────────────────────────────────────────────────────────────
     const { data, error } = await query
     if (error) return err(error.message)
-    return NextResponse.json(data)
+
+    // Return rows with a summary header so the frontend knows what scope
+    // was applied (useful for debugging role issues during rollout)
+    return NextResponse.json(data, {
+      headers: { 'X-FM-Access-Level': accessLevel },
+    })
+
   } catch (e) { return caught(e) }
 }
 
