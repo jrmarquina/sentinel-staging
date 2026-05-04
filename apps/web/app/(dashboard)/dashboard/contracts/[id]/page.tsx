@@ -2,7 +2,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { ArrowLeft, Edit2, DollarSign, Calendar, User, Building2, Mail } from 'lucide-react'
+import { ArrowLeft, Edit2, DollarSign, Calendar, User, Building2, Mail, GitCommitHorizontal } from 'lucide-react'
 import { ContractStatusBadge } from '@/components/contracts/ContractStatusBadge'
 import { BidStatusBadge } from '@/components/contracts/BidStatusBadge'
 import { DeleteButton } from '@/components/ui/DeleteButton'
@@ -12,6 +12,15 @@ import type { Database } from '@sentinel/db'
 
 type ContractRow = Database['public']['Tables']['contracts']['Row']
 type BidRow = Database['public']['Tables']['contract_bids']['Row']
+
+function fmtMoney(v: number | null) {
+  if (v == null) return '—'
+  return `$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+}
+function fmtDate(d: string | null) {
+  if (!d) return '—'
+  return format(new Date(d), 'MMM d, yyyy')
+}
 
 const BID_TYPE_LABELS = { informal_quote: 'Informal Quote', sealed_bid: 'Sealed Bid' }
 
@@ -329,6 +338,58 @@ export default async function ContractDetailPage({ params }: { params: { id: str
           </div>
         )}
       </div>
+
+      {/* Amendment history — shown only when contract has been amended */}
+      {contract.amended_at && (
+        <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <GitCommitHorizontal size={16} className="text-amber-600 dark:text-amber-400" />
+            <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-300">Amendment History</h2>
+            <span className="ml-auto text-xs text-amber-600 dark:text-amber-500">
+              Amended {fmtDate(contract.amended_at)}
+            </span>
+          </div>
+
+          {/* Timeline — one entry per recorded amendment (newest first = current → previous) */}
+          <ol className="relative border-l-2 border-amber-200 dark:border-amber-700 ml-2 space-y-0">
+            {/* Current (valid) version */}
+            <li className="ml-5 pb-5">
+              <span className="absolute -left-[9px] flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 dark:bg-amber-600 ring-2 ring-amber-50 dark:ring-amber-900/10" />
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-1">
+                Current version <span className="font-normal text-amber-600 dark:text-amber-500">(valid)</span>
+              </p>
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-amber-700 dark:text-amber-400">
+                <div>
+                  <dt className="text-amber-500 dark:text-amber-600">Value</dt>
+                  <dd className="font-medium">{fmtMoney(contract.contract_value)}</dd>
+                </div>
+                <div>
+                  <dt className="text-amber-500 dark:text-amber-600">End date</dt>
+                  <dd className="font-medium">{fmtDate(contract.end_date)}</dd>
+                </div>
+              </dl>
+            </li>
+
+            {/* Previous (superseded) version */}
+            <li className="ml-5">
+              <span className="absolute -left-[9px] flex h-4 w-4 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-800 ring-2 ring-amber-50 dark:ring-amber-900/10" />
+              <p className="text-xs font-semibold text-amber-600 dark:text-amber-500 mb-1 opacity-70">
+                Previous version <span className="font-normal">(superseded)</span>
+              </p>
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-amber-600 dark:text-amber-500 opacity-70">
+                <div>
+                  <dt className="text-amber-500 dark:text-amber-600">Value</dt>
+                  <dd className="font-medium line-through">{fmtMoney(contract.previous_value)}</dd>
+                </div>
+                <div>
+                  <dt className="text-amber-500 dark:text-amber-600">End date</dt>
+                  <dd className="font-medium line-through">{fmtDate(contract.previous_end_date)}</dd>
+                </div>
+              </dl>
+            </li>
+          </ol>
+        </div>
+      )}
     </div>
   )
 }

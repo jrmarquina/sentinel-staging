@@ -274,10 +274,16 @@ export function ContractsClient({ contracts: initial, totalCount, orgId }: Props
                   // ── Current (valid) contract row ─────────────────────────
                   // TypeScript narrows `row` to Contract after the isGhost guard above
                   const c = row
+                  const isExpired = effectiveStatus(c) === 'expired'
                   return (
                     <tr
                       key={c.id}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
+                      className={[
+                        'transition-colors cursor-pointer',
+                        isExpired
+                          ? 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/40',
+                      ].join(' ')}
                       onClick={() => { window.location.href = `/dashboard/contracts/${c.id}` }}
                     >
                       <td className="px-4 py-3 font-mono text-xs text-slate-500 whitespace-nowrap">{c.number}</td>
