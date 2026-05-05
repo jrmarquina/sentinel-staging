@@ -251,7 +251,9 @@ export function ContractsClient({ contracts: initial, totalCount, orgId }: Props
                           </span>
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap">
-                          <span className="text-xs text-amber-600 dark:text-amber-500 italic">superseded</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-300 text-amber-900 dark:bg-amber-700 dark:text-amber-100">
+                            Superseded
+                          </span>
                         </td>
                         <td className="px-4 py-2 text-amber-600 dark:text-amber-500 hidden md:table-cell max-w-[160px] truncate text-xs opacity-70">
                           {c.vendor_name ?? <span className="opacity-50">—</span>}
