@@ -223,14 +223,13 @@ export default async function DashboardPage() {
   const contractsWithEnd = (contractEndRes.data ?? []) as ContractEndRow[]
 
   // ── Upcoming (next 14 days) ────────────────────────────────────────────────
-  const sevenDayEnd = addDays(today, 7)
   const fourteenDayEnd = addDays(today, 14)
   const upcoming: DevUpcomingItem[] = [
     ...projects
       .filter((p) => {
         if (!p.planned_end_date) return false
         const d = parseISO(p.planned_end_date)
-        return isWithinInterval(d, { start: today, end: sevenDayEnd }) && !p.blocked
+        return isWithinInterval(d, { start: today, end: fourteenDayEnd }) && !p.blocked
       })
       .map((p) => ({
         id:      p.id,
@@ -244,7 +243,7 @@ export default async function DashboardPage() {
       .filter((wo) => {
         if (!wo.due_date) return false
         const d = parseISO(wo.due_date)
-        return isWithinInterval(d, { start: today, end: sevenDayEnd })
+        return isWithinInterval(d, { start: today, end: fourteenDayEnd })
       })
       .map((wo) => ({
         id:      wo.id,
