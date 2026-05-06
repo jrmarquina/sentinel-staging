@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/get-session'
 import { z } from 'zod'
+import {
+  notifyAssigneeWOOpen,
+  notifyManagerWOCompleted,
+} from '@/lib/email/fm-notifications'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -245,6 +249,40 @@ export async function PATCH(
 
     if (updateErr) return err(updateErr.message)
     if (!updated)  return err('Work order not found', 404)
+
+    // ── Fire-and-forget email notifications ────────────────────────────────
+    if (newStatus) {
+      const woSummary = {
+        id:             updated.id,
+        title:          updated.title,
+        description:    updated.description ?? null,
+        category:       (updated as Record<string, unknown>).category as string | null ?? null,
+        priority:       updated.priority,
+        assignee_type:  (updated as Record<string, unknown>).assignee_type as string | null ?? null,
+        due_date:       (updated as Record<string, unknown>).due_date as string | null ?? null,
+        property_name:  (updated.fm_properties as { name?: string } | null)?.name ?? null,
+        submitter_name: (updated.submitted_by  as { full_name?: string } | null)?.full_name ?? null,
+      }
+
+      // N-2: PENDING_REVIEW → OPEN and an assignee is set → notify the assignee
+      if (
+        newStatus === 'OPEN' &&
+        existing.status === 'PENDING_REVIEW' &&
+        updated.assigned_to_id
+      ) {
+        notifyAssigneeWOOpen(woSummary, updated.assigned_to_id as string).catch(console.error)
+      }
+
+      // N-3: → COMPLETED → notify the manager who engaged the WO
+      if (
+        newStatus === 'COMPLETED' &&
+        existing.status !== 'COMPLETED' &&
+        updated.engaged_by_id
+      ) {
+        notifyManagerWOCompleted(woSummary, updated.engaged_by_id as string).catch(console.error)
+      }
+    }
+    // ──────────────────────────────────────────────────────────────────────
 
     return NextResponse.json(updated)
 

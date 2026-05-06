@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/get-session'
 import { z } from 'zod'
+import {
+  notifyManagersNewWO,
+  notifyDirectorReferral,
+} from '@/lib/email/fm-notifications'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -327,6 +331,31 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (error) return err(error.message)
+
+    // ── Fire-and-forget email notifications ────────────────────────────────
+    // Resolved after response — never delay the API reply.
+    const woSummary = {
+      id:             created.id,
+      title:          created.title,
+      description:    created.description ?? null,
+      category:       created.category    ?? null,
+      priority:       created.priority,
+      assignee_type:  created.assignee_type ?? null,
+      due_date:       created.due_date     ?? null,
+      property_name:  (created.fm_properties as { name?: string } | null)?.name ?? null,
+      submitter_name: (created.submitted_by as { full_name?: string } | null)?.full_name ?? null,
+    }
+
+    // N-1: contributor submission → notify all FM managers
+    if (initialStatus === 'PENDING_REVIEW') {
+      notifyManagersNewWO(woSummary, session.orgId).catch(console.error)
+    }
+
+    // N-4: director referral → notify all org_viewer users
+    if (created.assignee_type === 'DIRECTOR_REFERRAL') {
+      notifyDirectorReferral(woSummary, session.orgId).catch(console.error)
+    }
+    // ──────────────────────────────────────────────────────────────────────
 
     // Return 201 with the full created record + which status was applied
     return NextResponse.json(created, { status: 201 })
