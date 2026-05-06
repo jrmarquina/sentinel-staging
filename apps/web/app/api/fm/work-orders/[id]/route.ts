@@ -240,10 +240,10 @@ export async function PATCH(
       .select(`
         *,
         fm_properties(name, code),
-        assigned_to:assigned_to_id(full_name),
-        submitted_by:submitted_by_id(full_name),
-        engaged_by:engaged_by_id(full_name),
-        resolved_by:resolved_by_id(full_name)
+        assigned_to:profiles!fm_work_orders_assigned_to_id_fkey(full_name),
+        submitted_by:profiles!fm_work_orders_submitted_by_id_fkey(full_name),
+        engaged_by:profiles!fm_work_orders_engaged_by_id_fkey(full_name),
+        resolved_by:profiles!fm_work_orders_resolved_by_id_fkey(full_name)
       `)
       .single()
 

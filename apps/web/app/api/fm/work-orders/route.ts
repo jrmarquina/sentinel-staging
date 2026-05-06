@@ -157,7 +157,6 @@ export async function GET(req: NextRequest) {
     if (!session) return err('Unauthorized', 401)
 
     const accessLevel = getFmAccessLevel(session.capability, session.role)
-    console.log('[WO-GET] userId:', session.userId, 'capability:', session.capability, 'role:', session.role, 'accessLevel:', accessLevel)
     if (!accessLevel) return err('Forbidden', 403)
 
     const { searchParams } = new URL(req.url)
@@ -189,10 +188,10 @@ export async function GET(req: NextRequest) {
       .select(`
         *,
         fm_properties(name, code),
-        assigned_to:assigned_to_id(full_name),
-        submitted_by:submitted_by_id(full_name),
-        engaged_by:engaged_by_id(full_name),
-        resolved_by:resolved_by_id(full_name)
+        assigned_to:profiles!fm_work_orders_assigned_to_id_fkey(full_name),
+        submitted_by:profiles!fm_work_orders_submitted_by_id_fkey(full_name),
+        engaged_by:profiles!fm_work_orders_engaged_by_id_fkey(full_name),
+        resolved_by:profiles!fm_work_orders_resolved_by_id_fkey(full_name)
       `)
       .eq('org_id', session.orgId)
       .is('deleted_at', null)
@@ -244,7 +243,6 @@ export async function GET(req: NextRequest) {
 
     // ── Execute ────────────────────────────────────────────────────────────
     const { data, error } = await query
-    console.log('[WO-GET] query result — error:', error?.message ?? null, 'rows:', data?.length ?? 0)
     if (error) return err(error.message)
 
     // Return rows with a summary header so the frontend knows what scope
@@ -327,8 +325,8 @@ export async function POST(req: NextRequest) {
       .select(`
         *,
         fm_properties(name, code),
-        assigned_to:assigned_to_id(full_name),
-        submitted_by:submitted_by_id(full_name)
+        assigned_to:profiles!fm_work_orders_assigned_to_id_fkey(full_name),
+        submitted_by:profiles!fm_work_orders_submitted_by_id_fkey(full_name)
       `)
       .single()
 
