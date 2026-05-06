@@ -176,7 +176,7 @@ function UpcomingStrip({ items }: { items: DevUpcomingItem[] }) {
   return (
     <div style={card} className="overflow-hidden">
       <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid var(--ca-card-high)' }}>
-        <h2 className="text-xs font-black uppercase tracking-[0.15em]">Upcoming — Next 7 Days</h2>
+        <h2 className="text-xs font-black uppercase tracking-[0.15em]">Upcoming — Next 14 Days</h2>
         {items.length > 0 && (
           <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
             style={{ background: 'var(--ca-primary-c)', color: 'var(--ca-primary)' }}>
@@ -186,7 +186,7 @@ function UpcomingStrip({ items }: { items: DevUpcomingItem[] }) {
       </div>
       {items.length === 0 ? (
         <p className="px-5 py-4 text-xs" style={{ color: 'var(--ca-ink-faint)' }}>
-          Nothing due in the next 7 days.
+          Nothing due in the next 14 days.
         </p>
       ) : (
         <div className="flex gap-3 px-5 py-4 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
