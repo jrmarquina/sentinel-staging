@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole } from '@/lib/auth/get-session'
+import { getSession } from '@/lib/auth/get-session'
 import { z } from 'zod'
 
 function err(msg: string, status = 500) {
@@ -12,10 +12,16 @@ function caught(e: unknown) {
   return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 }
 
+// FM capability helpers
+function canRunInspection(cap: string | null, role: string): boolean {
+  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  return ['admin', 'supervisor', 'inspector'].includes(role)
+}
+
 const updateItemsSchema = z.object({
   items: z.array(z.object({
     key: z.string(),
-    label: z.string(),
+    label: z.string().optional(),   // optional — saveDirty only sends key + result/severity/notes
     result: z.string().nullable().optional(),
     severity: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
@@ -29,7 +35,9 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await requireRole(['admin', 'supervisor', 'inspector'])
+    const session = await getSession()
+    if (!session) return err('Unauthorized', 401)
+    if (!canRunInspection(session.capability, session.role)) return err('Forbidden', 403)
     const body = await req.json()
     const parsed = updateItemsSchema.safeParse(body)
     if (!parsed.success) return err(parsed.error.errors[0].message, 400)
@@ -82,9 +90,10 @@ export async function PATCH(
           .then(r => ({ count: r.count ?? 0 }))
 
         if (count === 0) {
+          const label = item.label ?? item.key
           await supabase.from('fm_work_orders').insert({
-            title: `${item.label} - Maintenance Required`,
-            description: item.notes ?? `Automated work order from inspection failure (${item.label})`,
+            title: `${label} - Maintenance Required`,
+            description: item.notes ?? `Automated work order from inspection failure (${label})`,
             priority: item.severity === 'HIGH' ? 'HIGH' : 'MEDIUM',
             property_id: inspection.property_id,
             asset_id: inspection.asset_id ?? null,

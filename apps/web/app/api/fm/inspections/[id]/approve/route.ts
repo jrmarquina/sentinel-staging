@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole } from '@/lib/auth/get-session'
+import { getSession } from '@/lib/auth/get-session'
 
 function err(msg: string, status = 500) {
   return NextResponse.json({ error: msg }, { status })
@@ -11,12 +11,20 @@ function caught(e: unknown) {
   return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 }
 
+// FM capability helpers — only managers can approve
+function isFmManager(cap: string | null, role: string): boolean {
+  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  return ['admin', 'supervisor'].includes(role)
+}
+
 export async function POST(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await requireRole(['admin', 'supervisor'])
+    const session = await getSession()
+    if (!session) return err('Unauthorized', 401)
+    if (!isFmManager(session.capability, session.role)) return err('Forbidden', 403)
     const supabase = createClient()
 
     const { data: inspection } = await supabase

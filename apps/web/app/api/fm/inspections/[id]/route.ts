@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole } from '@/lib/auth/get-session'
+import { getSession } from '@/lib/auth/get-session'
 
 function err(msg: string, status = 500) {
   return NextResponse.json({ error: msg }, { status })
@@ -11,12 +11,24 @@ function caught(e: unknown) {
   return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 }
 
+// FM capability helpers
+function isFmManager(cap: string | null, role: string): boolean {
+  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  return ['admin', 'supervisor'].includes(role)
+}
+function canReadInspection(cap: string | null, role: string): boolean {
+  if (cap) return ['org_admin', 'org_manager', 'org_viewer'].includes(cap)
+  return ['admin', 'supervisor', 'inspector', 'viewer'].includes(role)
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await requireRole(['admin', 'supervisor', 'inspector', 'viewer'])
+    const session = await getSession()
+    if (!session) return err('Unauthorized', 401)
+    if (!canReadInspection(session.capability, session.role)) return err('Forbidden', 403)
     const supabase = createClient()
 
     const { data, error } = await supabase
@@ -47,7 +59,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await requireRole(['admin'])
+    const session = await getSession()
+    if (!session) return err('Unauthorized', 401)
+    if (!isFmManager(session.capability, session.role)) return err('Forbidden', 403)
     const supabase = createClient()
 
     // Cascade: reports → items → inspection

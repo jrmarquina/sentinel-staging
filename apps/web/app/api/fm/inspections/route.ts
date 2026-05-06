@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole } from '@/lib/auth/get-session'
+import { getSession } from '@/lib/auth/get-session'
 import { z } from 'zod'
 
 function err(msg: string, status = 500) {
@@ -12,6 +12,20 @@ function caught(e: unknown) {
   return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 }
 
+// FM capability helpers — mirrors WO route pattern
+function isFmManager(cap: string | null, role: string): boolean {
+  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  return ['admin', 'supervisor'].includes(role)
+}
+function canRunInspection(cap: string | null, role: string): boolean {
+  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  return ['admin', 'supervisor', 'inspector'].includes(role)
+}
+function canReadInspection(cap: string | null, role: string): boolean {
+  if (cap) return ['org_admin', 'org_manager', 'org_viewer'].includes(cap)
+  return ['admin', 'supervisor', 'inspector', 'viewer'].includes(role)
+}
+
 const startInspectionSchema = z.object({
   template_id: z.string().min(1),
   property_id: z.string().min(1),
@@ -21,7 +35,9 @@ const startInspectionSchema = z.object({
 
 export async function GET(_req: NextRequest) {
   try {
-    const session = await requireRole(['admin', 'supervisor', 'inspector', 'viewer'])
+    const session = await getSession()
+    if (!session) return err('Unauthorized', 401)
+    if (!canReadInspection(session.capability, session.role)) return err('Forbidden', 403)
     const supabase = createClient()
 
     const { data, error } = await supabase
@@ -43,7 +59,9 @@ export async function GET(_req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireRole(['admin', 'supervisor', 'inspector'])
+    const session = await getSession()
+    if (!session) return err('Unauthorized', 401)
+    if (!canRunInspection(session.capability, session.role)) return err('Forbidden', 403)
     const body = await req.json()
     const parsed = startInspectionSchema.safeParse(body)
     if (!parsed.success) return err(parsed.error.errors[0].message, 400)
