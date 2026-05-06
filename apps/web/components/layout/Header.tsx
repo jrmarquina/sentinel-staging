@@ -9,7 +9,7 @@ import { useTheme } from '@/lib/theme'
 import { useLocale, useT } from '@/lib/locale'
 import { useDesignTheme } from '@/lib/design-theme'
 import { useAppMode } from '@/lib/app-mode'
-import { ROLE_LABELS } from '@sentinel/shared'
+import { ROLE_LABELS, type AppRole } from '@sentinel/shared'
 import { cn } from '@/lib/utils'
 
 // ── Shared dropdown sub-components ────────────────────────────────────────
@@ -48,10 +48,14 @@ interface HeaderProps {
   userEmail?: string
   userFullName?: string | null
   userAvatar?: string | null
+  /** Server-provided role — used immediately on first render to avoid flicker */
+  initialRole?: AppRole | null
 }
 
-export function Header({ onMenuClick, userEmail, userFullName, userAvatar }: HeaderProps) {
-  const { role } = useRole()
+export function Header({ onMenuClick, userEmail, userFullName, userAvatar, initialRole }: HeaderProps) {
+  const { role: clientRole } = useRole()
+  // Use server-provided role on first render; switch to client role once it resolves
+  const role = clientRole ?? initialRole ?? null
   const { theme, setTheme } = useTheme()
   const { locale, setLocale } = useLocale()
   const { designTheme, setDesignTheme } = useDesignTheme()
@@ -79,7 +83,7 @@ export function Header({ onMenuClick, userEmail, userFullName, userAvatar }: Hea
     <header
       className="flex items-center justify-between px-4 lg:px-6 flex-shrink-0 relative z-30"
       style={{
-        height: 48,
+        height: 64,
         background: 'var(--card)',
         borderBottom: '1px solid var(--border)',
       }}
@@ -114,7 +118,7 @@ export function Header({ onMenuClick, userEmail, userFullName, userAvatar }: Hea
               <img src={userAvatar} alt="" className="w-8 h-8 rounded-full object-cover" />
             ) : (
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
-                style={{ background: 'var(--primary)' }}>
+                style={{ background: '#2563eb' }}>
                 {initials}
               </div>
             )}

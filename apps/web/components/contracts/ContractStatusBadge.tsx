@@ -19,8 +19,8 @@ const STATUS_COLOR: Record<ContractStatus, string> = {
   pending_approval: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
   active:           'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
   completed:        'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  terminated:       'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300',
-  expired:          'bg-rose-500 text-white dark:bg-rose-600 dark:text-white',
+  terminated:       'bg-red-c text-red dark:bg-red/10 dark:text-red',
+  expired:          'bg-red text-white',
 }
 
 export function ContractStatusBadge({ status, className }: { status: ContractStatus; className?: string }) {

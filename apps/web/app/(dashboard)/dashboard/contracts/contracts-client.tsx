@@ -283,7 +283,7 @@ export function ContractsClient({ contracts: initial, totalCount, orgId }: Props
                       className={[
                         'transition-colors cursor-pointer',
                         isExpired
-                          ? 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
+                          ? 'bg-red-c/50 dark:bg-red/10 hover:bg-red-c dark:hover:bg-red/20'
                           : 'hover:bg-slate-50 dark:hover:bg-slate-800/40',
                       ].join(' ')}
                       onClick={() => { window.location.href = `/dashboard/contracts/${c.id}` }}

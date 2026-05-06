@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
+import { useDesignTheme } from '@/lib/design-theme'
 import type { AppRole } from '@sentinel/shared'
 
 interface DashboardShellProps {
@@ -22,8 +23,17 @@ export default function DashboardShell({
   userFullName,
   userAvatar,
   orgName,
+  userRole,
 }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { setDesignTheme } = useDesignTheme()
+
+  // Non-admins are always locked to the dev theme — only admins can switch designs
+  useEffect(() => {
+    if (userRole !== 'admin') {
+      setDesignTheme('dev')
+    }
+  }, [userRole, setDesignTheme])
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)', color: 'var(--fg)' }}>
@@ -39,6 +49,7 @@ export default function DashboardShell({
           userEmail={userEmail}
           userFullName={userFullName}
           userAvatar={userAvatar}
+          initialRole={userRole}
         />
         <main className="flex-1 overflow-y-auto p-4 lg:p-6" style={{ background: 'var(--bg)' }}>
           {children}

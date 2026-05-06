@@ -25,7 +25,7 @@ function applyDesignTheme(theme: DesignTheme) {
 }
 
 export function DesignThemeProvider({ children }: { children: React.ReactNode }) {
-  const [designTheme, setDesignThemeState] = useState<DesignTheme>('classic')
+  const [designTheme, setDesignThemeState] = useState<DesignTheme>('dev')
 
   useEffect(() => {
     try {
@@ -33,7 +33,7 @@ export function DesignThemeProvider({ children }: { children: React.ReactNode })
       const valid: DesignTheme[] = ['classic', 'dev', 'glass']
       const initial: DesignTheme = valid.includes(stored as DesignTheme)
         ? (stored as DesignTheme)
-        : 'classic'
+        : 'dev'
       setDesignThemeState(initial)
       applyDesignTheme(initial)
     } catch {}

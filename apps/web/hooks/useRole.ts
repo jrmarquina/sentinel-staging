@@ -35,15 +35,15 @@ export function useRole(): UserRoleState {
         return
       }
 
-      // Use parallel calls: get_my_role RPC + org_id from profiles
+      // Use parallel calls: current_user_role RPC + org_id from profiles
       const [roleRes, profileRes] = await Promise.all([
-        supabase.rpc('get_my_role'),
+        supabase.rpc('current_user_role'),
         supabase.from('profiles').select('org_id').eq('id', user.id).single(),
       ])
 
       if (!cancelled) {
         setState({
-          role:    (roleRes.data as AppRole | null) ?? 'viewer',
+          role:    (roleRes.data as AppRole | null) ?? null,
           orgId:   (profileRes.data as { org_id: string } | null)?.org_id ?? null,
           userId:  user.id,
           loading: false,
