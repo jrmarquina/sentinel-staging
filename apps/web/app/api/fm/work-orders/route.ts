@@ -244,6 +244,7 @@ export async function GET(req: NextRequest) {
 
     // ── Execute ────────────────────────────────────────────────────────────
     const { data, error } = await query
+    console.log('[WO-GET] query result — error:', error?.message ?? null, 'rows:', data?.length ?? 0)
     if (error) return err(error.message)
 
     // Return rows with a summary header so the frontend knows what scope
