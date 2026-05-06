@@ -8,8 +8,12 @@ import { useRouter } from 'next/navigation'
 import {
   Building2, Wrench, ClipboardCheck, AlertTriangle,
   Loader2, Activity, CheckCircle, Calendar,
-  Maximize2, Minimize2, MapPin, ArrowRight,
+  Maximize2, Minimize2, MapPin, ArrowRight, TrendingUp, BarChart2,
 } from 'lucide-react'
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis,
+  CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts'
 import { FmCard, FmBadge, FmSectionLabel, statusVariant } from '@/components/fm'
 
 const MapView = dynamic(
@@ -44,6 +48,14 @@ interface ScheduledEvent {
   isOverdue: boolean; status: string
 }
 
+interface MonthlyPoint {
+  month: string; total: number; completed: number; avgScore: number
+}
+
+interface PropertyRiskPoint {
+  name: string; good: number; fair: number; poor: number
+}
+
 interface DashboardData {
   properties:   { total: number; active: number }
   assets:       { total: number; byCondition: { good: number; fair: number; poor: number } }
@@ -56,6 +68,8 @@ interface DashboardData {
   propertiesGeo:       PropertyGeo[]
   scheduledEvents:     ScheduledEvent[]
   recentInspections:   RecentInspection[]
+  monthlyTrend:        MonthlyPoint[]
+  propertyRisk:        PropertyRiskPoint[]
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -127,6 +141,214 @@ function inspStatusStyle(status: string): { bg: string; color: string; label: st
     case 'DRAFT':            return { bg: '#33415522',         color: '#94a3b8',   label: 'Draft' }
     default:                 return { bg: '#33415522',         color: '#94a3b8',   label: status }
   }
+}
+
+// ── Recharts custom tooltip ────────────────────────────────────────────────
+
+function ChartTooltip({ active, payload, label }: {
+  active?: boolean
+  payload?: { name: string; value: number; color: string }[]
+  label?: string
+}) {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{
+      background: 'var(--card)', border: '1px solid var(--border)',
+      borderRadius: 10, padding: '0.625rem 0.875rem',
+      boxShadow: 'var(--shadow-lg)', fontSize: '0.75rem',
+    }}>
+      {label && <p style={{ fontWeight: 800, color: 'var(--muted)', marginBottom: '0.35rem', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</p>}
+      {payload.map((p) => (
+        <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+          <div style={{ width: 8, height: 8, borderRadius: 2, background: p.color, flexShrink: 0 }} />
+          <span style={{ color: 'var(--muted)' }}>{p.name}:</span>
+          <span style={{ fontWeight: 800, color: 'var(--fg)' }}>{p.value}{p.name.toLowerCase().includes('score') ? '%' : ''}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── InspectionChart (AreaChart — 6-month trend) ────────────────────────────
+
+function InspectionChart({ data }: { data: MonthlyPoint[] }) {
+  const hasData = data.some((d) => d.total > 0)
+
+  return (
+    <FmCard style={{ padding: '1.25rem', minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.125rem' }}>
+        <TrendingUp size={13} style={{ color: 'var(--primary)' }} />
+        <FmSectionLabel>Inspection Activity — 6 Months</FmSectionLabel>
+      </div>
+
+      {!hasData ? (
+        <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: '0.8rem', opacity: 0.5 }}>
+          No inspection data yet
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={160}>
+          <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+            <defs>
+              <linearGradient id="completedGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor="var(--primary)" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.02} />
+              </linearGradient>
+              <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+            <XAxis dataKey="month" tick={{ fontSize: 10, fontWeight: 700, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
+            <Tooltip content={<ChartTooltip />} />
+            <Area type="monotone" dataKey="completed" name="Completed" stroke="var(--primary)" strokeWidth={2} fill="url(#completedGrad)" dot={{ r: 3, fill: 'var(--primary)', strokeWidth: 0 }} activeDot={{ r: 5 }} />
+            <Area type="monotone" dataKey="avgScore"  name="Avg Score" stroke="#6366f1"       strokeWidth={2} fill="url(#scoreGrad)"     dot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }} activeDot={{ r: 5 }} />
+          </AreaChart>
+        </ResponsiveContainer>
+      )}
+
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem', justifyContent: 'flex-end' }}>
+        {[
+          { color: 'var(--primary)', label: 'Completed' },
+          { color: '#6366f1',        label: 'Avg Score' },
+        ].map(({ color, label }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.65rem', color: 'var(--muted)' }}>
+            <div style={{ width: 10, height: 3, borderRadius: 2, background: color }} />
+            {label}
+          </div>
+        ))}
+      </div>
+    </FmCard>
+  )
+}
+
+// ── RiskAssessmentChart (BarChart vertical stacked, per property) ───────────
+
+function RiskAssessmentChart({ data }: { data: PropertyRiskPoint[] }) {
+  const hasData = data.length > 0
+
+  // Truncate long property names for the Y axis
+  const chartData = data.map((d) => ({
+    ...d,
+    shortName: d.name.length > 14 ? d.name.slice(0, 13) + '…' : d.name,
+  }))
+
+  return (
+    <FmCard style={{ padding: '1.25rem', minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.125rem' }}>
+        <BarChart2 size={13} style={{ color: 'var(--red)' }} />
+        <FmSectionLabel>Asset Risk by Property</FmSectionLabel>
+      </div>
+
+      {!hasData ? (
+        <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: '0.8rem', opacity: 0.5 }}>
+          No asset risk data
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={Math.max(140, chartData.length * 32)}>
+          <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+            <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--muted)' }} axisLine={false} tickLine={false} allowDecimals={false} />
+            <YAxis dataKey="shortName" type="category" tick={{ fontSize: 10, fontWeight: 600, fill: 'var(--muted)' }} axisLine={false} tickLine={false} width={90} />
+            <Tooltip content={<ChartTooltip />} />
+            <Bar dataKey="poor" name="Poor"  stackId="a" fill="var(--red)"   radius={[0, 0, 0, 0]} maxBarSize={18} />
+            <Bar dataKey="fair" name="Fair"  stackId="a" fill="var(--amber)" radius={[3, 3, 0, 0]} maxBarSize={18} />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem', justifyContent: 'flex-end' }}>
+        {[
+          { color: 'var(--red)',   label: 'Poor' },
+          { color: 'var(--amber)', label: 'Fair' },
+        ].map(({ color, label }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.65rem', color: 'var(--muted)' }}>
+            <div style={{ width: 10, height: 10, borderRadius: 2, background: color }} />
+            {label}
+          </div>
+        ))}
+      </div>
+    </FmCard>
+  )
+}
+
+// ── Regional Health Matrix ─────────────────────────────────────────────────
+
+function RegionalHealthMatrix({ data }: { data: PropertyRiskPoint[] }) {
+  if (data.length === 0) return null
+
+  function healthScore(p: PropertyRiskPoint): number {
+    const total = p.good + p.fair + p.poor
+    if (total === 0) return 100
+    return Math.round((p.good * 100 + p.fair * 60 + p.poor * 0) / total)
+  }
+
+  function scoreStyle(score: number): { color: string; bg: string } {
+    if (score >= 80) return { color: 'var(--teal)',  bg: 'var(--teal-c)' }
+    if (score >= 60) return { color: 'var(--amber)', bg: 'var(--amber-c)' }
+    return              { color: 'var(--red)',   bg: 'var(--red-c)' }
+  }
+
+  // Show all properties that have assets (good, fair, or poor)
+  const all = [...data]
+  // Add properties with only good assets from the parent (we don't have them here — only risk data includes all)
+  // Sort best to worst so users get orientation
+  const sorted = all.map((p) => ({ ...p, score: healthScore(p) })).sort((a, b) => a.score - b.score)
+
+  return (
+    <FmCard style={{ padding: '1.25rem', minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+        <FmSectionLabel>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Building2 size={13} style={{ color: 'var(--primary)' }} />
+            Regional Health Matrix
+          </span>
+        </FmSectionLabel>
+        {/* Legend */}
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          {[
+            { color: 'var(--teal)',  label: '≥80' },
+            { color: 'var(--amber)', label: '≥60' },
+            { color: 'var(--red)',   label: '<60' },
+          ].map(({ color, label }) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.6rem', color: 'var(--muted)' }}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: color }} />
+              {label}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.5rem' }}>
+        {sorted.map((p) => {
+          const { color, bg } = scoreStyle(p.score)
+          return (
+            <div key={p.name} style={{
+              background: bg, borderRadius: 10, padding: '0.625rem 0.75rem',
+              border: `1px solid ${color}40`,
+              display: 'flex', flexDirection: 'column', gap: '0.2rem',
+            }}>
+              <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {p.name}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
+                <span style={{ fontSize: '1.4rem', fontWeight: 900, color, lineHeight: 1 }}>{p.score}</span>
+                <span style={{ fontSize: '0.6rem', fontWeight: 700, color, opacity: 0.7 }}>/ 100</span>
+              </div>
+              <p style={{ fontSize: '0.6rem', color: 'var(--muted)', margin: 0 }}>
+                {p.poor > 0 && <span style={{ color: 'var(--red)', fontWeight: 700 }}>{p.poor} poor · </span>}
+                {p.fair > 0 && <span style={{ color: 'var(--amber)', fontWeight: 600 }}>{p.fair} fair · </span>}
+                {p.good} good
+              </p>
+            </div>
+          )
+        })}
+      </div>
+    </FmCard>
+  )
 }
 
 // ── Stat Card ──────────────────────────────────────────────────────────────
@@ -1279,6 +1501,15 @@ export default function FMDashboardPage() {
         <StatCard icon={<AlertTriangle size={18} />}   label="Overdue Work Orders"  value={data.overdueWorkOrders}                                                         accent="red"     active={data.overdueWorkOrders > 0} href="/dashboard/fm/work-orders?filter=OVERDUE" />
         <StatCard icon={<Activity size={18} />}        label="Compliance Rate"      value={data.complianceRate > 0 ? `${data.complianceRate}%` : '—'} sub="Avg score"   accent="teal"    trend={data.complianceRate >= 80 ? '↑ On track' : data.complianceRate > 0 ? '↓ Attention' : undefined} href="/dashboard/fm/inspections" />
       </div>
+
+      {/* ── Charts row: InspectionChart (left 3fr) + RiskAssessmentChart (right 2fr) ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '0.875rem' }}>
+        <InspectionChart data={data.monthlyTrend} />
+        <RiskAssessmentChart data={data.propertyRisk} />
+      </div>
+
+      {/* ── Regional Health Matrix (full width, only when there's asset risk data) ── */}
+      {data.propertyRisk.length > 0 && <RegionalHealthMatrix data={data.propertyRisk} />}
 
       {/* ── Rows 2-4: 3-col left column + 2-col right panel ──────────────────
           The outer grid maintains fixed 0.875rem gap between columns.

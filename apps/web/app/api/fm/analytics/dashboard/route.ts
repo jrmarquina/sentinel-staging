@@ -20,6 +20,7 @@ export async function GET() {
     const now   = new Date()
     const in30d = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
     const nowISO = now.toISOString()
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString()
 
     const [
       propertiesRes,
@@ -33,6 +34,8 @@ export async function GET() {
       scheduledInspRes,
       scheduledWoRes,
       recentInspRes,
+      monthlyInspRes,
+      assetRiskRes,
     ] = await Promise.all([
       // Core counts
       supabase.from('fm_properties').select('id, status').eq('org_id', orgId).is('deleted_at', null),
@@ -105,6 +108,24 @@ export async function GET() {
         .is('deleted_at', null)
         .order('updated_at', { ascending: false })
         .limit(30),
+
+      // Monthly inspection activity (last 6 months) — for InspectionChart
+      supabase
+        .from('fm_inspections')
+        .select('id, status, score, updated_at')
+        .eq('org_id', orgId)
+        .is('deleted_at', null)
+        .gte('updated_at', sixMonthsAgo)
+        .order('updated_at', { ascending: true }),
+
+      // Asset conditions per property — for RiskAssessmentChart
+      supabase
+        .from('fm_assets')
+        .select('id, condition, property_id, fm_properties(name)')
+        .eq('org_id', orgId)
+        .is('deleted_at', null)
+        .not('property_id', 'is', null)
+        .limit(500),
     ])
 
     if (propertiesRes.error)  return err(propertiesRes.error.message)
@@ -164,6 +185,47 @@ export async function GET() {
       })
     }
 
+    // ── Monthly trend (last 6 months) for InspectionChart ──────────────────
+    const monthlyMap: Record<string, { total: number; completed: number; scoreSum: number; scoreCount: number }> = {}
+    for (const insp of (monthlyInspRes.data ?? [])) {
+      const d   = new Date(insp.updated_at as string)
+      const key = d.toLocaleString('en-US', { month: 'short' }).toUpperCase()
+      if (!monthlyMap[key]) monthlyMap[key] = { total: 0, completed: 0, scoreSum: 0, scoreCount: 0 }
+      monthlyMap[key].total++
+      if (insp.status === 'COMPLETED' || insp.status === 'APPROVED') {
+        monthlyMap[key].completed++
+        if ((insp.score as number | null) != null) {
+          monthlyMap[key].scoreSum  += (insp.score as number)
+          monthlyMap[key].scoreCount++
+        }
+      }
+    }
+    const monthlyTrend = Array.from({ length: 6 }, (_, i) => {
+      const d   = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1)
+      const key = d.toLocaleString('en-US', { month: 'short' }).toUpperCase()
+      const m   = monthlyMap[key]
+      return {
+        month:     key,
+        total:     m?.total     ?? 0,
+        completed: m?.completed ?? 0,
+        avgScore:  m?.scoreCount ? Math.round(m.scoreSum / m.scoreCount) : 0,
+      }
+    })
+
+    // ── Per-property asset risk for RiskAssessmentChart ─────────────────────
+    const propRiskMap: Record<string, { name: string; good: number; fair: number; poor: number }> = {}
+    for (const asset of (assetRiskRes.data ?? [])) {
+      const propId   = asset.property_id as string
+      const propName = (asset.fm_properties as { name?: string } | null)?.name ?? 'Unknown'
+      if (!propRiskMap[propId]) propRiskMap[propId] = { name: propName, good: 0, fair: 0, poor: 0 }
+      if (asset.condition === 'GOOD')      propRiskMap[propId].good++
+      else if (asset.condition === 'FAIR') propRiskMap[propId].fair++
+      else if (asset.condition === 'POOR') propRiskMap[propId].poor++
+    }
+    const propertyRisk = Object.values(propRiskMap)
+      .sort((a, b) => b.poor - a.poor || b.fair - a.fair)
+      .slice(0, 8)
+
     // Build recent inspections list for the right-panel
     const recentInspections = (recentInspRes.data ?? []).map(i => ({
       id: i.id,
@@ -211,6 +273,8 @@ export async function GET() {
       propertiesGeo: propertiesGeoRes.data ?? [],
       scheduledEvents,
       recentInspections,
+      monthlyTrend,
+      propertyRisk,
     })
   } catch (e) { return caught(e) }
 }
