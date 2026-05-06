@@ -157,6 +157,7 @@ export async function GET(req: NextRequest) {
     if (!session) return err('Unauthorized', 401)
 
     const accessLevel = getFmAccessLevel(session.capability, session.role)
+    console.log('[WO-GET] userId:', session.userId, 'capability:', session.capability, 'role:', session.role, 'accessLevel:', accessLevel)
     if (!accessLevel) return err('Forbidden', 403)
 
     const { searchParams } = new URL(req.url)
