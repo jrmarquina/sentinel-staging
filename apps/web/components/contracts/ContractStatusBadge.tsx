@@ -20,7 +20,7 @@ const STATUS_COLOR: Record<ContractStatus, string> = {
   active:           'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
   completed:        'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   terminated:       'bg-red-c text-red dark:bg-red/10 dark:text-red',
-  expired:          'bg-red text-white',
+  expired:          'bg-[#f9e3e3] text-[#aa2e26] dark:bg-[#3d212a] dark:text-[#f0a9a7]',
 }
 
 export function ContractStatusBadge({ status, className }: { status: ContractStatus; className?: string }) {
