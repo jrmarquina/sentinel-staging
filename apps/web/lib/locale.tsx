@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { en, type TranslationKey } from './translations/en'
 import { es } from './translations/es'
+import { fm, type FmKey } from './translations/fm'
 
 export type Locale = 'en' | 'es'
 
@@ -59,3 +60,14 @@ export function useLocale() {
 export function useT() {
   return useContext(LocaleContext).t
 }
+
+/** FM-module translation hook — respects the same locale as the main app */
+export function useFmT() {
+  const { locale } = useContext(LocaleContext)
+  return useCallback(
+    (key: FmKey): string => (fm[locale] as Record<string, string>)[key] ?? (fm.en as Record<string, string>)[key] ?? key,
+    [locale]
+  )
+}
+
+export type { FmKey }

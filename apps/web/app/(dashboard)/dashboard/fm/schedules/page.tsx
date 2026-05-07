@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Plus, Loader2, AlertTriangle, Trash2, Zap, X } from 'lucide-react'
+import { useFmT } from '@/lib/locale'
 
 interface FmProperty { id: string; name: string }
 interface FmTemplate { id: string; name: string }
@@ -32,6 +33,7 @@ const EMPTY_FORM: ScheduleForm = {
 }
 
 export default function FMSchedulesPage() {
+  const t = useFmT()
   const [schedules, setSchedules] = useState<FmSchedule[]>([])
   const [properties, setProperties] = useState<FmProperty[]>([])
   const [templates, setTemplates] = useState<FmTemplate[]>([])
@@ -54,7 +56,7 @@ export default function FMSchedulesPage() {
       fetch('/api/fm/properties').then((r) => r.json() as Promise<FmProperty[]>),
       fetch('/api/fm/templates').then((r) => r.json() as Promise<FmTemplate[]>),
     ])
-      .then(([s, p, t]) => { setSchedules(s); setProperties(p); setTemplates(t) })
+      .then(([s, p, tmpl]) => { setSchedules(s); setProperties(p); setTemplates(tmpl) })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
       .finally(() => setLoading(false))
   }
@@ -95,8 +97,8 @@ export default function FMSchedulesPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     setFormError(null)
-    if (!form.property_id) { setFormError('La propiedad es obligatoria'); return }
-    if (!form.template_id) { setFormError('La plantilla es obligatoria'); return }
+    if (!form.property_id) { setFormError(t('sched.err.create')); return }
+    if (!form.template_id) { setFormError(t('sched.err.create')); return }
 
     setSaving(true)
     try {
@@ -112,7 +114,7 @@ export default function FMSchedulesPage() {
       })
       if (!res.ok) {
         const body = await res.json() as { error?: string }
-        throw new Error(body.error ?? 'Error al crear la programación')
+        throw new Error(body.error ?? t('sched.err.create'))
       }
       setForm(EMPTY_FORM)
       setShowModal(false)
@@ -130,9 +132,9 @@ export default function FMSchedulesPage() {
     try {
       const res = await fetch('/api/fm/schedules/trigger', { method: 'POST' })
       if (res.ok) {
-        setTriggerMsg('Programaciones ejecutadas correctamente')
+        setTriggerMsg('Schedules triggered successfully')
       } else {
-        setTriggerMsg('Error al ejecutar las programaciones')
+        setTriggerMsg(t('error.generic'))
       }
     } finally {
       setTriggering(false)
@@ -145,8 +147,8 @@ export default function FMSchedulesPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Programaciones de Inspección</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{schedules.length} programación{schedules.length !== 1 ? 'es' : ''} configurada{schedules.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">{t('sched.title')}</h1>
+          <p className="text-sm text-slate-500 mt-0.5">{schedules.length} {schedules.length !== 1 ? 'schedules' : 'schedule'} configured</p>
         </div>
         <div className="flex items-center gap-2">
           {triggerMsg && (
@@ -158,14 +160,14 @@ export default function FMSchedulesPage() {
             className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
             {triggering ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
-            Ejecutar Ahora
+            {t('sched.triggerNow')}
           </button>
           <button
             onClick={() => setShowModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
           >
             <Plus size={16} />
-            Nueva Programación
+            {t('sched.newBtn')}
           </button>
         </div>
       </div>
@@ -182,7 +184,7 @@ export default function FMSchedulesPage() {
         </div>
       ) : schedules.length === 0 ? (
         <div className="py-16 text-center text-slate-400">
-          <p>No hay programaciones configuradas</p>
+          <p>{t('sched.empty')}</p>
         </div>
       ) : (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
@@ -190,10 +192,10 @@ export default function FMSchedulesPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 dark:bg-slate-800/60">
                 <tr>
-                  <th className="text-left px-5 py-3 font-medium text-slate-500">Propiedad</th>
-                  <th className="text-left px-5 py-3 font-medium text-slate-500">Plantilla</th>
-                  <th className="text-left px-5 py-3 font-medium text-slate-500 hidden md:table-cell">Frecuencia</th>
-                  <th className="text-left px-5 py-3 font-medium text-slate-500">Activo</th>
+                  <th className="text-left px-5 py-3 font-medium text-slate-500">{t('sched.col.property')}</th>
+                  <th className="text-left px-5 py-3 font-medium text-slate-500">{t('sched.col.template')}</th>
+                  <th className="text-left px-5 py-3 font-medium text-slate-500 hidden md:table-cell">{t('sched.col.frequency')}</th>
+                  <th className="text-left px-5 py-3 font-medium text-slate-500">{t('sched.col.active')}</th>
                   <th className="px-5 py-3"></th>
                 </tr>
               </thead>
@@ -230,13 +232,13 @@ export default function FMSchedulesPage() {
                             disabled={deleting === sched.id}
                             className="text-xs text-red-600 font-medium hover:text-red-700"
                           >
-                            {deleting === sched.id ? 'Eliminando...' : 'Confirmar'}
+                            {deleting === sched.id ? t('deleting') : t('confirm')}
                           </button>
                           <button
                             onClick={() => setConfirmDelete(null)}
                             className="text-xs text-slate-500"
                           >
-                            Cancelar
+                            {t('cancel')}
                           </button>
                         </div>
                       ) : (
@@ -261,7 +263,7 @@ export default function FMSchedulesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-md">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <h2 className="font-semibold text-slate-900 dark:text-white">Nueva Programación</h2>
+              <h2 className="font-semibold text-slate-900 dark:text-white">{t('sched.modal.title')}</h2>
               <button
                 onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}
                 className="text-slate-400 hover:text-slate-600"
@@ -277,14 +279,14 @@ export default function FMSchedulesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Propiedad <span className="text-red-500">*</span>
+                  {t('sched.form.property')} <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={form.property_id}
                   onChange={(e) => setForm((f) => ({ ...f, property_id: e.target.value }))}
                   className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">— Seleccionar propiedad —</option>
+                  <option value="">— Select property —</option>
                   {properties.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
@@ -293,36 +295,36 @@ export default function FMSchedulesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Plantilla <span className="text-red-500">*</span>
+                  {t('sched.form.template')} <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={form.template_id}
                   onChange={(e) => setForm((f) => ({ ...f, template_id: e.target.value }))}
                   className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">— Seleccionar plantilla —</option>
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
+                  <option value="">— Select template —</option>
+                  {templates.map((tmpl) => (
+                    <option key={tmpl.id} value={tmpl.id}>{tmpl.name}</option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Frecuencia
+                  {t('sched.form.frequency')}
                 </label>
                 <input
                   type="text"
                   value={form.frequency}
                   onChange={(e) => setForm((f) => ({ ...f, frequency: e.target.value }))}
                   className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Mensual, Trimestral, Semanal..."
+                  placeholder="Monthly, Quarterly, Weekly..."
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Tipo
+                  {t('sched.form.type')}
                 </label>
                 <input
                   type="text"
@@ -339,7 +341,7 @@ export default function FMSchedulesPage() {
                   onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}
                   className="flex-1 px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 >
-                  Cancelar
+                  {t('cancel')}
                 </button>
                 <button
                   type="submit"
@@ -347,7 +349,7 @@ export default function FMSchedulesPage() {
                   className="flex-1 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
                   {saving && <Loader2 size={14} className="animate-spin" />}
-                  {saving ? 'Guardando...' : 'Agregar Programación'}
+                  {saving ? t('sched.form.adding') : t('sched.form.addBtn')}
                 </button>
               </div>
             </form>

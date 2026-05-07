@@ -10,6 +10,7 @@ import {
   FmCard, FmBadge, FmButton, FmModal,
   FmModalFooter, FmInput,
 } from '@/components/fm'
+import { useFmT } from '@/lib/locale'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -54,6 +55,7 @@ type StatusFilter = typeof STATUS_FILTERS[number]
 // ── Property Card ──────────────────────────────────────────────────────────
 
 function PropertyCard({ prop }: { prop: FmProperty }) {
+  const t = useFmT()
   const assetCount  = prop.fm_assets?.length      ?? 0
   const inspCount   = prop.fm_inspections?.length ?? 0
   const [hovered, setHovered] = useState(false)
@@ -122,10 +124,10 @@ function PropertyCard({ prop }: { prop: FmProperty }) {
           {/* Stats row */}
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', paddingTop: '0.625rem', borderTop: '1px solid var(--border)' }}>
             <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--card-b)', color: 'var(--muted)', padding: '0.2rem 0.5rem', borderRadius: 9999, border: '1px solid var(--border)' }}>
-              {assetCount} {assetCount !== 1 ? 'activos' : 'activo'}
+              {assetCount} {assetCount !== 1 ? t('prop.assets_plural') : t('prop.assets')}
             </span>
             <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--card-b)', color: 'var(--muted)', padding: '0.2rem 0.5rem', borderRadius: 9999, border: '1px solid var(--border)' }}>
-              {inspCount} {inspCount !== 1 ? 'inspecciones' : 'inspección'}
+              {inspCount} {inspCount !== 1 ? t('prop.inspections_plural') : t('prop.inspections')}
             </span>
           </div>
         </div>
@@ -137,6 +139,7 @@ function PropertyCard({ prop }: { prop: FmProperty }) {
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function FMPropertiesPage() {
+  const t = useFmT()
   const [properties, setProperties] = useState<FmProperty[]>([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState<string | null>(null)
@@ -178,15 +181,15 @@ export default function FMPropertiesPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     setFormError(null)
-    if (!form.name.trim()) { setFormError('El nombre es obligatorio'); return }
-    if (!form.code.trim()) { setFormError('El código es obligatorio'); return }
+    if (!form.name.trim()) { setFormError(t('prop.err.name')); return }
+    if (!form.code.trim()) { setFormError(t('prop.err.code')); return }
 
     let latitude: number | null = null
     let longitude: number | null = null
     if (form.coordinates.trim()) {
       const parts = form.coordinates.split(',').map((s) => s.trim())
       if (parts.length !== 2 || isNaN(Number(parts[0])) || isNaN(Number(parts[1]))) {
-        setFormError('Las coordenadas deben ser "lat, lng"')
+        setFormError(t('prop.err.coords'))
         return
       }
       latitude  = Number(parts[0])
@@ -231,13 +234,13 @@ export default function FMPropertiesPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Propiedades</h1>
+          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('prop.title')}</h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
-            {properties.length} {properties.length !== 1 ? 'instalaciones administradas' : 'instalación administrada'}
+            {properties.length} {t('prop.title').toLowerCase()}
           </p>
         </div>
         <FmButton icon={<Plus size={15} />} onClick={() => setShowModal(true)} size="sm">
-          Nueva Propiedad
+          {t('prop.newBtn')}
         </FmButton>
       </div>
 
@@ -248,7 +251,7 @@ export default function FMPropertiesPage() {
           <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', pointerEvents: 'none' }} />
           <input
             type="text"
-            placeholder="Buscar por nombre, código o dirección…"
+            placeholder={t('prop.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="fm-input"
@@ -283,7 +286,7 @@ export default function FMPropertiesPage() {
                   display: 'flex', alignItems: 'center', gap: '0.35rem',
                 }}
               >
-                {s === 'ALL' ? 'Todos' : s === 'ACTIVE' ? 'Activo' : s === 'MAINTENANCE' ? 'Mantenimiento' : 'Inactivo'}
+                {t(`prop.status.${s}` as Parameters<typeof t>[0])}
                 <span style={{ opacity: 0.7, fontWeight: 800 }}>{count}</span>
               </button>
             )
@@ -300,13 +303,13 @@ export default function FMPropertiesPage() {
         <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--red)' }}>
           <AlertTriangle size={28} style={{ margin: '0 auto 0.75rem' }} />
           <p style={{ fontSize: '0.875rem' }}>{error}</p>
-          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>Reintentar</FmButton>
+          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>{t('retry')}</FmButton>
         </div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--muted)' }}>
           <Building2 size={32} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
           <p style={{ fontSize: '0.875rem' }}>
-            {search || statusFilter !== 'ALL' ? 'No hay propiedades que coincidan con los filtros' : 'No hay propiedades registradas'}
+            {search || statusFilter !== 'ALL' ? t('prop.emptyFiltered') : t('prop.empty')}
           </p>
         </div>
       ) : (
@@ -319,8 +322,8 @@ export default function FMPropertiesPage() {
       <FmModal
         open={showModal}
         onClose={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}
-        title="Nueva Propiedad"
-        subtitle="Registrar una nueva instalación administrada"
+        title={t('prop.form.modalTitle')}
+        subtitle={t('prop.form.modalSub')}
       >
         <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {formError && (
@@ -332,7 +335,7 @@ export default function FMPropertiesPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Nombre <span style={{ color: 'var(--red)' }}>*</span>
+                {t('prop.form.name')} <span style={{ color: 'var(--red)' }}>*</span>
               </label>
               <input
                 ref={nameRef}
@@ -346,7 +349,7 @@ export default function FMPropertiesPage() {
 
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Código <span style={{ color: 'var(--red)' }}>*</span>
+                {t('prop.form.code')} <span style={{ color: 'var(--red)' }}>*</span>
               </label>
               <input
                 className="fm-input"
@@ -360,7 +363,7 @@ export default function FMPropertiesPage() {
 
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Coordenadas GPS <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
+                {t('prop.form.coords')} <span style={{ color: 'var(--faint)', fontWeight: 400 }}>({t('optional')})</span>
               </label>
               <input
                 className="fm-input"
@@ -368,13 +371,13 @@ export default function FMPropertiesPage() {
                 type="text"
                 value={form.coordinates}
                 onChange={(e) => setForm((f) => ({ ...f, coordinates: e.target.value }))}
-                placeholder="18.3830, -66.0858"
+                placeholder={t('prop.form.coordsHint')}
               />
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Dirección
+                {t('prop.form.address')}
               </label>
               <input
                 className="fm-input"
@@ -388,10 +391,10 @@ export default function FMPropertiesPage() {
 
           <FmModalFooter>
             <FmButton type="button" variant="secondary" size="sm" onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}>
-              Cancelar
+              {t('cancel')}
             </FmButton>
             <FmButton type="submit" size="sm" loading={saving}>
-              {saving ? 'Creando…' : 'Crear Propiedad'}
+              {saving ? t('creating') : t('prop.form.createBtn')}
             </FmButton>
           </FmModalFooter>
         </form>

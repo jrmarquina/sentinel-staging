@@ -15,6 +15,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { FmCard, FmBadge, FmSectionLabel, statusVariant } from '@/components/fm'
+import { useFmT, type FmKey } from '@/lib/locale'
 
 const MapView = dynamic(
   () => import('@/components/map/MapView').then((m) => m.MapView),
@@ -132,13 +133,13 @@ function eventColor(ev: ScheduledEvent): { bg: string; text: string; border: str
 }
 
 /** Inspection status badge — fixed colors, all themes */
-function inspStatusStyle(status: string): { bg: string; color: string; label: string } {
+function inspStatusStyle(status: string, t: (key: FmKey) => string): { bg: string; color: string; label: string } {
   switch (status) {
-    case 'PENDING_APPROVAL': return { bg: `${EV.amber.bg}22`, color: EV.amber.bg, label: 'Aprobación' }
-    case 'IN_PROGRESS':      return { bg: `${EV.blue.bg}22`,  color: EV.blue.bg,  label: 'En progreso' }
-    case 'SCHEDULED':        return { bg: '#6366f122',         color: '#6366f1',   label: 'Programado' }
-    case 'COMPLETED':        return { bg: `${EV.teal.bg}22`,  color: EV.teal.bg,  label: 'Completado' }
-    case 'DRAFT':            return { bg: '#33415522',         color: '#94a3b8',   label: 'Borrador' }
+    case 'PENDING_APPROVAL': return { bg: `${EV.amber.bg}22`, color: EV.amber.bg, label: t('insp.fm.tab.pendingApproval') }
+    case 'IN_PROGRESS':      return { bg: `${EV.blue.bg}22`,  color: EV.blue.bg,  label: t('insp.fm.tab.inProgress') }
+    case 'SCHEDULED':        return { bg: '#6366f122',         color: '#6366f1',   label: t('insp.fm.tab.inProgress') }
+    case 'COMPLETED':        return { bg: `${EV.teal.bg}22`,  color: EV.teal.bg,  label: t('insp.fm.tab.completed') }
+    case 'DRAFT':            return { bg: '#33415522',         color: '#94a3b8',   label: t('insp.fm.tab.draft') }
     default:                 return { bg: '#33415522',         color: '#94a3b8',   label: status }
   }
 }
@@ -172,18 +173,22 @@ function ChartTooltip({ active, payload, label }: {
 // ── InspectionChart (AreaChart — 6-month trend) ────────────────────────────
 
 function InspectionChart({ data }: { data: MonthlyPoint[] }) {
+  const t = useFmT()
   const hasData = data.some((d) => d.total > 0)
+
+  const completedLabel  = t('insp.fm.tab.completed')
+  const avgScoreLabel   = t('ana.insp.avgScore')
 
   return (
     <FmCard style={{ padding: '1.25rem', minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.125rem' }}>
         <TrendingUp size={13} style={{ color: 'var(--primary)' }} />
-        <FmSectionLabel>Actividad de Inspecciones — 6 Meses</FmSectionLabel>
+        <FmSectionLabel>{t('ana.inspections')} — 6M</FmSectionLabel>
       </div>
 
       {!hasData ? (
         <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: '0.8rem', opacity: 0.5 }}>
-          Sin datos de inspecciones
+          {t('noData')}
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={160}>
@@ -202,8 +207,8 @@ function InspectionChart({ data }: { data: MonthlyPoint[] }) {
             <XAxis dataKey="month" tick={{ fontSize: 10, fontWeight: 700, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 10, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
             <Tooltip content={<ChartTooltip />} />
-            <Area type="monotone" dataKey="completed" name="Completadas" stroke="var(--primary)" strokeWidth={2} fill="url(#completedGrad)" dot={{ r: 3, fill: 'var(--primary)', strokeWidth: 0 }} activeDot={{ r: 5 }} />
-            <Area type="monotone" dataKey="avgScore"  name="Puntaje prom." stroke="#6366f1"       strokeWidth={2} fill="url(#scoreGrad)"     dot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }} activeDot={{ r: 5 }} />
+            <Area type="monotone" dataKey="completed" name={completedLabel}  stroke="var(--primary)" strokeWidth={2} fill="url(#completedGrad)" dot={{ r: 3, fill: 'var(--primary)', strokeWidth: 0 }} activeDot={{ r: 5 }} />
+            <Area type="monotone" dataKey="avgScore"  name={avgScoreLabel}   stroke="#6366f1"        strokeWidth={2} fill="url(#scoreGrad)"     dot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }} activeDot={{ r: 5 }} />
           </AreaChart>
         </ResponsiveContainer>
       )}
@@ -211,8 +216,8 @@ function InspectionChart({ data }: { data: MonthlyPoint[] }) {
       {/* Legend */}
       <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem', justifyContent: 'flex-end' }}>
         {[
-          { color: 'var(--primary)', label: 'Completadas' },
-          { color: '#6366f1',        label: 'Puntaje prom.' },
+          { color: 'var(--primary)', label: completedLabel },
+          { color: '#6366f1',        label: avgScoreLabel },
         ].map(({ color, label }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.65rem', color: 'var(--muted)' }}>
             <div style={{ width: 10, height: 3, borderRadius: 2, background: color }} />
@@ -227,7 +232,11 @@ function InspectionChart({ data }: { data: MonthlyPoint[] }) {
 // ── RiskAssessmentChart (BarChart vertical stacked, per property) ───────────
 
 function RiskAssessmentChart({ data }: { data: PropertyRiskPoint[] }) {
+  const t = useFmT()
   const hasData = data.length > 0
+
+  const poorLabel = t('asset.condition.POOR')
+  const fairLabel = t('asset.condition.FAIR')
 
   // Truncate long property names for the Y axis
   const chartData = data.map((d) => ({
@@ -239,12 +248,12 @@ function RiskAssessmentChart({ data }: { data: PropertyRiskPoint[] }) {
     <FmCard style={{ padding: '1.25rem', minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.125rem' }}>
         <BarChart2 size={13} style={{ color: 'var(--red)' }} />
-        <FmSectionLabel>Riesgo de Activos por Centro</FmSectionLabel>
+        <FmSectionLabel>{t('ana.byProperty')}</FmSectionLabel>
       </div>
 
       {!hasData ? (
         <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: '0.8rem', opacity: 0.5 }}>
-          Sin datos de riesgo de activos
+          {t('noData')}
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={Math.max(140, chartData.length * 32)}>
@@ -253,8 +262,8 @@ function RiskAssessmentChart({ data }: { data: PropertyRiskPoint[] }) {
             <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--muted)' }} axisLine={false} tickLine={false} allowDecimals={false} />
             <YAxis dataKey="shortName" type="category" tick={{ fontSize: 10, fontWeight: 600, fill: 'var(--muted)' }} axisLine={false} tickLine={false} width={90} />
             <Tooltip content={<ChartTooltip />} />
-            <Bar dataKey="poor" name="Deficiente"  stackId="a" fill="var(--red)"   radius={[0, 0, 0, 0]} maxBarSize={18} />
-            <Bar dataKey="fair" name="Regular"  stackId="a" fill="var(--amber)" radius={[3, 3, 0, 0]} maxBarSize={18} />
+            <Bar dataKey="poor" name={poorLabel} stackId="a" fill="var(--red)"   radius={[0, 0, 0, 0]} maxBarSize={18} />
+            <Bar dataKey="fair" name={fairLabel} stackId="a" fill="var(--amber)" radius={[3, 3, 0, 0]} maxBarSize={18} />
           </BarChart>
         </ResponsiveContainer>
       )}
@@ -262,8 +271,8 @@ function RiskAssessmentChart({ data }: { data: PropertyRiskPoint[] }) {
       {/* Legend */}
       <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem', justifyContent: 'flex-end' }}>
         {[
-          { color: 'var(--red)',   label: 'Deficiente' },
-          { color: 'var(--amber)', label: 'Regular' },
+          { color: 'var(--red)',   label: poorLabel },
+          { color: 'var(--amber)', label: fairLabel },
         ].map(({ color, label }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.65rem', color: 'var(--muted)' }}>
             <div style={{ width: 10, height: 10, borderRadius: 2, background: color }} />
@@ -278,6 +287,8 @@ function RiskAssessmentChart({ data }: { data: PropertyRiskPoint[] }) {
 // ── Regional Health Matrix ─────────────────────────────────────────────────
 
 function RegionalHealthMatrix({ data }: { data: PropertyRiskPoint[] }) {
+  const t = useFmT()
+
   if (data.length === 0) return null
 
   function healthScore(p: PropertyRiskPoint): number {
@@ -292,6 +303,10 @@ function RegionalHealthMatrix({ data }: { data: PropertyRiskPoint[] }) {
     return              { color: 'var(--red)',   bg: 'var(--red-c)' }
   }
 
+  const poorLabel  = t('asset.condition.POOR')
+  const fairLabel  = t('asset.condition.FAIR')
+  const goodLabel  = t('asset.condition.GOOD')
+
   // Show all properties that have assets (good, fair, or poor)
   const all = [...data]
   // Add properties with only good assets from the parent (we don't have them here — only risk data includes all)
@@ -304,7 +319,7 @@ function RegionalHealthMatrix({ data }: { data: PropertyRiskPoint[] }) {
         <FmSectionLabel>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Building2 size={13} style={{ color: 'var(--primary)' }} />
-            Matriz de Salud Regional
+            {t('prop.detail.integrity')}
           </span>
         </FmSectionLabel>
         {/* Legend */}
@@ -339,9 +354,9 @@ function RegionalHealthMatrix({ data }: { data: PropertyRiskPoint[] }) {
                 <span style={{ fontSize: '0.6rem', fontWeight: 700, color, opacity: 0.7 }}>/ 100</span>
               </div>
               <p style={{ fontSize: '0.6rem', color: 'var(--muted)', margin: 0 }}>
-                {p.poor > 0 && <span style={{ color: 'var(--red)', fontWeight: 700 }}>{p.poor} defic. · </span>}
-                {p.fair > 0 && <span style={{ color: 'var(--amber)', fontWeight: 600 }}>{p.fair} regular · </span>}
-                {p.good} bueno
+                {p.poor > 0 && <span style={{ color: 'var(--red)', fontWeight: 700 }}>{p.poor} {poorLabel.toLowerCase()} · </span>}
+                {p.fair > 0 && <span style={{ color: 'var(--amber)', fontWeight: 600 }}>{p.fair} {fairLabel.toLowerCase()} · </span>}
+                {p.good} {goodLabel.toLowerCase()}
               </p>
             </div>
           )
@@ -416,6 +431,7 @@ function InspectionsPanel({
   pendingApprovals: PendingApproval[]
   totals: DashboardData['inspections']
 }) {
+  const t = useFmT()
   const router = useRouter()
 
   // Exclude pending approvals from the recent list (shown separately above)
@@ -441,7 +457,7 @@ function InspectionsPanel({
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
           <ClipboardCheck size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
           <p style={{ fontSize: '0.65rem', fontWeight: 900, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', margin: 0, flex: 1 }}>
-            Inspecciones
+            {t('insp.fm.title')}
           </p>
           <span style={{ fontSize: '0.7rem', fontWeight: 800, background: 'var(--primary-c)', color: 'var(--primary)', padding: '0.1rem 0.5rem', borderRadius: 9999 }}>
             {totals.total}
@@ -449,9 +465,9 @@ function InspectionsPanel({
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
           {[
-            { label: 'Pendiente',    value: totals.pending,    color: EV.amber.bg },
-            { label: 'En progreso', value: totals.inProgress, color: EV.blue.bg },
-            { label: 'Completada',  value: totals.completed,  color: EV.teal.bg },
+            { label: t('insp.fm.tab.pendingApproval'), value: totals.pending,    color: EV.amber.bg },
+            { label: t('insp.fm.tab.inProgress'),      value: totals.inProgress, color: EV.blue.bg },
+            { label: t('insp.fm.tab.completed'),        value: totals.completed,  color: EV.teal.bg },
           ].map(({ label, value, color }) => (
             <div key={label} style={{ background: 'var(--card-b)', borderRadius: 8, padding: '0.375rem 0.5rem', textAlign: 'center', border: '1px solid var(--border)' }}>
               <p style={{ fontSize: '1rem', fontWeight: 800, color, margin: 0, lineHeight: 1 }}>{value}</p>
@@ -468,7 +484,7 @@ function InspectionsPanel({
           <div style={{ padding: '0.6rem 1.25rem 0.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <CheckCircle size={12} style={{ color: EV.amber.bg, flexShrink: 0 }} />
             <span style={{ fontSize: '0.6rem', fontWeight: 900, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', flex: 1 }}>
-              Listas para Aprobar
+              {t('insp.fm.tab.pendingApproval')}
             </span>
             <span style={{ fontSize: '0.68rem', fontWeight: 800, background: `${EV.amber.bg}22`, color: EV.amber.bg, padding: '0.1rem 0.45rem', borderRadius: 9999 }}>
               {pendingApprovals.length}
@@ -486,7 +502,7 @@ function InspectionsPanel({
               <div style={{ width: 7, height: 7, borderRadius: '50%', background: EV.amber.bg, flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {(item.fm_inspection_templates as { name?: string } | null)?.name ?? 'Inspección'}
+                  {(item.fm_inspection_templates as { name?: string } | null)?.name ?? t('insp.fm.title')}
                 </p>
                 <p style={{ fontSize: '0.68rem', color: 'var(--muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {(item.fm_properties as { name?: string } | null)?.name ?? '—'}
@@ -504,16 +520,16 @@ function InspectionsPanel({
       <div style={{ padding: '0.6rem 1.25rem 0.4rem', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
         <Activity size={12} style={{ color: 'var(--primary)', flexShrink: 0 }} />
         <span style={{ fontSize: '0.6rem', fontWeight: 900, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-          Actividad Reciente
+          {t('dash.recentInsp')}
         </span>
       </div>
 
       {/* Scrollable recent list */}
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {sortedRecent.length === 0 ? (
-          <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.8rem', padding: '2rem 1rem' }}>Sin actividad reciente.</p>
+          <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.8rem', padding: '2rem 1rem' }}>{t('insp.fm.empty')}</p>
         ) : sortedRecent.map((insp) => {
-          const { bg, color, label } = inspStatusStyle(insp.status)
+          const { bg, color, label } = inspStatusStyle(insp.status, t)
           const dateStr = insp.scheduled_for
             ? new Date(insp.scheduled_for).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             : new Date(insp.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -529,7 +545,7 @@ function InspectionsPanel({
               <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0, marginTop: 5 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {insp.template_name ?? 'Inspección'}
+                  {insp.template_name ?? t('insp.fm.title')}
                 </p>
                 <p style={{ fontSize: '0.68rem', color: 'var(--muted)', margin: '0.1rem 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {insp.property_name}
@@ -550,7 +566,7 @@ function InspectionsPanel({
       {/* Footer */}
       <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
         <Link href="/dashboard/fm/inspections" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)', textDecoration: 'none' }}>
-          Ver todas las inspecciones <ArrowRight size={13} />
+          {t('viewAll')} <ArrowRight size={13} />
         </Link>
       </div>
     </div>
@@ -568,6 +584,7 @@ const CARD_GRADIENTS = [
 ]
 
 function TopProperties({ properties }: { properties: PropertyGeo[] }) {
+  const t = useFmT()
   const router = useRouter()
   if (properties.length === 0) return null
   return (
@@ -576,11 +593,11 @@ function TopProperties({ properties }: { properties: PropertyGeo[] }) {
         <FmSectionLabel>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Building2 size={13} style={{ color: 'var(--primary)' }} />
-            Principales Centros
+            {t('dash.topProperties')}
           </span>
         </FmSectionLabel>
         <Link href="/dashboard/fm/properties" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none', letterSpacing: '0.04em' }}>
-          VER TODOS →
+          {t('viewAll')}
         </Link>
       </div>
       <div style={{ display: 'flex', gap: '0.875rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
@@ -641,6 +658,7 @@ function TopProperties({ properties }: { properties: PropertyGeo[] }) {
 const DOW_LABELS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
 function TwoMonthCalendar({ events, router }: { events: ScheduledEvent[]; router: ReturnType<typeof useRouter> }) {
+  const t = useFmT()
   const [selectedDay, setSelectedDay] = useState<string>('')
 
   const months = useMemo(() => {
@@ -727,14 +745,14 @@ function TwoMonthCalendar({ events, router }: { events: ScheduledEvent[]; router
 
       {/* Legend */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'flex-end' }}>
-        {[
-          { color: 'var(--primary)', label: '1 evento' },
-          { color: 'var(--amber)',   label: '2 eventos' },
-          { color: 'var(--red)',     label: '3+ eventos' },
-        ].map(({ color, label }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.58rem', color: 'var(--muted)' }}>
+        {([
+          { color: 'var(--primary)', count: '1' },
+          { color: 'var(--amber)',   count: '2' },
+          { color: 'var(--red)',     count: '3+' },
+        ] as const).map(({ color, count }) => (
+          <div key={count} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.58rem', color: 'var(--muted)' }}>
             <div style={{ width: 8, height: 8, borderRadius: 3, background: color, flexShrink: 0 }} />
-            {label}
+            {count}
           </div>
         ))}
       </div>
@@ -772,7 +790,7 @@ function TwoMonthCalendar({ events, router }: { events: ScheduledEvent[]; router
                     background: isInspection ? 'var(--primary-c)' : ev.isOverdue ? 'var(--red-c)' : 'var(--amber-c)',
                     color:      isInspection ? 'var(--primary)'   : ev.isOverdue ? 'var(--red)'   : 'var(--amber)',
                   }}>
-                    {isInspection ? 'INSP' : ev.isOverdue ? 'VENCIDA' : 'OT'}
+                    {isInspection ? 'INSP' : ev.isOverdue ? t('wo.fm.tab.overdue').toUpperCase() : 'OT'}
                   </div>
                 </div>
               )
@@ -787,6 +805,7 @@ function TwoMonthCalendar({ events, router }: { events: ScheduledEvent[]; router
 // ── Gantt Timeline (inline 14-day) ─────────────────────────────────────────
 
 function GanttTimeline({ events }: { events: ScheduledEvent[] }) {
+  const t = useFmT()
   const router  = useRouter()
   const days    = useMemo(() => Array.from({ length: 14 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() + i); return d
@@ -804,7 +823,7 @@ function GanttTimeline({ events }: { events: ScheduledEvent[] }) {
       <div style={{ minWidth: 600 }}>
         {/* Header row */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', marginBottom: '0.25rem' }}>
-          <div style={{ width: 150, flexShrink: 0, fontSize: '0.6rem', fontWeight: 900, color: 'var(--muted)', textTransform: 'uppercase' }}>Centro / Tarea</div>
+          <div style={{ width: 150, flexShrink: 0, fontSize: '0.6rem', fontWeight: 900, color: 'var(--muted)', textTransform: 'uppercase' }}>{t('prop.title')} / {t('insp.fm.title')}</div>
           {days.map((d, i) => (
             <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: '0.58rem', fontWeight: 700, color: 'var(--muted)' }}>
               {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -814,7 +833,7 @@ function GanttTimeline({ events }: { events: ScheduledEvent[] }) {
 
         {items.length === 0 ? (
           <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.8rem', padding: '2rem 0', opacity: 0.5 }}>
-            Sin eventos en los próximos 14 días
+            {t('insp.fm.empty')}
           </p>
         ) : items.map((item) => {
           const dayIdx = Math.floor((new Date(item.date).getTime() - todayMs) / 86_400_000)
@@ -865,6 +884,7 @@ const DOW_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
 /** 2-Week Calendar Grid — day columns with event pills (populated by date, not hour) */
 function FullScreenCalendarGrid({ events }: { events: ScheduledEvent[] }) {
+  const t = useFmT()
   const router = useRouter()
 
   const days = useMemo(() => Array.from({ length: 14 }, (_, i) => {
@@ -887,14 +907,14 @@ function FullScreenCalendarGrid({ events }: { events: ScheduledEvent[] }) {
       {/* Legend */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
         {[
-          { color: EV.blue.bg,   label: 'Insp · Programada' },
-          { color: EV.sky.bg,    label: 'Insp · En progreso' },
-          { color: EV.amber.bg,  label: 'Insp · Aprobación / OT · Abierta' },
-          { color: EV.orange.bg, label: 'OT · En progreso' },
-          { color: EV.teal.bg,   label: 'Completado' },
-          { color: EV.red.bg,    label: 'Vencido' },
+          { color: EV.blue.bg,   label: `${t('insp.fm.title')} · ${t('insp.fm.tab.inProgress')}` },
+          { color: EV.sky.bg,    label: `${t('insp.fm.title')} · ${t('insp.fm.tab.inProgress')}` },
+          { color: EV.amber.bg,  label: `${t('insp.fm.title')} · ${t('insp.fm.tab.pendingApproval')} / OT · ${t('wo.fm.tab.open')}` },
+          { color: EV.orange.bg, label: `OT · ${t('wo.fm.tab.inProgress')}` },
+          { color: EV.teal.bg,   label: t('insp.fm.tab.completed') },
+          { color: EV.red.bg,    label: t('wo.fm.tab.overdue') },
         ].map(({ color, label }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.7rem', color: 'var(--muted)' }}>
+          <div key={color} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.7rem', color: 'var(--muted)' }}>
             <div style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} />
             {label}
           </div>
@@ -974,6 +994,7 @@ function FullScreenCalendarGrid({ events }: { events: ScheduledEvent[] }) {
 }
 
 function FullScreenHeatMap({ events }: { events: ScheduledEvent[] }) {
+  const t = useFmT()
   const router = useRouter()
   const now    = new Date()
   const todayStr = toYMD(now)
@@ -1072,7 +1093,7 @@ function FullScreenHeatMap({ events }: { events: ScheduledEvent[] }) {
           <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <p style={{ fontSize: '0.9rem', fontWeight: 900, color: 'var(--fg)', margin: 0 }}>{selectedLabel}</p>
-              <p style={{ fontSize: '0.68rem', color: 'var(--muted)', margin: '0.15rem 0 0' }}>{selectedEvents.length} evento{selectedEvents.length !== 1 ? 's' : ''} programado{selectedEvents.length !== 1 ? 's' : ''}</p>
+              <p style={{ fontSize: '0.68rem', color: 'var(--muted)', margin: '0.15rem 0 0' }}>{selectedEvents.length} {t('dash.schedule').toLowerCase()}</p>
             </div>
             <button
               onClick={() => setSelectedDay(null)}
@@ -1112,7 +1133,7 @@ function FullScreenHeatMap({ events }: { events: ScheduledEvent[] }) {
                       {ev.type === 'inspection' ? 'INSP' : 'OT'}
                     </span>
                     {ev.isOverdue && (
-                      <span style={{ fontSize: '0.55rem', fontWeight: 900, background: 'var(--red-c)', color: 'var(--red)', padding: '1px 5px', borderRadius: 4 }}>VENCIDA</span>
+                      <span style={{ fontSize: '0.55rem', fontWeight: 900, background: 'var(--red-c)', color: 'var(--red)', padding: '1px 5px', borderRadius: 4 }}>{t('wo.fm.tab.overdue').toUpperCase()}</span>
                     )}
                     <span style={{ fontSize: '0.6rem', color: 'var(--faint)' }}>{ev.status.replace('_', ' ')}</span>
                   </div>
@@ -1128,6 +1149,7 @@ function FullScreenHeatMap({ events }: { events: ScheduledEvent[] }) {
 }
 
 function FullScreenListView({ events }: { events: ScheduledEvent[] }) {
+  const t = useFmT()
   const router = useRouter()
 
   // Build a 14-day list from today
@@ -1154,14 +1176,14 @@ function FullScreenListView({ events }: { events: ScheduledEvent[] }) {
       {/* Legend */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
         {[
-          { color: 'var(--primary)', label: 'Programada (Insp)' },
-          { color: '#60a5fa',        label: 'En progreso (Insp)' },
-          { color: 'var(--amber)',   label: 'Abierta / Aprobación' },
-          { color: '#f97316',        label: 'En progreso (OT)' },
-          { color: 'var(--teal)',    label: 'Completado' },
-          { color: 'var(--red)',     label: 'Vencido' },
+          { color: 'var(--primary)', label: `${t('insp.fm.title')} · ${t('insp.fm.tab.inProgress')}` },
+          { color: '#60a5fa',        label: `${t('insp.fm.title')} · ${t('insp.fm.tab.inProgress')}` },
+          { color: 'var(--amber)',   label: `${t('wo.fm.tab.open')} / ${t('insp.fm.tab.pendingApproval')}` },
+          { color: '#f97316',        label: `OT · ${t('wo.fm.tab.inProgress')}` },
+          { color: 'var(--teal)',    label: t('insp.fm.tab.completed') },
+          { color: 'var(--red)',     label: t('wo.fm.tab.overdue') },
         ].map(({ color, label }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.7rem', color: 'var(--muted)' }}>
+          <div key={color} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.7rem', color: 'var(--muted)' }}>
             <div style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} />
             {label}
           </div>
@@ -1194,7 +1216,7 @@ function FullScreenListView({ events }: { events: ScheduledEvent[] }) {
             {/* Events */}
             <div style={{ flex: 1, minWidth: 0 }}>
               {dayEvs.length === 0 ? (
-                <p style={{ fontSize: '0.75rem', color: 'var(--faint)', margin: '0.375rem 0 0', fontStyle: 'italic' }}>Sin eventos</p>
+                <p style={{ fontSize: '0.75rem', color: 'var(--faint)', margin: '0.375rem 0 0', fontStyle: 'italic' }}>{t('noData')}</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {dayEvs.map((ev) => {
@@ -1226,7 +1248,7 @@ function FullScreenListView({ events }: { events: ScheduledEvent[] }) {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
                           {ev.isOverdue && (
-                            <span style={{ fontSize: '0.58rem', fontWeight: 900, background: 'var(--red-c)', color: 'var(--red)', padding: '2px 6px', borderRadius: 4 }}>VENCIDA</span>
+                            <span style={{ fontSize: '0.58rem', fontWeight: 900, background: 'var(--red-c)', color: 'var(--red)', padding: '2px 6px', borderRadius: 4 }}>{t('wo.fm.tab.overdue')}</span>
                           )}
                           <span style={{ fontSize: '0.6rem', fontWeight: 800, background: bg, color: text, padding: '2px 7px', borderRadius: 4 }}>
                             {ev.type === 'inspection' ? 'INSP' : 'OT'}
@@ -1248,6 +1270,7 @@ function FullScreenListView({ events }: { events: ScheduledEvent[] }) {
 }
 
 function FullScreenPropertyGantt({ events, properties }: { events: ScheduledEvent[]; properties: PropertyGeo[] }) {
+  const t = useFmT()
   const router = useRouter()
   const days   = useMemo(() => Array.from({ length: 14 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() + i); return d
@@ -1257,7 +1280,7 @@ function FullScreenPropertyGantt({ events, properties }: { events: ScheduledEven
     <div style={{ minWidth: 1000 }}>
       {/* Column headers */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', paddingBottom: '0.875rem', marginBottom: '0.5rem' }}>
-        <div style={{ width: 250, fontSize: '0.7rem', fontWeight: 900, color: 'var(--muted)', textTransform: 'uppercase' }}>Nombre del Centro</div>
+        <div style={{ width: 250, fontSize: '0.7rem', fontWeight: 900, color: 'var(--muted)', textTransform: 'uppercase' }}>{t('prop.title')}</div>
         {days.map((d, i) => (
           <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: '0.65rem', fontWeight: 800, color: 'var(--muted)' }}>
             {d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })}
@@ -1268,14 +1291,14 @@ function FullScreenPropertyGantt({ events, properties }: { events: ScheduledEven
       {/* Legend */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.875rem', marginBottom: '1rem' }}>
         {[
-          { color: 'var(--primary)', label: 'Insp · Programada' },
-          { color: '#60a5fa',        label: 'Insp · En progreso' },
-          { color: 'var(--amber)',   label: 'Insp · Aprobación / OT · Abierta' },
-          { color: '#f97316',        label: 'OT · En progreso' },
-          { color: 'var(--teal)',    label: 'Completado' },
-          { color: 'var(--red)',     label: 'Vencido' },
+          { color: 'var(--primary)', label: `${t('insp.fm.title')} · ${t('insp.fm.tab.inProgress')}` },
+          { color: '#60a5fa',        label: `${t('insp.fm.title')} · ${t('insp.fm.tab.inProgress')}` },
+          { color: 'var(--amber)',   label: `${t('insp.fm.title')} · ${t('insp.fm.tab.pendingApproval')} / OT · ${t('wo.fm.tab.open')}` },
+          { color: '#f97316',        label: `OT · ${t('wo.fm.tab.inProgress')}` },
+          { color: 'var(--teal)',    label: t('insp.fm.tab.completed') },
+          { color: 'var(--red)',     label: t('wo.fm.tab.overdue') },
         ].map(({ color, label }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.65rem', color: 'var(--muted)' }}>
+          <div key={color} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.65rem', color: 'var(--muted)' }}>
             <div style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} />
             {label}
           </div>
@@ -1332,7 +1355,7 @@ function FullScreenPropertyGantt({ events, properties }: { events: ScheduledEven
 
       {properties.length === 0 && (
         <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem', padding: '3rem' }}>
-          Sin centros con coordenadas disponibles
+          {t('prop.empty')}
         </p>
       )}
     </div>
@@ -1340,6 +1363,7 @@ function FullScreenPropertyGantt({ events, properties }: { events: ScheduledEven
 }
 
 function FullScreenTimeline({ events, properties, onClose }: { events: ScheduledEvent[]; properties: PropertyGeo[]; onClose: () => void }) {
+  const t = useFmT()
   const [tab, setTab] = useState<FsTab>('property-gantt')
   const [mounted, setMounted] = useState(false)
 
@@ -1351,10 +1375,10 @@ function FullScreenTimeline({ events, properties, onClose }: { events: Scheduled
   }, [onClose])
 
   const TABS: { id: FsTab; label: string }[] = [
-    { id: 'property-gantt', label: 'Gantt por Centro' },
-    { id: 'calendar-grid',  label: 'Agenda 2 Semanas' },
-    { id: 'list-view',      label: 'Vista de Lista' },
-    { id: 'heat-map',       label: 'Mapa de Calor 6 Meses' },
+    { id: 'property-gantt', label: `Gantt · ${t('prop.title')}` },
+    { id: 'calendar-grid',  label: t('dash.twoWeeks') },
+    { id: 'list-view',      label: t('dash.schedule') },
+    { id: 'heat-map',       label: `${t('dash.schedule')} 6M` },
   ]
 
   if (!mounted) return null
@@ -1364,18 +1388,18 @@ function FullScreenTimeline({ events, properties, onClose }: { events: Scheduled
       <header style={{ padding: '1.25rem 2rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg)', margin: 0 }}>
-            Inteligencia de Portafolio
+            {t('dash.schedule')}
           </h2>
           <div style={{ display: 'flex', gap: '0.25rem' }}>
-            {TABS.map((t) => (
-              <button key={t.id} onClick={() => setTab(t.id)} style={{
+            {TABS.map((tab_item) => (
+              <button key={tab_item.id} onClick={() => setTab(tab_item.id)} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em',
-                color: tab === t.id ? EV.blue.bg : 'var(--muted)',
-                borderBottom: tab === t.id ? `2px solid ${EV.blue.bg}` : '2px solid transparent',
+                color: tab === tab_item.id ? EV.blue.bg : 'var(--muted)',
+                borderBottom: tab === tab_item.id ? `2px solid ${EV.blue.bg}` : '2px solid transparent',
                 padding: '0.5rem 0.875rem', transition: 'color 0.15s ease',
               }}>
-                {t.label}
+                {tab_item.label}
               </button>
             ))}
           </div>
@@ -1384,7 +1408,7 @@ function FullScreenTimeline({ events, properties, onClose }: { events: Scheduled
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--fg)' }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)' }}
         >
-          <Minimize2 size={15} /> Salir
+          <Minimize2 size={15} /> {t('dash.exitFullscreen')}
         </button>
       </header>
       <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '2rem' }}>
@@ -1401,6 +1425,7 @@ function FullScreenTimeline({ events, properties, onClose }: { events: Scheduled
 // ── Maintenance Timeline widget ────────────────────────────────────────────
 
 function MaintenanceTimeline({ events, properties }: { events: ScheduledEvent[]; properties: PropertyGeo[] }) {
+  const t = useFmT()
   const router = useRouter()
   const [viewMode, setViewMode] = useState<'gantt' | 'calendar'>('calendar')
   const [isFullScreen, setIsFullScreen] = useState(false)
@@ -1412,7 +1437,7 @@ function MaintenanceTimeline({ events, properties }: { events: ScheduledEvent[];
           <FmSectionLabel>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Calendar size={13} style={{ color: 'var(--primary)' }} />
-              Agenda
+              {t('dash.schedule')}
             </span>
           </FmSectionLabel>
           <div style={{ display: 'flex', background: 'var(--card-b)', borderRadius: 8, padding: 2, border: '1px solid var(--border)' }}>
@@ -1424,7 +1449,7 @@ function MaintenanceTimeline({ events, properties }: { events: ScheduledEvent[];
                 color: viewMode === mode ? '#fff' : 'var(--muted)',
                 transition: 'all 0.15s ease',
               }}>
-                {mode === 'calendar' ? '2 Semanas' : 'Gantt'}
+                {mode === 'calendar' ? t('dash.twoWeeks') : 'Gantt'}
               </button>
             ))}
           </div>
@@ -1432,7 +1457,7 @@ function MaintenanceTimeline({ events, properties }: { events: ScheduledEvent[];
         <button onClick={() => setIsFullScreen(true)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 4, display: 'flex', transition: 'color 0.15s' }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--primary)' }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)' }}
-          title="Pantalla completa"
+          title={t('dash.fullscreen')}
         >
           <Maximize2 size={18} />
         </button>
@@ -1453,6 +1478,7 @@ function MaintenanceTimeline({ events, properties }: { events: ScheduledEvent[];
 // ── Main Dashboard Page ────────────────────────────────────────────────────
 
 export default function FMDashboardPage() {
+  const t = useFmT()
   const [data, setData]       = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
@@ -1483,8 +1509,8 @@ export default function FMDashboardPage() {
   if (error || !data) return (
     <div style={{ padding: '4rem 0', textAlign: 'center' }}>
       <AlertTriangle size={32} style={{ color: 'var(--amber)', margin: '0 auto 0.75rem' }} />
-      <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>{error ?? 'Sin datos'}</p>
-      <button onClick={load} style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>Reintentar</button>
+      <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>{error ?? t('error.generic')}</p>
+      <button onClick={load} style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>{t('retry')}</button>
     </div>
   )
 
@@ -1493,19 +1519,19 @@ export default function FMDashboardPage() {
 
       {/* ── Header ── */}
       <div style={{ marginBottom: '0.25rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--fg)', margin: 0 }}>Resumen</h1>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--fg)', margin: 0 }}>{t('prop.detail.tab.overview')}</h1>
         <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
-          Inteligencia de portafolio — centros, activos e inspecciones
+          {t('dash.subtitle')}
         </p>
       </div>
 
       {/* ── Row 1: 5 equal stat cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.875rem' }}>
-        <StatCard icon={<Building2 size={18} />}       label="Total de Centros"       value={data.properties.total}       sub={`${data.properties.active} activos`}              accent="primary" href="/dashboard/fm/properties" />
-        <StatCard icon={<ClipboardCheck size={18} />}  label="Próximas Inspecciones"  value={data.upcomingInspections}    sub="Próximos 30 días"                                 accent="violet"  active={data.upcomingInspections > 0} href="/dashboard/fm/inspections" />
-        <StatCard icon={<Wrench size={18} />}          label="Órdenes Abiertas"       value={data.workOrders.open}        sub={`${data.workOrders.inProgress} en progreso`}     accent="amber"   href="/dashboard/fm/work-orders" />
-        <StatCard icon={<AlertTriangle size={18} />}   label="Órdenes Vencidas"       value={data.overdueWorkOrders}                                                              accent="red"     active={data.overdueWorkOrders > 0} href="/dashboard/fm/work-orders?filter=OVERDUE" />
-        <StatCard icon={<Activity size={18} />}        label="Tasa de Cumplimiento"   value={data.complianceRate > 0 ? `${data.complianceRate}%` : '—'} sub="Puntaje prom." accent="teal"    trend={data.complianceRate >= 80 ? '↑ Al día' : data.complianceRate > 0 ? '↓ Atención' : undefined} href="/dashboard/fm/inspections" />
+        <StatCard icon={<Building2 size={18} />}       label={t('dash.totalSites')}      value={data.properties.total}       sub={`${data.properties.active} ${t('prop.status.ACTIVE').toLowerCase()}`}   accent="primary" href="/dashboard/fm/properties" />
+        <StatCard icon={<ClipboardCheck size={18} />}  label={t('dash.upcomingInsp')}    value={data.upcomingInspections}    sub={t('insp.fm.tab.inProgress')}                                              accent="violet"  active={data.upcomingInspections > 0} href="/dashboard/fm/inspections" />
+        <StatCard icon={<Wrench size={18} />}          label={t('dash.openWO')}          value={data.workOrders.open}        sub={`${data.workOrders.inProgress} ${t('wo.fm.tab.inProgress').toLowerCase()}`} accent="amber"   href="/dashboard/fm/work-orders" />
+        <StatCard icon={<AlertTriangle size={18} />}   label={t('dash.overdueWO')}       value={data.overdueWorkOrders}                                                                                         accent="red"     active={data.overdueWorkOrders > 0} href="/dashboard/fm/work-orders?filter=OVERDUE" />
+        <StatCard icon={<Activity size={18} />}        label={t('dash.complianceRate')}  value={data.complianceRate > 0 ? `${data.complianceRate}%` : '—'} sub={t('ana.insp.avgScore')} accent="teal"    trend={data.complianceRate >= 80 ? '↑' : data.complianceRate > 0 ? '↓' : undefined} href="/dashboard/fm/inspections" />
       </div>
 
       {/* ── Charts row: InspectionChart (left 3fr) + RiskAssessmentChart (right 2fr) ── */}
@@ -1532,8 +1558,8 @@ export default function FMDashboardPage() {
           {/* Map — explicit height so MapLibre canvas renders */}
           <div style={{ height: 360, borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border)', position: 'relative', flexShrink: 0, boxShadow: 'var(--shadow)' }}>
             <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, background: 'var(--card)', backdropFilter: 'blur(12px)', border: '1px solid var(--border)', borderRadius: 10, padding: '0.45rem 0.75rem' }}>
-              <p style={{ fontSize: '0.53rem', fontWeight: 900, color: 'var(--faint)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 0.25rem' }}>Leyenda</p>
-              {[{ color: '#34d399', label: 'Activo' }, { color: '#fbbf24', label: 'Inactivo' }, { color: '#fb7185', label: 'Archivado' }].map(({ color, label }) => (
+              <p style={{ fontSize: '0.53rem', fontWeight: 900, color: 'var(--faint)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 0.25rem' }}>{t('prop.detail.tile.risk')}</p>
+              {[{ color: '#34d399', label: t('prop.status.ACTIVE') }, { color: '#fbbf24', label: t('prop.status.INACTIVE') }, { color: '#fb7185', label: t('prop.status.MAINTENANCE') }].map(({ color, label }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.62rem', color: 'var(--muted)', marginBottom: 2 }}>
                   <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
                   {label}

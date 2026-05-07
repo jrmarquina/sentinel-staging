@@ -6,6 +6,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { ArrowLeft, MapPin, Loader2, AlertTriangle, Plus, ClipboardCheck, Wrench, Info, Camera, X } from 'lucide-react'
 import { FmCard, FmBadge, FmButton, FmModal, FmModalFooter, statusVariant } from '@/components/fm'
+import { useFmT, useLocale } from '@/lib/locale'
 
 // ── MapView (SSR-disabled) ────────────────────────────────────────────────
 
@@ -70,6 +71,7 @@ function propGradient(id: string) {
 // ── Add Asset Modal ────────────────────────────────────────────────────────
 
 function AddAssetModal({ propertyId, onClose, onSaved }: { propertyId: string; onClose: () => void; onSaved: () => void }) {
+  const t = useFmT()
   const [form, setForm] = useState({ name: '', code: '', category: 'OTHER', condition: 'GOOD' })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -85,12 +87,12 @@ function AddAssetModal({ propertyId, onClose, onSaved }: { propertyId: string; o
         body: JSON.stringify({ ...form, code: form.code.toUpperCase(), property_id: propertyId }),
       })
       if (res.ok) { onSaved(); onClose() }
-      else { const b = await res.json() as { error?: string }; setErr(b.error ?? 'Error') }
+      else { const b = await res.json() as { error?: string }; setErr(b.error ?? t('error.generic')) }
     } finally { setSaving(false) }
   }
 
   return (
-    <FmModal open onClose={onClose} title="Agregar Activo" subtitle="Registrar un activo en esta propiedad">
+    <FmModal open onClose={onClose} title={t('prop.detail.addAsset')} subtitle="Registrar un activo en esta propiedad">
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {err && <div style={{ background: 'var(--red-c)', border: '1px solid var(--red)', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: 'var(--red)' }}>{err}</div>}
         <input className="fm-input" type="text" placeholder="Nombre *" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
@@ -102,8 +104,8 @@ function AddAssetModal({ propertyId, onClose, onSaved }: { propertyId: string; o
           {['GOOD','FAIR','POOR'].map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <FmModalFooter>
-          <FmButton type="button" variant="secondary" size="sm" onClick={onClose}>Cancelar</FmButton>
-          <FmButton type="submit" size="sm" loading={saving}>Agregar Activo</FmButton>
+          <FmButton type="button" variant="secondary" size="sm" onClick={onClose}>{t('cancel')}</FmButton>
+          <FmButton type="submit" size="sm" loading={saving}>{t('prop.detail.addAsset')}</FmButton>
         </FmModalFooter>
       </form>
     </FmModal>
@@ -145,6 +147,8 @@ function InfoTile({ label, value }: { label: string; value: React.ReactNode }) {
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function FMPropertyDetailPage() {
+  const t = useFmT()
+  const { locale } = useLocale()
   const params   = useParams()
   const router   = useRouter()
   const id       = Array.isArray(params.id) ? params.id[0] : (params.id as string)
@@ -166,7 +170,7 @@ export default function FMPropertyDetailPage() {
     setLoading(true)
     Promise.all([
       fetch(`/api/fm/properties/${id}`).then((r) => {
-        if (!r.ok) throw new Error('Propiedad no encontrada')
+        if (!r.ok) throw new Error(t('prop.detail.notFound'))
         return r.json() as Promise<FmProperty>
       }),
       fetch(`/api/fm/work-orders?propertyId=${id}`).then((r) =>
@@ -174,7 +178,7 @@ export default function FMPropertyDetailPage() {
       ),
     ])
       .then(([prop, wos]) => { setProperty(prop); setWorkOrders(wos) })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : t('error.generic')))
       .finally(() => setLoading(false))
   }
 
@@ -191,11 +195,11 @@ export default function FMPropertyDetailPage() {
       const res = await fetch(`/api/fm/properties/${id}/image`, { method: 'POST', body: fd })
       if (!res.ok) {
         const body = await res.json() as { error?: string }
-        throw new Error(body.error ?? 'Error al subir la imagen')
+        throw new Error(body.error ?? t('error.generic'))
       }
       load() // refresh property to show new cover_image_url
     } catch (err: unknown) {
-      setCoverError(err instanceof Error ? err.message : 'Error al subir la imagen')
+      setCoverError(err instanceof Error ? err.message : t('error.generic'))
     } finally {
       setCoverUploading(false)
       e.target.value = ''
@@ -209,7 +213,7 @@ export default function FMPropertyDetailPage() {
       await fetch(`/api/fm/properties/${id}/image`, { method: 'DELETE' })
       load()
     } catch {
-      setCoverError('Error al eliminar la imagen')
+      setCoverError(t('error.generic'))
     } finally {
       setCoverUploading(false)
     }
@@ -226,8 +230,8 @@ export default function FMPropertyDetailPage() {
   // Animate the integrity score bar
   useEffect(() => {
     if (integrity) {
-      const t = setTimeout(() => setScoreWidth(integrity.score), 100)
-      return () => clearTimeout(t)
+      const timer = setTimeout(() => setScoreWidth(integrity.score), 100)
+      return () => clearTimeout(timer)
     }
   }, [integrity])
 
@@ -239,9 +243,9 @@ export default function FMPropertyDetailPage() {
     return (
       <div style={{ textAlign: 'center', padding: '4rem 0' }}>
         <AlertTriangle size={28} style={{ color: 'var(--red)', margin: '0 auto 0.75rem' }} />
-        <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '1rem' }}>{error ?? 'Propiedad no encontrada'}</p>
+        <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '1rem' }}>{error ?? t('prop.detail.notFound')}</p>
         <FmButton variant="secondary" size="sm" onClick={() => router.push('/dashboard/fm/properties')}>
-          ← Volver a Propiedades
+          {t('prop.detail.backBtn')}
         </FmButton>
       </div>
     )
@@ -252,10 +256,10 @@ export default function FMPropertyDetailPage() {
   const attachments = property.fm_attachments ?? []
 
   const TABS: { value: SubTab; label: string; count: number }[] = [
-    { value: 'overview',     label: 'Resumen',           count: 0 },
-    { value: 'assets',       label: 'Activos',           count: assets.length },
-    { value: 'inspections',  label: 'Inspecciones',      count: inspections.length },
-    { value: 'work-orders',  label: 'Órdenes de Trabajo', count: workOrders.length },
+    { value: 'overview',     label: t('prop.detail.tab.overview'), count: 0 },
+    { value: 'assets',       label: t('prop.detail.tab.assets'),   count: assets.length },
+    { value: 'inspections',  label: t('prop.detail.tab.insp'),     count: inspections.length },
+    { value: 'work-orders',  label: t('prop.detail.tab.wo'),       count: workOrders.length },
   ]
 
   const propVariant = statusVariant(property.status)
@@ -270,6 +274,8 @@ export default function FMPropertyDetailPage() {
     color: property.status === 'ACTIVE' ? '#34d399' : property.status === 'INACTIVE' ? '#fb7185' : '#fbbf24',
     label: property.name,
   }] : []
+
+  const dateLocale = locale === 'es' ? 'es-PR' : 'en-US'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -332,7 +338,7 @@ export default function FMPropertyDetailPage() {
                 {coverUploading
                   ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
                   : <Camera size={12} />}
-                {property.cover_image_url ? 'Cambiar foto' : 'Subir foto'}
+                {property.cover_image_url ? t('prop.detail.changePhoto') : t('prop.detail.uploadPhoto')}
                 <input
                   type="file" accept="image/jpeg,image/png,image/webp"
                   style={{ display: 'none' }}
@@ -343,7 +349,7 @@ export default function FMPropertyDetailPage() {
               {property.cover_image_url && !coverUploading && (
                 <button
                   onClick={handleCoverDelete}
-                  title="Eliminar foto"
+                  title={t('prop.detail.removePhoto')}
                   style={{
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     width: 30, height: 30,
@@ -371,17 +377,17 @@ export default function FMPropertyDetailPage() {
           <div>
             <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: '1.25rem', justifyContent: 'space-between', alignItems: 'flex-end' }}>
               <div style={{ display: 'flex' }}>
-                {TABS.map((t) => <Tab key={t.value} label={t.label} count={t.count} active={activeTab === t.value} onClick={() => setActiveTab(t.value)} />)}
+                {TABS.map((tab) => <Tab key={tab.value} label={tab.label} count={tab.count} active={activeTab === tab.value} onClick={() => setActiveTab(tab.value)} />)}
               </div>
               <div style={{ paddingBottom: '0.5rem' }}>
                 {activeTab === 'assets' && (
                   <FmButton icon={<Plus size={13} />} size="sm" onClick={() => setShowAddAsset(true)}>
-                    Agregar Activo
+                    {t('prop.detail.addAsset')}
                   </FmButton>
                 )}
                 {activeTab === 'inspections' && (
                   <Link href="/dashboard/fm/inspections" style={{ textDecoration: 'none' }}>
-                    <FmButton icon={<Plus size={13} />} size="sm">Iniciar Inspección</FmButton>
+                    <FmButton icon={<Plus size={13} />} size="sm">{t('prop.detail.startInsp')}</FmButton>
                   </Link>
                 )}
               </div>
@@ -392,11 +398,11 @@ export default function FMPropertyDetailPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {/* Info tiles */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.75rem' }}>
-                  <InfoTile label="Activos"             value={assets.length} />
-                  <InfoTile label="Inspecciones"        value={inspections.length} />
-                  <InfoTile label="Órdenes de Trabajo"  value={workOrders.length} />
-                  <InfoTile label="Adjuntos"            value={attachments.length} />
-                  {property.risk_level && <InfoTile label="Nivel de Riesgo" value={<FmBadge variant={statusVariant(property.risk_level)}>{property.risk_level}</FmBadge>} />}
+                  <InfoTile label={t('prop.detail.tile.assets')}  value={assets.length} />
+                  <InfoTile label={t('prop.detail.tile.insp')}    value={inspections.length} />
+                  <InfoTile label={t('prop.detail.tile.wo')}      value={workOrders.length} />
+                  <InfoTile label={t('prop.detail.tile.docs')}    value={attachments.length} />
+                  {property.risk_level && <InfoTile label={t('prop.detail.tile.risk')} value={<FmBadge variant={statusVariant(property.risk_level)}>{property.risk_level}</FmBadge>} />}
                   {property.latitude != null && property.longitude != null && (
                     <InfoTile label="GPS" value={<span style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{property.latitude.toFixed(4)}, {property.longitude.toFixed(4)}</span>} />
                   )}
@@ -422,12 +428,12 @@ export default function FMPropertyDetailPage() {
                 {assets.length === 0 ? (
                   <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
                     <Wrench size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
-                    No hay activos en esta propiedad
+                    {t('prop.detail.assetEmpty')}
                   </div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table className="fm-table">
-                      <thead><tr><th>Activo</th><th>Categoría</th><th>Ubicación</th><th>Condición</th></tr></thead>
+                      <thead><tr><th>{t('asset.col.name')}</th><th>{t('asset.col.category')}</th><th>{t('asset.form.location')}</th><th>{t('asset.col.condition')}</th></tr></thead>
                       <tbody>
                         {assets.map((a) => (
                           <tr key={a.id} onClick={() => router.push(`/dashboard/fm/assets/${a.id}`)} style={{ cursor: 'pointer' }}>
@@ -450,19 +456,19 @@ export default function FMPropertyDetailPage() {
                 {inspections.length === 0 ? (
                   <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
                     <ClipboardCheck size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
-                    No hay inspecciones aún
+                    {t('prop.detail.inspEmpty')}
                   </div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table className="fm-table">
-                      <thead><tr><th>Plantilla</th><th>Estado</th><th>Puntaje</th><th>Fecha</th></tr></thead>
+                      <thead><tr><th>{t('insp.fm.col.template')}</th><th>{t('insp.fm.col.status')}</th><th>{t('insp.fm.col.score')}</th><th>{t('insp.fm.col.date')}</th></tr></thead>
                       <tbody>
                         {inspections.map((insp) => (
                           <tr key={insp.id} onClick={() => router.push(`/dashboard/fm/inspections/${insp.id}`)} style={{ cursor: 'pointer' }}>
                             <td style={{ fontWeight: 500, color: 'var(--fg)' }}>{insp.fm_inspection_templates?.name ?? '—'}</td>
                             <td><FmBadge variant={statusVariant(insp.status)}>{insp.status.replace(/_/g,' ')}</FmBadge></td>
                             <td style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>{insp.score != null ? `${insp.score}%` : '—'}</td>
-                            <td style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>{insp.started_at ? new Date(insp.started_at).toLocaleDateString('es-PR') : '—'}</td>
+                            <td style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>{insp.started_at ? new Date(insp.started_at).toLocaleDateString(dateLocale) : '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -478,12 +484,12 @@ export default function FMPropertyDetailPage() {
                 {workOrders.length === 0 ? (
                   <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
                     <Wrench size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
-                    No hay órdenes de trabajo para esta propiedad
+                    {t('prop.detail.woEmpty')}
                   </div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table className="fm-table">
-                      <thead><tr><th>Título</th><th>Prioridad</th><th>Estado</th><th>Vencimiento</th></tr></thead>
+                      <thead><tr><th>{t('wo.fm.form.title')}</th><th>{t('wo.fm.form.priority')}</th><th>{t('insp.fm.col.status')}</th><th>{t('wo.fm.form.dueDate')}</th></tr></thead>
                       <tbody>
                         {workOrders.map((wo) => {
                           const isOverdue = wo.due_date && new Date(wo.due_date) < new Date() && wo.status !== 'COMPLETED'
@@ -495,7 +501,7 @@ export default function FMPropertyDetailPage() {
                               <td><FmBadge variant={statusVariant(wo.priority)}>{wo.priority}</FmBadge></td>
                               <td><FmBadge variant={statusVariant(wo.status)}>{wo.status.replace(/_/g,' ')}</FmBadge></td>
                               <td style={{ fontSize: '0.8rem', color: isOverdue ? 'var(--red)' : 'var(--muted)', fontWeight: isOverdue ? 700 : 400 }}>
-                                {wo.due_date ? new Date(wo.due_date).toLocaleDateString('es-PR') : '—'}
+                                {wo.due_date ? new Date(wo.due_date).toLocaleDateString(dateLocale) : '—'}
                               </td>
                             </tr>
                           )
@@ -520,13 +526,13 @@ export default function FMPropertyDetailPage() {
           }}>
             {/* Header */}
             <p style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--primary)', margin: '0 0 1rem' }}>
-              Integridad del Sitio
+              {t('prop.detail.integrity')}
             </p>
 
             {integrity == null ? (
               <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--muted)', fontSize: '0.8rem' }}>
                 <Loader2 size={20} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 0.5rem', display: 'block' }} />
-                Cargando…
+                {t('loading')}
               </div>
             ) : (
               <>
@@ -548,7 +554,7 @@ export default function FMPropertyDetailPage() {
 
                 {/* Gap items */}
                 {integrity.gaps.length === 0 ? (
-                  <p style={{ fontSize: '0.8rem', color: 'var(--muted)', textAlign: 'center', padding: '0.75rem 0' }}>No se encontraron problemas</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--muted)', textAlign: 'center', padding: '0.75rem 0' }}>{t('prop.detail.noIssues')}</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                     {integrity.gaps.map((gap, i) => (
@@ -574,7 +580,7 @@ export default function FMPropertyDetailPage() {
                               padding: 0, textDecoration: 'underline',
                             }}
                           >
-                            → Corregir
+                            {t('prop.detail.fix')}
                           </button>
                         </div>
                       </div>

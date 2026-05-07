@@ -11,6 +11,7 @@ import {
   FmModalFooter, FmSectionLabel, statusVariant,
 } from '@/components/fm'
 import { createClient } from '@/lib/supabase/client'
+import { useFmT, useLocale } from '@/lib/locale'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -69,13 +70,6 @@ const CATEGORIES: { value: string; label: string }[] = [
   { value: 'ROTULACION',         label: 'Rotulación' },
 ]
 
-const ASSIGNEE_TYPES: { value: string; label: string }[] = [
-  { value: 'HS_STAFF',           label: 'Head Start Staff' },
-  { value: 'MUNICIPALITY',       label: 'Municipio' },
-  { value: 'EXTERNAL_SUPPLIER',  label: 'Suplidor Externo' },
-  { value: 'DIRECTOR_REFERRAL',  label: 'Referido al Director' },
-]
-
 const PRIORITIES = ['HIGH', 'MEDIUM', 'LOW'] as const
 
 const PRIORITY_ORDER: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 }
@@ -91,15 +85,6 @@ const WORKER_STATUS_TRANSITIONS: Record<string, string[]> = {
   OPEN:        ['IN_PROGRESS'],
   IN_PROGRESS: ['COMPLETED'],
 }
-
-const ALL_FILTER_TABS: { value: FilterTab; label: string; managerOnly?: boolean }[] = [
-  { value: 'ALL',            label: 'Todas' },
-  { value: 'PENDING_REVIEW', label: 'Por Revisar', managerOnly: true },
-  { value: 'OVERDUE',        label: 'Vencidas' },
-  { value: 'OPEN',           label: 'Abiertas' },
-  { value: 'IN_PROGRESS',    label: 'En Proceso' },
-  { value: 'COMPLETED',      label: 'Completadas' },
-]
 
 const EMPTY_FORM: CreateForm = {
   title: '', description: '', priority: 'MEDIUM',
@@ -139,13 +124,6 @@ function priorityVariant(p: string) {
          p === 'MEDIUM' ? 'warning' as const : 'success' as const
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDING_REVIEW: 'Por Revisar',
-  OPEN:           'Abierta',
-  IN_PROGRESS:    'En Proceso',
-  COMPLETED:      'Completada',
-}
-
 // ── Status popover ─────────────────────────────────────────────────────────
 
 function StatusPopover({
@@ -155,9 +133,17 @@ function StatusPopover({
   isManager: boolean
   onUpdate: (id: string, status: string) => void
 }) {
+  const t = useFmT()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+
+  const STATUS_LABELS: Record<string, string> = {
+    PENDING_REVIEW: t('wo.fm.status.PENDING_REVIEW'),
+    OPEN:           t('wo.fm.status.OPEN'),
+    IN_PROGRESS:    t('wo.fm.status.IN_PROGRESS'),
+    COMPLETED:      t('wo.fm.status.COMPLETED'),
+  }
 
   const transitionMap = isManager ? MANAGER_STATUS_TRANSITIONS : WORKER_STATUS_TRANSITIONS
   const transitions   = transitionMap[wo.status] ?? []
@@ -261,10 +247,19 @@ function WoCard({
   isManager: boolean
   onStatusUpdate: (id: string, status: string) => void
 }) {
+  const t = useFmT()
+  const { locale } = useLocale()
   const overdue    = overdueWo(wo)
   const isPending  = wo.status === 'PENDING_REVIEW'
   const cardRef    = useRef<HTMLDivElement>(null)
   const catLabel   = categoryLabel(wo.category)
+
+  const ASSIGNEE_TYPES: { value: string; label: string }[] = [
+    { value: 'HS_STAFF',           label: t('wo.fm.assignee.HS_STAFF') },
+    { value: 'MUNICIPALITY',       label: t('wo.fm.assignee.MUNICIPALITY') },
+    { value: 'EXTERNAL_SUPPLIER',  label: t('wo.fm.assignee.EXTERNAL_SUPPLIER') },
+    { value: 'DIRECTOR_REFERRAL',  label: t('wo.fm.assignee.DIRECTOR_REFERRAL') },
+  ]
 
   useEffect(() => {
     if (!focused) return
@@ -356,8 +351,8 @@ function WoCard({
             color: overdue ? 'var(--red)' : 'var(--muted)', fontWeight: overdue ? 700 : 400,
           }}>
             <Clock size={11} />
-            {overdue ? 'Vencida · ' : 'Vence '}
-            {new Date(wo.due_date).toLocaleDateString('es-PR', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {overdue ? t('wo.fm.overdueDue') : t('wo.fm.due')}
+            {new Date(wo.due_date).toLocaleDateString(locale === 'es' ? 'es-PR' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
         )}
       </div>
@@ -379,6 +374,15 @@ function ManagerCreateForm({
   onSubmit:    (e: React.FormEvent) => void
   onClose:     () => void
 }) {
+  const t = useFmT()
+
+  const ASSIGNEE_TYPES: { value: string; label: string }[] = [
+    { value: 'HS_STAFF',           label: t('wo.fm.assignee.HS_STAFF') },
+    { value: 'MUNICIPALITY',       label: t('wo.fm.assignee.MUNICIPALITY') },
+    { value: 'EXTERNAL_SUPPLIER',  label: t('wo.fm.assignee.EXTERNAL_SUPPLIER') },
+    { value: 'DIRECTOR_REFERRAL',  label: t('wo.fm.assignee.DIRECTOR_REFERRAL') },
+  ]
+
   return (
     <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
       {formError && (
@@ -391,12 +395,12 @@ function ManagerCreateForm({
         {/* Title */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Título <span style={{ color: 'var(--red)' }}>*</span>
+            {t('wo.fm.form.title')} <span style={{ color: 'var(--red)' }}>*</span>
           </label>
           <input className="fm-input" type="text"
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            placeholder="Reemplazar filtro HVAC — Edificio A"
+            placeholder={t('wo.fm.form.titlePlaceholder')}
             autoFocus
           />
         </div>
@@ -404,19 +408,19 @@ function ManagerCreateForm({
         {/* Category */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Categoría <span style={{ color: 'var(--red)' }}>*</span>
+            {t('wo.fm.form.category')} <span style={{ color: 'var(--red)' }}>*</span>
           </label>
           <select className="fm-input" value={form.category}
             onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
             style={{ appearance: 'none' }}>
-            <option value="">— Seleccionar categoría —</option>
+            <option value="">{t('wo.fm.form.selectCat')}</option>
             {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
 
         {/* Priority */}
         <div>
-          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Prioridad</label>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>{t('wo.fm.form.priority')}</label>
           <select className="fm-input" value={form.priority}
             onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
             style={{ appearance: 'none' }}>
@@ -427,7 +431,7 @@ function ManagerCreateForm({
         {/* Due date */}
         <div>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Fecha Límite <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
+            {t('wo.fm.form.dueDate')} <span style={{ color: 'var(--faint)', fontWeight: 400 }}>({t('optional')})</span>
           </label>
           <input className="fm-input" type="date" value={form.due_date}
             onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
@@ -437,12 +441,12 @@ function ManagerCreateForm({
         {/* Assignee type */}
         <div>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Tipo de Asignación <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
+            {t('wo.fm.form.assigneeType')} <span style={{ color: 'var(--faint)', fontWeight: 400 }}>({t('optional')})</span>
           </label>
           <select className="fm-input" value={form.assignee_type}
             onChange={(e) => setForm((f) => ({ ...f, assignee_type: e.target.value, assigned_to_id: '' }))}
             style={{ appearance: 'none' }}>
-            <option value="">— Sin asignar —</option>
+            <option value="">{t('wo.fm.form.unassigned')}</option>
             {ASSIGNEE_TYPES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>
         </div>
@@ -451,12 +455,12 @@ function ManagerCreateForm({
         {(form.assignee_type === 'HS_STAFF' || form.assignee_type === 'MUNICIPALITY') && (
           <div>
             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-              Asignar A <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
+              {t('wo.fm.form.assignTo')} <span style={{ color: 'var(--faint)', fontWeight: 400 }}>({t('optional')})</span>
             </label>
             <select className="fm-input" value={form.assigned_to_id}
               onChange={(e) => setForm((f) => ({ ...f, assigned_to_id: e.target.value }))}
               style={{ appearance: 'none' }}>
-              <option value="">— Seleccionar persona —</option>
+              <option value="">{t('wo.fm.form.pickPerson')}</option>
               {fmUsers.map((u) => (
                 <option key={u.id} value={u.id}>{u.full_name ?? u.email}</option>
               ))}
@@ -466,11 +470,11 @@ function ManagerCreateForm({
 
         {/* Property */}
         <div style={{ gridColumn: '1 / -1' }}>
-          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Centro / Propiedad</label>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>{t('wo.fm.form.property')}</label>
           <select className="fm-input" value={form.property_id}
             onChange={(e) => setForm((f) => ({ ...f, property_id: e.target.value }))}
             style={{ appearance: 'none' }}>
-            <option value="">— Ninguno —</option>
+            <option value="">{t('wo.fm.form.none')}</option>
             {properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
@@ -478,21 +482,21 @@ function ManagerCreateForm({
         {/* Description */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Descripción <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
+            {t('wo.fm.form.description')} <span style={{ color: 'var(--faint)', fontWeight: 400 }}>({t('optional')})</span>
           </label>
           <textarea className="fm-input" rows={3}
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            placeholder="Describe el problema o tarea de mantenimiento…"
+            placeholder={t('wo.fm.form.descPlaceholder')}
             style={{ resize: 'vertical', minHeight: 70 }}
           />
         </div>
       </div>
 
       <FmModalFooter>
-        <FmButton type="button" variant="secondary" size="sm" onClick={onClose}>Cancelar</FmButton>
+        <FmButton type="button" variant="secondary" size="sm" onClick={onClose}>{t('wo.fm.form.cancel')}</FmButton>
         <FmButton type="submit" size="sm" loading={saving}>
-          {saving ? 'Creando…' : 'Crear Orden de Trabajo'}
+          {saving ? t('wo.fm.form.creating') : t('wo.fm.form.createBtn')}
         </FmButton>
       </FmModalFooter>
     </form>
@@ -512,6 +516,8 @@ function ContributorCreateForm({
   onSubmit:   (e: React.FormEvent) => void
   onClose:    () => void
 }) {
+  const t = useFmT()
+
   return (
     <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
       {formError && (
@@ -522,19 +528,19 @@ function ContributorCreateForm({
 
       {/* Info banner */}
       <div style={{ background: 'var(--primary-c)', border: '1px solid var(--primary)', borderRadius: 8, padding: '0.625rem 0.875rem', fontSize: '0.78rem', color: 'var(--primary)', lineHeight: 1.5 }}>
-        Tu solicitud será enviada al Gerente de Facilidades para revisión y asignación.
+        {t('wo.fm.modal.contribBanner')}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         {/* Title */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Título del Problema <span style={{ color: 'var(--red)' }}>*</span>
+            {t('wo.fm.form.title')} <span style={{ color: 'var(--red)' }}>*</span>
           </label>
           <input className="fm-input" type="text"
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            placeholder="Fuga en el fregadero — Cafetería Edificio B"
+            placeholder={t('wo.fm.form.contribTitlePlaceholder')}
             autoFocus
           />
         </div>
@@ -542,23 +548,23 @@ function ContributorCreateForm({
         {/* Category */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Categoría <span style={{ color: 'var(--red)' }}>*</span>
+            {t('wo.fm.form.category')} <span style={{ color: 'var(--red)' }}>*</span>
           </label>
           <select className="fm-input" value={form.category}
             onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
             style={{ appearance: 'none' }}>
-            <option value="">— Seleccionar categoría —</option>
+            <option value="">{t('wo.fm.form.selectCat')}</option>
             {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
 
         {/* Property */}
         <div style={{ gridColumn: '1 / -1' }}>
-          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Centro / Ubicación</label>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>{t('wo.fm.form.propertyLocation')}</label>
           <select className="fm-input" value={form.property_id}
             onChange={(e) => setForm((f) => ({ ...f, property_id: e.target.value }))}
             style={{ appearance: 'none' }}>
-            <option value="">— No estoy seguro/a —</option>
+            <option value="">{t('wo.fm.form.notSure')}</option>
             {properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
@@ -566,7 +572,7 @@ function ContributorCreateForm({
         {/* Due date */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Fecha de Urgencia <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional — fecha en que necesitas resolución)</span>
+            {t('wo.fm.form.urgencyDate')} <span style={{ color: 'var(--faint)', fontWeight: 400 }}>({t('wo.fm.form.urgencyDateHint')})</span>
           </label>
           <input className="fm-input" type="date" value={form.due_date}
             onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
@@ -576,21 +582,21 @@ function ContributorCreateForm({
         {/* Description */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Descripción <span style={{ color: 'var(--red)' }}>*</span>
+            {t('wo.fm.form.description')} <span style={{ color: 'var(--red)' }}>*</span>
           </label>
           <textarea className="fm-input" rows={4}
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            placeholder="Describe el problema con detalle. Incluye ubicación, gravedad y cualquier observación relevante…"
+            placeholder={t('wo.fm.form.contribDescPlaceholder')}
             style={{ resize: 'vertical', minHeight: 90 }}
           />
         </div>
       </div>
 
       <FmModalFooter>
-        <FmButton type="button" variant="secondary" size="sm" onClick={onClose}>Cancelar</FmButton>
+        <FmButton type="button" variant="secondary" size="sm" onClick={onClose}>{t('wo.fm.form.cancel')}</FmButton>
         <FmButton type="submit" size="sm" loading={saving}>
-          {saving ? 'Enviando…' : 'Enviar Solicitud'}
+          {saving ? t('wo.fm.form.submitting') : t('wo.fm.form.submitBtn')}
         </FmButton>
       </FmModalFooter>
     </form>
@@ -600,6 +606,8 @@ function ContributorCreateForm({
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function FMWorkOrdersPage() {
+  const t = useFmT()
+  const { locale } = useLocale()
   const searchParams = useSearchParams()
   const focusId = searchParams.get('focus')
 
@@ -622,6 +630,16 @@ export default function FMWorkOrdersPage() {
   const [saving,      setSaving]      = useState(false)
   const [formError,   setFormError]   = useState<string | null>(null)
 
+  // Locale-dependent maps defined inside the component
+  const ALL_FILTER_TABS: { value: FilterTab; label: string; managerOnly?: boolean }[] = [
+    { value: 'ALL',            label: t('wo.fm.tab.all') },
+    { value: 'PENDING_REVIEW', label: t('wo.fm.tab.pendingReview'), managerOnly: true },
+    { value: 'OVERDUE',        label: t('wo.fm.tab.overdue') },
+    { value: 'OPEN',           label: t('wo.fm.tab.open') },
+    { value: 'IN_PROGRESS',    label: t('wo.fm.tab.inProgress') },
+    { value: 'COMPLETED',      label: t('wo.fm.tab.completed') },
+  ]
+
   // ── Load FM access level from get_my_profile RPC ──────────────────────
   useEffect(() => {
     const supabase = createClient()
@@ -643,7 +661,7 @@ export default function FMWorkOrdersPage() {
     setLoading(true)
     Promise.all([
       fetch('/api/fm/work-orders').then((r) => {
-        if (!r.ok) throw new Error('Error al cargar las órdenes de trabajo')
+        if (!r.ok) throw new Error(t('wo.fm.err.load'))
         return r.json() as Promise<FmWorkOrder[]>
       }),
       fetch('/api/fm/properties').then((r) => r.json() as Promise<FmProperty[]>),
@@ -660,7 +678,7 @@ export default function FMWorkOrdersPage() {
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [t])
 
   // Fetch FM users for assignee picker (managers only, after level is known)
   useEffect(() => {
@@ -691,9 +709,9 @@ export default function FMWorkOrdersPage() {
     e.preventDefault()
     setFormError(null)
 
-    if (!form.title.trim()) { setFormError('El título es requerido'); return }
-    if (!form.category)     { setFormError('La categoría es requerida'); return }
-    if (isContributor && !form.description.trim()) { setFormError('La descripción es requerida'); return }
+    if (!form.title.trim()) { setFormError(t('wo.fm.err.title')); return }
+    if (!form.category)     { setFormError(t('wo.fm.err.category')); return }
+    if (isContributor && !form.description.trim()) { setFormError(t('wo.fm.err.description')); return }
 
     const payload: Record<string, unknown> = {
       title:       form.title.trim(),
@@ -719,7 +737,7 @@ export default function FMWorkOrdersPage() {
       })
       if (!res.ok) {
         const body = await res.json() as { error?: string }
-        throw new Error(body.error ?? 'Error al crear la orden de trabajo')
+        throw new Error(body.error ?? t('wo.fm.err.create'))
       }
       closeCreate()
       load()
@@ -731,7 +749,7 @@ export default function FMWorkOrdersPage() {
   }
 
   // ── Filter ─────────────────────────────────────────────────────────────
-  const visibleTabs = ALL_FILTER_TABS.filter((t) => !t.managerOnly || isManager)
+  const visibleTabs = ALL_FILTER_TABS.filter((tab) => !tab.managerOnly || isManager)
 
   const filtered = workOrders.filter((wo) => {
     const q = search.toLowerCase()
@@ -765,24 +783,24 @@ export default function FMWorkOrdersPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Órdenes de Trabajo</h1>
+          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('wo.fm.title')}</h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
-            {workOrders.length} en total
+            {workOrders.length} {t('wo.fm.total')}
             {overdueCount > 0 && (
               <span style={{ color: 'var(--red)', fontWeight: 700, marginLeft: '0.4rem' }}>
-                · {overdueCount} vencida{overdueCount !== 1 ? 's' : ''}
+                · {overdueCount} {t('wo.fm.overdue')}
               </span>
             )}
             {isManager && pendingCount > 0 && (
               <span style={{ color: 'var(--amber)', fontWeight: 700, marginLeft: '0.4rem' }}>
-                · {pendingCount} por revisar
+                · {pendingCount} {t('wo.fm.pendingReview')}
               </span>
             )}
           </p>
         </div>
         {canCreate && levelReady && (
           <FmButton icon={<Plus size={15} />} onClick={() => setShowCreate(true)} size="sm">
-            {isManager ? 'Nueva Orden' : 'Enviar Solicitud'}
+            {isManager ? t('wo.fm.newBtn') : t('wo.fm.submitBtn')}
           </FmButton>
         )}
       </div>
@@ -792,7 +810,7 @@ export default function FMWorkOrdersPage() {
         <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', pointerEvents: 'none' }} />
         <input
           type="text"
-          placeholder="Buscar por título, descripción, categoría o propiedad…"
+          placeholder={t('wo.fm.search')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="fm-input"
@@ -807,11 +825,11 @@ export default function FMWorkOrdersPage() {
 
       {/* Filter pills */}
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-        {visibleTabs.map((t) => {
-          const active       = activeTab === t.value
-          const count        = tabCount(t.value)
-          const isOverdue    = t.value === 'OVERDUE'
-          const isPendingTab = t.value === 'PENDING_REVIEW'
+        {visibleTabs.map((tab) => {
+          const active       = activeTab === tab.value
+          const count        = tabCount(tab.value)
+          const isOverdue    = tab.value === 'OVERDUE'
+          const isPendingTab = tab.value === 'PENDING_REVIEW'
           const hasOverdue   = isOverdue && count > 0
           const hasPending   = isPendingTab && count > 0
 
@@ -824,8 +842,8 @@ export default function FMWorkOrdersPage() {
 
           return (
             <button
-              key={t.value}
-              onClick={() => setActiveTab(t.value)}
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
               style={{
                 padding: '0.3rem 0.75rem', borderRadius: 9999,
                 fontSize: '0.72rem', fontWeight: 700,
@@ -836,7 +854,7 @@ export default function FMWorkOrdersPage() {
                 display: 'flex', alignItems: 'center', gap: '0.35rem',
               }}
             >
-              {t.label}
+              {tab.label}
               <span style={{ opacity: 0.7, fontWeight: 800 }}>{count}</span>
             </button>
           )
@@ -852,16 +870,16 @@ export default function FMWorkOrdersPage() {
         <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--red)' }}>
           <AlertTriangle size={28} style={{ margin: '0 auto 0.75rem' }} />
           <p style={{ fontSize: '0.875rem' }}>{error}</p>
-          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>Reintentar</FmButton>
+          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>{t('wo.fm.retry')}</FmButton>
         </div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--muted)', fontSize: '0.875rem' }}>
           <ClipboardList size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
           {search || activeTab !== 'ALL'
-            ? 'Ninguna orden coincide con los filtros'
+            ? t('wo.fm.emptyFiltered')
             : isContributor
-              ? 'Todavía no has enviado ninguna solicitud'
-              : 'No hay órdenes de trabajo'}
+              ? t('wo.fm.emptyContributor')
+              : t('wo.fm.empty')}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.875rem' }}>
@@ -881,11 +899,11 @@ export default function FMWorkOrdersPage() {
       <FmModal
         open={showCreate}
         onClose={closeCreate}
-        title={isManager ? 'Nueva Orden de Trabajo' : 'Enviar Solicitud de Mantenimiento'}
+        title={isManager ? t('wo.fm.modal.managerTitle') : t('wo.fm.modal.contribTitle')}
         subtitle={
           isManager
-            ? 'Crea una orden de trabajo y asígnala directamente'
-            : 'Reporta un problema de facilidades para revisión del Gerente'
+            ? t('wo.fm.modal.managerSub')
+            : t('wo.fm.modal.contribSub')
         }
       >
         {isManager ? (

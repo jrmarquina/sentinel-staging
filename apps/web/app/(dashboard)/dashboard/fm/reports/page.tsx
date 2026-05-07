@@ -5,6 +5,7 @@ import {
   Download, Trash2, Loader2, AlertTriangle, FileBarChart,
   RefreshCw, BarChart3, Clock, CheckCircle2, AlertCircle, TrendingUp, Building2,
 } from 'lucide-react'
+import { useFmT } from '@/lib/locale'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -41,7 +42,7 @@ interface Analytics {
 type MainTab = 'REPORTS' | 'ANALYTICS'
 type ReportTab = 'ALL' | 'INSPECTION' | 'PORTFOLIO'
 
-// ── Spanish label maps ─────────────────────────────────────────────────────
+// ── Static label maps (non-UI, always the same) ────────────────────────────
 
 const CATEGORY_LABELS: Record<string, string> = {
   PLOMERIA: 'Plomería', CARPINTERIA: 'Carpintería', ELECTRICIDAD: 'Electricidad',
@@ -51,11 +52,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   CONTROL_ACCESO: 'Control de Acceso', CONTROL_PLAGAS: 'Control de Plagas',
   ESTRUCTURA: 'Estructura', FILTRACIONES: 'Filtraciones', GENERADOR: 'Generador',
   PINTURA: 'Pintura', POZO_SEPTICO: 'Pozo Séptico', ROTULACION: 'Rotulación',
-}
-const ASSIGNEE_LABELS: Record<string, string> = {
-  HS_STAFF: 'Head Start Staff', MUNICIPALITY: 'Municipio',
-  EXTERNAL_SUPPLIER: 'Suplidor Externo', DIRECTOR_REFERRAL: 'Referido al Director',
-  UNASSIGNED: 'Sin asignar',
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -67,12 +63,6 @@ const TYPE_BADGE: Record<string, string> = {
   PORTFOLIO_COMPLIANCE: 'bg-blue-100 text-blue-700',
   INSPECTION_DETAIL:    'bg-purple-100 text-purple-700',
 }
-
-const REPORT_TABS: { value: ReportTab; label: string }[] = [
-  { value: 'ALL',        label: 'Todos' },
-  { value: 'INSPECTION', label: 'Inspección' },
-  { value: 'PORTFOLIO',  label: 'Portafolio' },
-]
 
 function isInspectionReport(r: FmReport) { return r.type.toLowerCase().includes('inspection') }
 function isPortfolioReport(r: FmReport)  { return r.type.toLowerCase().includes('portfolio') }
@@ -139,6 +129,7 @@ function Sparkline({ data }: { data: { date: string; count: number }[] }) {
 // ── Analytics panel ────────────────────────────────────────────────────────
 
 function AnalyticsPanel() {
+  const t = useFmT()
   const [data, setData]   = useState<Analytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -154,6 +145,14 @@ function AnalyticsPanel() {
       .finally(() => setLoading(false))
   }, [])
 
+  const assigneeLabels: Record<string, string> = {
+    HS_STAFF:          t('wo.fm.assignee.HS_STAFF'),
+    MUNICIPALITY:      t('wo.fm.assignee.MUNICIPALITY'),
+    EXTERNAL_SUPPLIER: t('wo.fm.assignee.EXTERNAL_SUPPLIER'),
+    DIRECTOR_REFERRAL: t('wo.fm.assignee.DIRECTOR_REFERRAL'),
+    UNASSIGNED:        t('wo.fm.assignee.UNASSIGNED'),
+  }
+
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem 0' }}>
       <Loader2 size={26} style={{ animation: 'spin 1s linear infinite', color: 'var(--muted)' }} />
@@ -162,7 +161,7 @@ function AnalyticsPanel() {
   if (error || !data) return (
     <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--red)' }}>
       <AlertTriangle size={24} style={{ margin: '0 auto 0.75rem' }} />
-      <p style={{ fontSize: '0.875rem' }}>{error ?? 'No data'}</p>
+      <p style={{ fontSize: '0.875rem' }}>{error ?? t('ana.loadError')}</p>
     </div>
   )
 
@@ -175,18 +174,18 @@ function AnalyticsPanel() {
 
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
-        <StatCard label="Total OT"         value={summary.total} />
-        <StatCard label="Abiertas"         value={summary.open}          accent="var(--primary)" />
-        <StatCard label="En Proceso"       value={summary.inProgress}    accent="var(--amber)" />
-        <StatCard label="Completadas"      value={summary.completed}     accent="var(--teal)" />
-        <StatCard label="Por Revisar"      value={summary.pendingReview} accent={summary.pendingReview > 0 ? 'var(--amber)' : undefined} />
-        <StatCard label="Vencidas"         value={summary.overdue}       accent={summary.overdue > 0 ? 'var(--red)' : undefined} />
-        <StatCard label="Prioridad Alta"   value={summary.highPriority}  accent={summary.highPriority > 0 ? 'var(--red)' : undefined}
-          sub="abiertas / en proceso" />
+        <StatCard label={t('ana.totalWO')}       value={summary.total} />
+        <StatCard label={t('ana.open')}           value={summary.open}          accent="var(--primary)" />
+        <StatCard label={t('ana.inProgress')}     value={summary.inProgress}    accent="var(--amber)" />
+        <StatCard label={t('ana.completed')}      value={summary.completed}     accent="var(--teal)" />
+        <StatCard label={t('ana.pendingReview')}  value={summary.pendingReview} accent={summary.pendingReview > 0 ? 'var(--amber)' : undefined} />
+        <StatCard label={t('ana.overdue')}        value={summary.overdue}       accent={summary.overdue > 0 ? 'var(--red)' : undefined} />
+        <StatCard label={t('ana.highPriority')}   value={summary.highPriority}  accent={summary.highPriority > 0 ? 'var(--red)' : undefined}
+          sub={t('ana.openInProgress')} />
         <StatCard
-          label="Tiempo Prom."
+          label={t('ana.avgResolution')}
           value={avgResolutionHours != null ? formatHours(avgResolutionHours) : '—'}
-          sub="tiempo de resolución"
+          sub={t('ana.timeToComplete')}
         />
       </div>
 
@@ -194,7 +193,7 @@ function AnalyticsPanel() {
       <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '1rem 1.125rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.875rem' }}>
           <TrendingUp size={14} style={{ color: 'var(--teal)' }} />
-          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>Completadas — últimos 14 días</p>
+          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>{t('ana.sparklineLabel')}</p>
         </div>
         <Sparkline data={completionTrend} />
       </div>
@@ -205,10 +204,10 @@ function AnalyticsPanel() {
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '1rem 1.125rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.875rem' }}>
             <BarChart3 size={14} style={{ color: 'var(--primary)' }} />
-            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>WOs por Categoría</p>
+            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>{t('ana.byCategory')}</p>
           </div>
           {byCategory.length === 0 ? (
-            <p style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>No hay datos</p>
+            <p style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>{t('ana.noData')}</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
               {byCategory.map(({ category, count }) => (
@@ -228,7 +227,7 @@ function AnalyticsPanel() {
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '1rem 1.125rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.875rem' }}>
             <AlertCircle size={14} style={{ color: 'var(--red)' }} />
-            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>Por Prioridad</p>
+            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>{t('ana.byPriority')}</p>
           </div>
           {(['HIGH', 'MEDIUM', 'LOW'] as const).map((p) => {
             const count = byPriority[p] ?? 0
@@ -246,14 +245,14 @@ function AnalyticsPanel() {
           <div style={{ marginTop: '1.25rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
               <CheckCircle2 size={14} style={{ color: 'var(--teal)' }} />
-              <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>Por Tipo de Asignación</p>
+              <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>{t('ana.byAssignee')}</p>
             </div>
             {Object.entries(byAssigneeType)
               .sort((a, b) => b[1] - a[1])
               .map(([key, count]) => (
                 <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.45rem' }}>
                   <span style={{ fontSize: '0.7rem', color: 'var(--muted)', minWidth: 120, flexShrink: 0 }}>
-                    {ASSIGNEE_LABELS[key] ?? key.replace(/_/g, ' ')}
+                    {assigneeLabels[key] ?? key.replace(/_/g, ' ')}
                   </span>
                   <HBar value={count} max={summary.total || 1} color="var(--primary-c)" />
                   <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--fg)', minWidth: 20, textAlign: 'right' }}>{count}</span>
@@ -266,14 +265,14 @@ function AnalyticsPanel() {
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '1rem 1.125rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.875rem' }}>
             <Clock size={14} style={{ color: 'var(--amber)' }} />
-            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>Inspecciones</p>
+            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>{t('ana.inspections')}</p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             {[
-              { label: 'Total',       value: inspections.total },
-              { label: 'Completadas', value: inspections.completed },
-              { label: 'Puntaje Prom.', value: inspections.avgScore != null ? `${inspections.avgScore}%` : '—' },
-              { label: 'Tasa de Aprobación', value: inspections.passRate != null ? `${inspections.passRate}%` : '—' },
+              { label: t('ana.insp.total'),     value: inspections.total },
+              { label: t('ana.insp.completed'), value: inspections.completed },
+              { label: t('ana.insp.avgScore'),  value: inspections.avgScore != null ? `${inspections.avgScore}%` : '—' },
+              { label: t('ana.insp.passRate'),  value: inspections.passRate != null ? `${inspections.passRate}%` : '—' },
             ].map(({ label, value }) => (
               <div key={label} style={{ background: 'var(--card-b)', borderRadius: 8, padding: '0.625rem 0.75rem' }}>
                 <p style={{ margin: 0, fontSize: '0.68rem', color: 'var(--muted)', fontWeight: 600 }}>{label}</p>
@@ -290,14 +289,18 @@ function AnalyticsPanel() {
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '1rem 1.125rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
             <Building2 size={14} style={{ color: 'var(--primary)' }} />
-            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>OTs por Centro</p>
+            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>{t('ana.byProperty')}</p>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['Centro', 'Total', 'Abiertas', 'En Proceso', 'Completadas', 'Por Revisar', 'Vencidas', 'T. Prom.'].map((h) => (
-                    <th key={h} style={{ padding: '0.4rem 0.75rem', textAlign: h === 'Centro' ? 'left' : 'right', color: 'var(--muted)', fontWeight: 600, fontSize: '0.7rem', whiteSpace: 'nowrap' }}>{h}</th>
+                  {[
+                    t('ana.col.site'), t('ana.col.total'), t('ana.col.open'),
+                    t('ana.col.inProgress'), t('ana.col.completed'), t('ana.col.pending'),
+                    t('ana.col.overdue'), t('ana.col.avgTime'),
+                  ].map((h) => (
+                    <th key={h} style={{ padding: '0.4rem 0.75rem', textAlign: h === t('ana.col.site') ? 'left' : 'right', color: 'var(--muted)', fontWeight: 600, fontSize: '0.7rem', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -336,6 +339,7 @@ function AnalyticsPanel() {
 // ── Main page ──────────────────────────────────────────────────────────────
 
 export default function FMReportsPage() {
+  const t = useFmT()
   const [mainTab, setMainTab] = useState<MainTab>('REPORTS')
 
   // Reports state
@@ -347,6 +351,12 @@ export default function FMReportsPage() {
   const [genMsg,        setGenMsg]        = useState<string | null>(null)
   const [deleting,      setDeleting]      = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+
+  const reportTabs: { value: ReportTab; label: string }[] = [
+    { value: 'ALL',        label: t('rep.filter.all') },
+    { value: 'INSPECTION', label: t('rep.filter.inspection') },
+    { value: 'PORTFOLIO',  label: t('rep.filter.portfolio') },
+  ]
 
   function load() {
     setLoading(true)
@@ -372,7 +382,7 @@ export default function FMReportsPage() {
         body: JSON.stringify({ type: 'PORTFOLIO_COMPLIANCE' }),
       })
       if (res.ok) {
-        setGenMsg('Generación iniciada — refresca en un momento.')
+        setGenMsg(t('rep.genMsg'))
         load()
       } else {
         const body = await res.json() as { error?: string }
@@ -415,9 +425,9 @@ export default function FMReportsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Reportes</h1>
+          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('rep.title')}</h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
-            {reports.length} reporte{reports.length !== 1 ? 's' : ''} generado{reports.length !== 1 ? 's' : ''}
+            {reports.length} {reports.length !== 1 ? t('rep.generated_plural') : t('rep.generated')}
           </p>
         </div>
         {mainTab === 'REPORTS' && (
@@ -437,7 +447,7 @@ export default function FMReportsPage() {
               {generating
                 ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
                 : <RefreshCw size={14} />}
-              Generar Reporte de Portafolio
+              {generating ? t('rep.generating') : t('rep.generateBtn')}
             </button>
           </div>
         )}
@@ -446,8 +456,8 @@ export default function FMReportsPage() {
       {/* Main tabs: Reports | Analytics */}
       <div style={{ display: 'flex', gap: '0.25rem', borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
         {([
-          { value: 'REPORTS' as MainTab,   label: 'Reportes Generados', icon: FileBarChart },
-          { value: 'ANALYTICS' as MainTab, label: 'Estadísticas',       icon: BarChart3 },
+          { value: 'REPORTS' as MainTab,   label: t('rep.tab.reports'),   icon: FileBarChart },
+          { value: 'ANALYTICS' as MainTab, label: t('rep.tab.analytics'), icon: BarChart3 },
         ]).map(({ value, label, icon: Icon }) => (
           <button
             key={value}
@@ -473,7 +483,7 @@ export default function FMReportsPage() {
         <>
           {/* Report type filter tabs */}
           <div style={{ display: 'flex', gap: '0.25rem', borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
-            {REPORT_TABS.map((tab) => (
+            {reportTabs.map((tab) => (
               <button
                 key={tab.value}
                 onClick={() => setActiveTab(tab.value)}
@@ -504,7 +514,7 @@ export default function FMReportsPage() {
           ) : filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--muted)' }}>
               <FileBarChart size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.35 }} />
-              <p style={{ fontSize: '0.875rem' }}>No hay reportes</p>
+              <p style={{ fontSize: '0.875rem' }}>{t('rep.empty')}</p>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.875rem' }}>
@@ -540,7 +550,7 @@ export default function FMReportsPage() {
                       <a href={report.signed_url} target="_blank" rel="noopener noreferrer"
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.375rem 0.75rem', background: 'var(--teal)', color: '#fff', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none' }}>
                         <Download size={13} />
-                        Descargar
+                        {t('rep.download')}
                       </a>
                     ) : <div />}
 
@@ -548,11 +558,11 @@ export default function FMReportsPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <button onClick={() => handleDelete(report.id)} disabled={deleting === report.id}
                           style={{ fontSize: '0.75rem', color: 'var(--red)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>
-                          {deleting === report.id ? 'Eliminando…' : 'Confirmar'}
+                          {deleting === report.id ? t('rep.deleting') : t('rep.confirm')}
                         </button>
                         <button onClick={() => setConfirmDelete(null)}
                           style={{ fontSize: '0.75rem', color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
-                          Cancelar
+                          {t('rep.cancel')}
                         </button>
                       </div>
                     ) : (

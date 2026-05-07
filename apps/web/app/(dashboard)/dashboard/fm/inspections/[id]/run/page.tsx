@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowRight, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { useFmT } from '@/lib/locale'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ const SEVERITY_CONFIG: { value: Severity; label: string; color: string; bg: stri
 export default function InspectionRunPage() {
   const params = useParams()
   const router = useRouter()
+  const t = useFmT()
   const id = Array.isArray(params.id) ? params.id[0] : (params.id as string)
 
   const [items, setItems]         = useState<ChecklistItem[]>([])
@@ -58,7 +60,7 @@ export default function InspectionRunPage() {
   useEffect(() => {
     fetch(`/api/fm/inspections/${id}`)
       .then((r) => {
-        if (!r.ok) throw new Error('Inspección no encontrada')
+        if (!r.ok) throw new Error(t('insp.run.notFound'))
         return r.json() as Promise<FmInspection>
       })
       .then((data) => {
@@ -72,7 +74,7 @@ export default function InspectionRunPage() {
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, t])
 
   const saveDirty = useCallback(async () => {
     if (dirty.current.size === 0) return
@@ -129,7 +131,7 @@ export default function InspectionRunPage() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', gap: '0.75rem' }}>
         <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: 'var(--muted)' }} />
-        <p style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>Cargando inspección…</p>
+        <p style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>{t('loading')}</p>
       </div>
     )
   }
@@ -139,12 +141,12 @@ export default function InspectionRunPage() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', gap: '0.75rem', color: 'var(--red)' }}>
         <AlertTriangle size={28} />
-        <p style={{ fontSize: '1rem', fontWeight: 600 }}>{error ?? 'No se encontraron ítems de verificación'}</p>
+        <p style={{ fontSize: '1rem', fontWeight: 600 }}>{error ?? t('insp.run.notFound')}</p>
         <button
           onClick={() => router.push('/dashboard/fm/inspections')}
           style={{ fontSize: '0.875rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
         >
-          Volver a Inspecciones
+          {t('insp.run.back')}
         </button>
       </div>
     )
@@ -188,17 +190,17 @@ export default function InspectionRunPage() {
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)' }}
         >
           <ArrowLeft size={16} />
-          Salir
+          {t('insp.run.exit')}
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
           {saving && (
             <span style={{ fontSize: '0.75rem', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> Guardando
+              <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> {t('insp.run.saving')}
             </span>
           )}
           <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--muted)' }}>
-            {currentIndex + 1} <span style={{ fontWeight: 400 }}>de</span> {items.length}
+            {currentIndex + 1} <span style={{ fontWeight: 400 }}>{t('insp.run.of')}</span> {items.length}
           </span>
         </div>
 
@@ -211,7 +213,7 @@ export default function InspectionRunPage() {
             fontWeight: 600, opacity: saving ? 0.5 : 1,
           }}
         >
-          Guardar
+          {t('save')}
         </button>
       </div>
 
@@ -226,7 +228,7 @@ export default function InspectionRunPage() {
           {/* Label */}
           <div>
             <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-              Ítem {currentIndex + 1}
+              {t('insp.run.item')} {currentIndex + 1}
             </p>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg)', lineHeight: 1.3, margin: 0 }}>
               {currentItem.label}
@@ -265,7 +267,7 @@ export default function InspectionRunPage() {
           {/* Severity (shown only on FAIL) */}
           {state.result === 'FAIL' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-              <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Severidad</p>
+              <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('insp.run.severity')}</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
                 {SEVERITY_CONFIG.map((btn) => {
                   const isActive = state.severity === btn.value
@@ -296,12 +298,12 @@ export default function InspectionRunPage() {
           {/* Notes (shown only on FAIL) */}
           {state.result === 'FAIL' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Notas</p>
+              <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('insp.run.notes')}</p>
               <textarea
                 value={state.notes ?? ''}
                 onChange={(e) => updateItem(currentKey, { notes: e.target.value })}
                 rows={3}
-                placeholder="Describir el problema…"
+                placeholder={t('insp.run.notesPlaceholder')}
                 className="fm-input"
                 style={{ resize: 'vertical', fontSize: '0.9rem', minHeight: 70 }}
               />
@@ -329,8 +331,8 @@ export default function InspectionRunPage() {
             }}
           >
             {completing
-              ? <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> Completando…</>
-              : <><CheckCircle2 size={20} /> Completar Inspección</>
+              ? <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> {t('insp.run.completing')}</>
+              : <><CheckCircle2 size={20} /> {t('insp.run.complete')}</>
             }
           </button>
         )}
@@ -350,7 +352,7 @@ export default function InspectionRunPage() {
               touchAction: 'manipulation',
             }}
           >
-            <ArrowLeft size={18} /> Anterior
+            <ArrowLeft size={18} /> {t('insp.run.prev')}
           </button>
           <button
             onClick={() => navigate(1)}
@@ -368,7 +370,7 @@ export default function InspectionRunPage() {
               touchAction: 'manipulation',
             }}
           >
-            Siguiente <ArrowRight size={18} />
+            {t('insp.run.next')} <ArrowRight size={18} />
           </button>
         </div>
       </div>

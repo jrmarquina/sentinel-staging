@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Plus, Trash2, Loader2, ArrowLeft, GripVertical, Save } from 'lucide-react'
+import { useFmT } from '@/lib/locale'
 
 type FieldType = 'YES_NO' | 'PASS_FAIL' | 'TEXT' | 'NUMBER'
 
@@ -20,10 +21,10 @@ interface FmTemplate {
 }
 
 const FIELD_TYPES: { value: FieldType; label: string }[] = [
-  { value: 'YES_NO', label: 'Sí / No' },
-  { value: 'PASS_FAIL', label: 'Aprobado / Reprobado' },
-  { value: 'TEXT', label: 'Texto' },
-  { value: 'NUMBER', label: 'Número' },
+  { value: 'YES_NO', label: 'Yes / No' },
+  { value: 'PASS_FAIL', label: 'Pass / Fail' },
+  { value: 'TEXT', label: 'Text' },
+  { value: 'NUMBER', label: 'Number' },
 ]
 
 function generateId(): string {
@@ -53,6 +54,7 @@ function parseSchema(schema: unknown): TemplateField[] {
 export default function TemplateBuilderPage() {
   const params = useParams()
   const router = useRouter()
+  const t = useFmT()
   const rawId = Array.isArray(params.id) ? params.id[0] : (params.id as string)
   const isNew = rawId === 'new'
 
@@ -68,7 +70,7 @@ export default function TemplateBuilderPage() {
     if (isNew) return
     fetch(`/api/fm/templates/${rawId}`)
       .then((r) => {
-        if (!r.ok) throw new Error('Plantilla no encontrada')
+        if (!r.ok) throw new Error(t('tmpl.empty'))
         return r.json() as Promise<FmTemplate>
       })
       .then((tmpl) => {
@@ -77,9 +79,9 @@ export default function TemplateBuilderPage() {
         const parsed = parseSchema(tmpl.json_schema)
         setFields(parsed.length > 0 ? parsed : [emptyField()])
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Error desconocido'))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : t('error.generic')))
       .finally(() => setLoading(false))
-  }, [rawId, isNew])
+  }, [rawId, isNew, t])
 
   function addField() {
     setFields((prev) => [...prev, emptyField()])
@@ -95,9 +97,9 @@ export default function TemplateBuilderPage() {
 
   async function handleSave() {
     setSaveError(null)
-    if (!name.trim()) { setSaveError('El nombre de la plantilla es obligatorio'); return }
+    if (!name.trim()) { setSaveError('Template name is required'); return }
     if (fields.some((f) => !f.label.trim())) {
-      setSaveError('Todos los campos deben tener una etiqueta')
+      setSaveError('All fields must have a label')
       return
     }
 
@@ -125,11 +127,11 @@ export default function TemplateBuilderPage() {
 
       if (!res.ok) {
         const body = await res.json() as { error?: string }
-        throw new Error(body.error ?? 'Error al guardar la plantilla')
+        throw new Error(body.error ?? t('error.generic'))
       }
       router.push('/dashboard/fm/templates')
     } catch (e: unknown) {
-      setSaveError(e instanceof Error ? e.message : 'Error desconocido')
+      setSaveError(e instanceof Error ? e.message : t('error.generic'))
     } finally {
       setSaving(false)
     }
@@ -148,7 +150,7 @@ export default function TemplateBuilderPage() {
       <div className="py-16 text-center text-red-500">
         <p>{error}</p>
         <button onClick={() => router.push('/dashboard/fm/templates')} className="mt-4 text-sm text-blue-600 hover:underline">
-          Volver a plantillas
+          {t('tmpl.builder.back')}
         </button>
       </div>
     )
@@ -166,7 +168,7 @@ export default function TemplateBuilderPage() {
             <ArrowLeft size={20} />
           </button>
           <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
-            {isNew ? 'Crear Plantilla' : 'Editar Plantilla'}
+            {isNew ? t('tmpl.builder.create') : t('tmpl.builder.edit')}
           </h1>
         </div>
         <button
@@ -175,7 +177,7 @@ export default function TemplateBuilderPage() {
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
         >
           {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-          {saving ? 'Guardando...' : 'Guardar Plantilla'}
+          {saving ? t('tmpl.builder.saving') : t('tmpl.builder.save')}
         </button>
       </div>
 
@@ -186,57 +188,57 @@ export default function TemplateBuilderPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* Left: Meta */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-5 space-y-4">
-          <h2 className="font-semibold text-slate-900 dark:text-white">Información de la Plantilla</h2>
+          <h2 className="font-semibold text-slate-900 dark:text-white">{t('tmpl.builder.info')}</h2>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Nombre <span className="text-red-500">*</span>
+              {t('tmpl.builder.name')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Inspección Mensual de Seguridad"
+              placeholder="Monthly Safety Inspection"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Descripción
+              {t('tmpl.builder.desc')}
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
               className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              placeholder="Utilizada para recorridos mensuales de seguridad en instalaciones..."
+              placeholder="Used for monthly safety walkthroughs at facilities..."
             />
           </div>
 
           <div className="pt-1 text-sm text-slate-500">
             <span className="font-semibold text-slate-700 dark:text-slate-300">{fields.length}</span>{' '}
-            {fields.length === 1 ? 'campo' : 'campos'} configurado{fields.length === 1 ? '' : 's'}
+            {t('tmpl.builder.configured')}
           </div>
         </div>
 
         {/* Right: Fields */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900 dark:text-white">Campos de la Lista de Verificación</h2>
+            <h2 className="font-semibold text-slate-900 dark:text-white">{t('tmpl.builder.fields')}</h2>
             <button
               onClick={addField}
               className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
             >
               <Plus size={14} />
-              Agregar campo
+              {t('tmpl.builder.addField')}
             </button>
           </div>
 
           {fields.length === 0 ? (
             <div className="py-8 text-center text-sm text-slate-400">
-              Aún no hay campos.{' '}
-              <button onClick={addField} className="text-blue-600 hover:underline">Agregar uno</button>
+              No fields yet.{' '}
+              <button onClick={addField} className="text-blue-600 hover:underline">{t('tmpl.builder.addOne')}</button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -257,7 +259,7 @@ export default function TemplateBuilderPage() {
                       value={field.label}
                       onChange={(e) => updateField(field.id, { label: e.target.value })}
                       className="w-full px-2.5 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder={`Etiqueta del campo ${idx + 1}...`}
+                      placeholder={`Field label ${idx + 1}...`}
                     />
                     <select
                       value={field.type}
@@ -287,7 +289,7 @@ export default function TemplateBuilderPage() {
             className="w-full py-2.5 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
           >
             <Plus size={14} className="inline mr-1" />
-            Agregar campo
+            {t('tmpl.builder.addField')}
           </button>
         </div>
       </div>
