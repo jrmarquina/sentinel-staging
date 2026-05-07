@@ -24,11 +24,19 @@ function isFmManager(cap: string | null, role: string): boolean {
  * whenever you need to bypass storage RLS.
  */
 function storageAdmin() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  )
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url) throw new Error('NEXT_PUBLIC_SUPABASE_URL is not set on the server')
+  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set on the server — cannot bypass storage RLS')
+  // Sanity-check the key looks like a service-role JWT (starts with eyJ, has 3 segments)
+  // and is NOT the anon key. The anon key would silently fail with RLS errors.
+  const segs = key.split('.')
+  if (segs.length !== 3 || !key.startsWith('eyJ')) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY does not look like a JWT — check the env var')
+  }
+  return createSupabaseClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
 }
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'])
@@ -81,6 +89,43 @@ export async function POST(
     // Upload via service-role client — bypasses storage RLS entirely
     const admin        = storageAdmin()
     const arrayBuffer  = await file.arrayBuffer()
+
+    // Diagnostic: decode the JWT payload and confirm role === "service_role".
+    // If anon key was loaded by mistake, the bucket RLS denies the upload.
+    try {
+      const payload = JSON.parse(
+        Buffer.from(process.env.SUPABASE_SERVICE_ROLE_KEY!.split('.')[1], 'base64').toString()
+      )
+      if (payload.role !== 'service_role') {
+        return err(
+          `Server misconfiguration: expected service_role JWT, got role="${payload.role}". ` +
+          `Update SUPABASE_SERVICE_ROLE_KEY in the staging environment.`,
+          500
+        )
+      }
+    } catch {
+      return err('Server misconfiguration: SUPABASE_SERVICE_ROLE_KEY is not a valid JWT', 500)
+    }
+
+    // Ensure the "photos" bucket exists. Service-role can list buckets.
+    const { data: buckets, error: bucketsErr } = await admin.storage.listBuckets()
+    if (bucketsErr) {
+      console.error('listBuckets error:', bucketsErr)
+      return err(`Cannot list storage buckets: ${bucketsErr.message}`)
+    }
+    if (!buckets?.some(b => b.name === 'photos')) {
+      // Create it on the fly (public, image-only, 10MB limit)
+      const { error: createErr } = await admin.storage.createBucket('photos', {
+        public: true,
+        fileSizeLimit: MAX_BYTES,
+        allowedMimeTypes: Array.from(ALLOWED_MIME),
+      })
+      if (createErr) {
+        console.error('createBucket error:', createErr)
+        return err(`"photos" bucket missing and could not be created: ${createErr.message}`)
+      }
+    }
+
     const { error: uploadErr } = await admin.storage
       .from('photos')
       .upload(path, arrayBuffer, { contentType: file.type, upsert: true })
