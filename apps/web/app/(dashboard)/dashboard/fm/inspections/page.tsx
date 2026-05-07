@@ -36,11 +36,11 @@ const EMPTY_FORM: StartForm = { property_id: '', template_id: '', asset_id: '', 
 
 type FilterTab = 'ALL' | 'IN_PROGRESS' | 'PENDING_APPROVAL' | 'COMPLETED' | 'DRAFT'
 const FILTER_TABS: { value: FilterTab; label: string }[] = [
-  { value: 'ALL',              label: 'All' },
-  { value: 'IN_PROGRESS',      label: 'In Progress' },
-  { value: 'PENDING_APPROVAL', label: 'Pending Approval' },
-  { value: 'COMPLETED',        label: 'Completed' },
-  { value: 'DRAFT',            label: 'Draft' },
+  { value: 'ALL',              label: 'Todas' },
+  { value: 'IN_PROGRESS',      label: 'En Proceso' },
+  { value: 'PENDING_APPROVAL', label: 'Pendiente de Aprobación' },
+  { value: 'COMPLETED',        label: 'Completada' },
+  { value: 'DRAFT',            label: 'Borrador' },
 ]
 
 // ── Main Page ──────────────────────────────────────────────────────────────
@@ -104,8 +104,8 @@ export default function FMInspectionsPage() {
   async function handleStart(e: React.FormEvent) {
     e.preventDefault()
     setFormError(null)
-    if (!form.property_id) { setFormError('Property is required'); return }
-    if (!form.template_id) { setFormError('Template is required'); return }
+    if (!form.property_id) { setFormError('La propiedad es obligatoria'); return }
+    if (!form.template_id) { setFormError('La plantilla es obligatoria'); return }
 
     setSaving(true)
     try {
@@ -121,7 +121,7 @@ export default function FMInspectionsPage() {
       })
       if (!res.ok) {
         const body = await res.json() as { error?: string }
-        throw new Error(body.error ?? 'Failed to start inspection')
+        throw new Error(body.error ?? 'Error al iniciar la inspección')
       }
       const data = await res.json() as { id: string }
       setShowModal(false)
@@ -140,13 +140,13 @@ export default function FMInspectionsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Inspections</h1>
+          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Inspecciones</h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
-            {inspections.length} total inspection{inspections.length !== 1 ? 's' : ''}
+            {inspections.length} inspección{inspections.length !== 1 ? 'es' : ''} en total
           </p>
         </div>
         <FmButton icon={<Plus size={15} />} onClick={() => setShowModal(true)} size="sm">
-          Start Inspection
+          Iniciar Inspección
         </FmButton>
       </div>
 
@@ -155,7 +155,7 @@ export default function FMInspectionsPage() {
         <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', pointerEvents: 'none' }} />
         <input
           type="text"
-          placeholder="Search by property, template or inspector…"
+          placeholder="Buscar por propiedad, plantilla o inspector…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="fm-input"
@@ -203,7 +203,7 @@ export default function FMInspectionsPage() {
         <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--red)' }}>
           <AlertTriangle size={28} style={{ margin: '0 auto 0.75rem' }} />
           <p style={{ fontSize: '0.875rem' }}>{error}</p>
-          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>Retry</FmButton>
+          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>Reintentar</FmButton>
         </div>
       ) : (
         <FmCard style={{ padding: 0, overflow: 'hidden' }}>
@@ -211,8 +211,8 @@ export default function FMInspectionsPage() {
             <FmSectionLabel>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <ClipboardCheck size={13} style={{ color: 'var(--primary)' }} />
-                {filtered.length} inspection{filtered.length !== 1 ? 's' : ''}
-                {(search || activeTab !== 'ALL') && ' (filtered)'}
+                {filtered.length} inspección{filtered.length !== 1 ? 'es' : ''}
+                {(search || activeTab !== 'ALL') && ' (filtradas)'}
               </span>
             </FmSectionLabel>
           </div>
@@ -220,18 +220,18 @@ export default function FMInspectionsPage() {
           {filtered.length === 0 ? (
             <div style={{ padding: '4rem 1rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
               <ClipboardCheck size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
-              No inspections match your filters
+              No hay inspecciones que coincidan con los filtros
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table className="fm-table">
                 <thead>
                   <tr>
-                    <th>Property</th>
-                    <th>Template</th>
-                    <th>Status</th>
-                    <th>Score</th>
-                    <th>Date</th>
+                    <th>Propiedad</th>
+                    <th>Plantilla</th>
+                    <th>Estado</th>
+                    <th>Puntaje</th>
+                    <th>Fecha</th>
                     <th style={{ width: 90 }}></th>
                   </tr>
                 </thead>
@@ -285,7 +285,7 @@ export default function FMInspectionsPage() {
                         </td>
                         <td>
                           <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600, justifyContent: 'flex-end' }}>
-                            {isRunnable ? 'Continue' : 'View'} <ChevronRight size={13} />
+                            {isRunnable ? 'Continuar' : 'Ver'} <ChevronRight size={13} />
                           </span>
                         </td>
                       </tr>
@@ -302,8 +302,8 @@ export default function FMInspectionsPage() {
       <FmModal
         open={showModal}
         onClose={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}
-        title="Start Inspection"
-        subtitle="Choose a property and template to begin"
+        title="Iniciar Inspección"
+        subtitle="Elige una propiedad y una plantilla para comenzar"
       >
         <form onSubmit={handleStart} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           {formError && (
@@ -315,12 +315,12 @@ export default function FMInspectionsPage() {
           {/* Property */}
           <div>
             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-              Property <span style={{ color: 'var(--red)' }}>*</span>
+              Propiedad <span style={{ color: 'var(--red)' }}>*</span>
             </label>
             <select className="fm-input" value={form.property_id}
               onChange={(e) => setForm((f) => ({ ...f, property_id: e.target.value, asset_id: '' }))}
               style={{ appearance: 'none' }}>
-              <option value="">— Select property —</option>
+              <option value="">— Seleccionar propiedad —</option>
               {properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
@@ -328,12 +328,12 @@ export default function FMInspectionsPage() {
           {/* Template */}
           <div>
             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-              Template <span style={{ color: 'var(--red)' }}>*</span>
+              Plantilla <span style={{ color: 'var(--red)' }}>*</span>
             </label>
             <select className="fm-input" value={form.template_id}
               onChange={(e) => setForm((f) => ({ ...f, template_id: e.target.value }))}
               style={{ appearance: 'none' }}>
-              <option value="">— Select template —</option>
+              <option value="">— Seleccionar plantilla —</option>
               {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
@@ -341,13 +341,13 @@ export default function FMInspectionsPage() {
           {/* Asset (optional, filtered by property) */}
           <div>
             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-              Asset <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+              Activo <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
             </label>
             <select className="fm-input" value={form.asset_id}
               onChange={(e) => setForm((f) => ({ ...f, asset_id: e.target.value }))}
               disabled={!form.property_id}
               style={{ appearance: 'none', opacity: !form.property_id ? 0.5 : 1 }}>
-              <option value="">— Whole property —</option>
+              <option value="">— Propiedad completa —</option>
               {filteredAssets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
@@ -355,7 +355,7 @@ export default function FMInspectionsPage() {
           {/* Scheduled for */}
           <div>
             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-              Scheduled For <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+              Programado Para <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
             </label>
             <input className="fm-input" type="date" value={form.scheduled_for}
               onChange={(e) => setForm((f) => ({ ...f, scheduled_for: e.target.value }))} />
@@ -364,10 +364,10 @@ export default function FMInspectionsPage() {
           <FmModalFooter>
             <FmButton type="button" variant="secondary" size="sm"
               onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}>
-              Cancel
+              Cancelar
             </FmButton>
             <FmButton type="submit" size="sm" loading={saving} icon={<ClipboardCheck size={14} />}>
-              {saving ? 'Starting…' : 'Start Inspection'}
+              {saving ? 'Iniciando…' : 'Iniciar Inspección'}
             </FmButton>
           </FmModalFooter>
         </form>
