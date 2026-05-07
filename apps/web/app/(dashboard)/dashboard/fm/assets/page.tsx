@@ -56,7 +56,7 @@ export default function FMAssetsPage() {
     setLoading(true)
     Promise.all([
       fetch('/api/fm/assets').then((r) => {
-        if (!r.ok) throw new Error('Failed to load assets')
+        if (!r.ok) throw new Error('Error al cargar los activos')
         return r.json() as Promise<FmAsset[]>
       }),
       fetch('/api/fm/properties').then((r) => r.json() as Promise<FmProperty[]>),
@@ -89,8 +89,8 @@ export default function FMAssetsPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     setFormError(null)
-    if (!form.name.trim()) { setFormError('Name is required'); return }
-    if (!form.code.trim()) { setFormError('Code is required'); return }
+    if (!form.name.trim()) { setFormError('El nombre es obligatorio'); return }
+    if (!form.code.trim()) { setFormError('El código es obligatorio'); return }
 
     setSaving(true)
     try {
@@ -108,7 +108,7 @@ export default function FMAssetsPage() {
       })
       if (!res.ok) {
         const body = await res.json() as { error?: string }
-        throw new Error(body.error ?? 'Failed to create asset')
+        throw new Error(body.error ?? 'Error al registrar el activo')
       }
       setForm(EMPTY_FORM)
       setShowModal(false)
@@ -126,13 +126,13 @@ export default function FMAssetsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Assets</h1>
+          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Activos</h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
-            {assets.length} registered asset{assets.length !== 1 ? 's' : ''}
+            {assets.length} {assets.length !== 1 ? 'activos registrados' : 'activo registrado'}
           </p>
         </div>
         <FmButton icon={<Plus size={15} />} onClick={() => setShowModal(true)} size="sm">
-          Register Asset
+          Registrar Activo
         </FmButton>
       </div>
 
@@ -142,7 +142,7 @@ export default function FMAssetsPage() {
           <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', pointerEvents: 'none' }} />
           <input
             type="text"
-            placeholder="Search by name, code or property…"
+            placeholder="Buscar por nombre, código o propiedad…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="fm-input"
@@ -160,7 +160,7 @@ export default function FMAssetsPage() {
           {(['ALL', ...CATEGORIES] as string[]).map((cat) => {
             const active = catFilter === cat
             const count  = cat === 'ALL' ? assets.length : (catCounts[cat] ?? 0)
-            const label  = cat === 'ALL' ? 'All' : cat.replace(/_/g, ' ').charAt(0) + cat.replace(/_/g, ' ').slice(1).toLowerCase()
+            const label  = cat === 'ALL' ? 'Todos' : cat === 'ELECTRICAL' ? 'Eléctrico' : cat === 'PLUMBING' ? 'Plomería' : cat === 'HVAC' ? 'HVAC' : cat === 'STRUCTURAL' ? 'Estructural' : cat === 'FIRE_SAFETY' ? 'Contra Incendios' : 'Otro'
             return (
               <button
                 key={cat}
@@ -195,7 +195,7 @@ export default function FMAssetsPage() {
         <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--red)' }}>
           <AlertTriangle size={28} style={{ margin: '0 auto 0.75rem' }} />
           <p style={{ fontSize: '0.875rem' }}>{error}</p>
-          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>Retry</FmButton>
+          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>Reintentar</FmButton>
         </div>
       ) : (
         <FmCard style={{ padding: 0, overflow: 'hidden' }}>
@@ -203,8 +203,8 @@ export default function FMAssetsPage() {
             <FmSectionLabel>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Wrench size={13} style={{ color: 'var(--primary)' }} />
-                {filtered.length} asset{filtered.length !== 1 ? 's' : ''}
-                {(search || catFilter !== 'ALL') && ` (filtered)`}
+                {filtered.length} {filtered.length !== 1 ? 'activos' : 'activo'}
+                {(search || catFilter !== 'ALL') && ` (filtrado)`}
               </span>
             </FmSectionLabel>
           </div>
@@ -212,17 +212,17 @@ export default function FMAssetsPage() {
           {filtered.length === 0 ? (
             <div style={{ padding: '4rem 1rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
               <Wrench size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
-              No assets match your filters
+              No hay activos que coincidan con los filtros
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table className="fm-table">
                 <thead>
                   <tr>
-                    <th>Asset</th>
-                    <th>Category</th>
-                    <th style={{ display: 'none' }} className="md:table-cell">Property</th>
-                    <th>Condition</th>
+                    <th>Activo</th>
+                    <th>Categoría</th>
+                    <th style={{ display: 'none' }} className="md:table-cell">Propiedad</th>
+                    <th>Condición</th>
                     <th style={{ width: 80 }}></th>
                   </tr>
                 </thead>
@@ -239,7 +239,7 @@ export default function FMAssetsPage() {
                       </td>
                       <td>
                         <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
-                          {asset.category.replace(/_/g, ' ')}
+                          {asset.category === 'ELECTRICAL' ? 'Eléctrico' : asset.category === 'PLUMBING' ? 'Plomería' : asset.category === 'HVAC' ? 'HVAC' : asset.category === 'STRUCTURAL' ? 'Estructural' : asset.category === 'FIRE_SAFETY' ? 'Contra Incendios' : 'Otro'}
                         </span>
                       </td>
                       <td>
@@ -249,12 +249,12 @@ export default function FMAssetsPage() {
                       </td>
                       <td>
                         <FmBadge variant={conditionVariant(asset.condition)}>
-                          {asset.condition}
+                          {asset.condition === 'GOOD' ? 'Bueno' : asset.condition === 'FAIR' ? 'Regular' : 'Deficiente'}
                         </FmBadge>
                       </td>
                       <td>
                         <span className="fm-hover-show" style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>
-                          View →
+                          Ver →
                         </span>
                       </td>
                     </tr>
@@ -270,8 +270,8 @@ export default function FMAssetsPage() {
       <FmModal
         open={showModal}
         onClose={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}
-        title="Register Asset"
-        subtitle="Add a new asset to the facility inventory"
+        title="Registrar Activo"
+        subtitle="Agregar un nuevo activo al inventario de la instalación"
       >
         <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           {formError && (
@@ -284,17 +284,17 @@ export default function FMAssetsPage() {
             {/* Name */}
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Name <span style={{ color: 'var(--red)' }}>*</span>
+                Nombre <span style={{ color: 'var(--red)' }}>*</span>
               </label>
               <input className="fm-input" type="text" value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="Main HVAC Unit" />
+                placeholder="Unidad HVAC Principal" />
             </div>
 
             {/* Code */}
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Code <span style={{ color: 'var(--red)' }}>*</span>
+                Código <span style={{ color: 'var(--red)' }}>*</span>
               </label>
               <input className="fm-input" style={{ fontFamily: 'monospace', textTransform: 'uppercase' }}
                 type="text" value={form.code}
@@ -304,33 +304,33 @@ export default function FMAssetsPage() {
 
             {/* Category */}
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Category</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Categoría</label>
               <select className="fm-input" value={form.category}
                 onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                 style={{ appearance: 'none' }}>
                 {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>
+                  <option key={c} value={c}>{c === 'ELECTRICAL' ? 'Eléctrico' : c === 'PLUMBING' ? 'Plomería' : c === 'HVAC' ? 'HVAC' : c === 'STRUCTURAL' ? 'Estructural' : c === 'FIRE_SAFETY' ? 'Contra Incendios' : 'Otro'}</option>
                 ))}
               </select>
             </div>
 
             {/* Condition */}
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Condition</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Condición</label>
               <select className="fm-input" value={form.condition}
                 onChange={(e) => setForm((f) => ({ ...f, condition: e.target.value }))}
                 style={{ appearance: 'none' }}>
-                {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                {CONDITIONS.map((c) => <option key={c} value={c}>{c === 'GOOD' ? 'Bueno' : c === 'FAIR' ? 'Regular' : 'Deficiente'}</option>)}
               </select>
             </div>
 
             {/* Property */}
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Property</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Propiedad</label>
               <select className="fm-input" value={form.property_id}
                 onChange={(e) => setForm((f) => ({ ...f, property_id: e.target.value }))}
                 style={{ appearance: 'none' }}>
-                <option value="">— None —</option>
+                <option value="">— Ninguna —</option>
                 {properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
@@ -338,21 +338,21 @@ export default function FMAssetsPage() {
             {/* Location */}
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Location <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+                Ubicación <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
               </label>
               <input className="fm-input" type="text" value={form.location}
                 onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-                placeholder="Room 204, 2nd Floor" />
+                placeholder="Sala 204, 2do Piso" />
             </div>
           </div>
 
           <FmModalFooter>
             <FmButton type="button" variant="secondary" size="sm"
               onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}>
-              Cancel
+              Cancelar
             </FmButton>
             <FmButton type="submit" size="sm" loading={saving}>
-              {saving ? 'Registering…' : 'Register Asset'}
+              {saving ? 'Registrando…' : 'Registrar Activo'}
             </FmButton>
           </FmModalFooter>
         </form>

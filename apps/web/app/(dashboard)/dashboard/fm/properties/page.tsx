@@ -122,10 +122,10 @@ function PropertyCard({ prop }: { prop: FmProperty }) {
           {/* Stats row */}
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', paddingTop: '0.625rem', borderTop: '1px solid var(--border)' }}>
             <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--card-b)', color: 'var(--muted)', padding: '0.2rem 0.5rem', borderRadius: 9999, border: '1px solid var(--border)' }}>
-              {assetCount} asset{assetCount !== 1 ? 's' : ''}
+              {assetCount} {assetCount !== 1 ? 'activos' : 'activo'}
             </span>
             <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--card-b)', color: 'var(--muted)', padding: '0.2rem 0.5rem', borderRadius: 9999, border: '1px solid var(--border)' }}>
-              {inspCount} inspection{inspCount !== 1 ? 's' : ''}
+              {inspCount} {inspCount !== 1 ? 'inspecciones' : 'inspección'}
             </span>
           </div>
         </div>
@@ -152,7 +152,7 @@ export default function FMPropertiesPage() {
     setLoading(true)
     fetch('/api/fm/properties')
       .then((r) => {
-        if (!r.ok) throw new Error('Failed to load properties')
+        if (!r.ok) throw new Error('Error al cargar las propiedades')
         return r.json() as Promise<FmProperty[]>
       })
       .then(setProperties)
@@ -178,15 +178,15 @@ export default function FMPropertiesPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     setFormError(null)
-    if (!form.name.trim()) { setFormError('Name is required'); return }
-    if (!form.code.trim()) { setFormError('Code is required'); return }
+    if (!form.name.trim()) { setFormError('El nombre es obligatorio'); return }
+    if (!form.code.trim()) { setFormError('El código es obligatorio'); return }
 
     let latitude: number | null = null
     let longitude: number | null = null
     if (form.coordinates.trim()) {
       const parts = form.coordinates.split(',').map((s) => s.trim())
       if (parts.length !== 2 || isNaN(Number(parts[0])) || isNaN(Number(parts[1]))) {
-        setFormError('Coordinates must be "lat, lng"')
+        setFormError('Las coordenadas deben ser "lat, lng"')
         return
       }
       latitude  = Number(parts[0])
@@ -207,7 +207,7 @@ export default function FMPropertiesPage() {
       })
       if (!res.ok) {
         const body = await res.json() as { error?: string }
-        throw new Error(body.error ?? 'Failed to create property')
+        throw new Error(body.error ?? 'Error al crear la propiedad')
       }
       setForm(EMPTY_FORM)
       setShowModal(false)
@@ -231,13 +231,13 @@ export default function FMPropertiesPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Properties</h1>
+          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Propiedades</h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
-            {properties.length} managed facilit{properties.length !== 1 ? 'ies' : 'y'}
+            {properties.length} {properties.length !== 1 ? 'instalaciones administradas' : 'instalación administrada'}
           </p>
         </div>
         <FmButton icon={<Plus size={15} />} onClick={() => setShowModal(true)} size="sm">
-          New Property
+          Nueva Propiedad
         </FmButton>
       </div>
 
@@ -248,7 +248,7 @@ export default function FMPropertiesPage() {
           <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', pointerEvents: 'none' }} />
           <input
             type="text"
-            placeholder="Search by name, code or address…"
+            placeholder="Buscar por nombre, código o dirección…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="fm-input"
@@ -283,7 +283,7 @@ export default function FMPropertiesPage() {
                   display: 'flex', alignItems: 'center', gap: '0.35rem',
                 }}
               >
-                {s === 'ALL' ? 'All' : s.charAt(0) + s.slice(1).toLowerCase()}
+                {s === 'ALL' ? 'Todos' : s === 'ACTIVE' ? 'Activo' : s === 'MAINTENANCE' ? 'Mantenimiento' : 'Inactivo'}
                 <span style={{ opacity: 0.7, fontWeight: 800 }}>{count}</span>
               </button>
             )
@@ -300,13 +300,13 @@ export default function FMPropertiesPage() {
         <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--red)' }}>
           <AlertTriangle size={28} style={{ margin: '0 auto 0.75rem' }} />
           <p style={{ fontSize: '0.875rem' }}>{error}</p>
-          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>Retry</FmButton>
+          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>Reintentar</FmButton>
         </div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--muted)' }}>
           <Building2 size={32} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
           <p style={{ fontSize: '0.875rem' }}>
-            {search || statusFilter !== 'ALL' ? 'No properties match your filters' : 'No properties yet'}
+            {search || statusFilter !== 'ALL' ? 'No hay propiedades que coincidan con los filtros' : 'No hay propiedades registradas'}
           </p>
         </div>
       ) : (
@@ -319,8 +319,8 @@ export default function FMPropertiesPage() {
       <FmModal
         open={showModal}
         onClose={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}
-        title="New Property"
-        subtitle="Register a new managed facility"
+        title="Nueva Propiedad"
+        subtitle="Registrar una nueva instalación administrada"
       >
         <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {formError && (
@@ -332,7 +332,7 @@ export default function FMPropertiesPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Name <span style={{ color: 'var(--red)' }}>*</span>
+                Nombre <span style={{ color: 'var(--red)' }}>*</span>
               </label>
               <input
                 ref={nameRef}
@@ -340,13 +340,13 @@ export default function FMPropertiesPage() {
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="Guaynabo Municipal Hall"
+                placeholder="Alcaldía Municipal de Guaynabo"
               />
             </div>
 
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Code <span style={{ color: 'var(--red)' }}>*</span>
+                Código <span style={{ color: 'var(--red)' }}>*</span>
               </label>
               <input
                 className="fm-input"
@@ -360,7 +360,7 @@ export default function FMPropertiesPage() {
 
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                GPS Coordinates <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+                Coordenadas GPS <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
               </label>
               <input
                 className="fm-input"
@@ -374,7 +374,7 @@ export default function FMPropertiesPage() {
 
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Address
+                Dirección
               </label>
               <input
                 className="fm-input"
@@ -388,10 +388,10 @@ export default function FMPropertiesPage() {
 
           <FmModalFooter>
             <FmButton type="button" variant="secondary" size="sm" onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setFormError(null) }}>
-              Cancel
+              Cancelar
             </FmButton>
             <FmButton type="submit" size="sm" loading={saving}>
-              {saving ? 'Creating…' : 'Create Property'}
+              {saving ? 'Creando…' : 'Crear Propiedad'}
             </FmButton>
           </FmModalFooter>
         </form>
