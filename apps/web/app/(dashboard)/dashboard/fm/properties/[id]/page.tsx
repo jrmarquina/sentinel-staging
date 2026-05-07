@@ -76,7 +76,7 @@ function AddAssetModal({ propertyId, onClose, onSaved }: { propertyId: string; o
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.name.trim() || !form.code.trim()) { setErr('Name and code are required'); return }
+    if (!form.name.trim() || !form.code.trim()) { setErr('El nombre y el código son obligatorios'); return }
     setSaving(true)
     try {
       const res = await fetch('/api/fm/assets', {
@@ -85,16 +85,16 @@ function AddAssetModal({ propertyId, onClose, onSaved }: { propertyId: string; o
         body: JSON.stringify({ ...form, code: form.code.toUpperCase(), property_id: propertyId }),
       })
       if (res.ok) { onSaved(); onClose() }
-      else { const b = await res.json() as { error?: string }; setErr(b.error ?? 'Failed') }
+      else { const b = await res.json() as { error?: string }; setErr(b.error ?? 'Error') }
     } finally { setSaving(false) }
   }
 
   return (
-    <FmModal open onClose={onClose} title="Add Asset" subtitle="Register an asset to this property">
+    <FmModal open onClose={onClose} title="Agregar Activo" subtitle="Registrar un activo en esta propiedad">
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {err && <div style={{ background: 'var(--red-c)', border: '1px solid var(--red)', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: 'var(--red)' }}>{err}</div>}
-        <input className="fm-input" type="text" placeholder="Name *" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
-        <input className="fm-input" type="text" placeholder="Code *" style={{ fontFamily: 'monospace', textTransform: 'uppercase' }} value={form.code} onChange={(e) => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} />
+        <input className="fm-input" type="text" placeholder="Nombre *" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
+        <input className="fm-input" type="text" placeholder="Código *" style={{ fontFamily: 'monospace', textTransform: 'uppercase' }} value={form.code} onChange={(e) => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} />
         <select className="fm-input" style={{ appearance: 'none' }} value={form.category} onChange={(e) => setForm(f => ({ ...f, category: e.target.value }))}>
           {['ELECTRICAL','PLUMBING','HVAC','STRUCTURAL','FIRE_SAFETY','OTHER'].map(c => <option key={c} value={c}>{c.replace(/_/g,' ')}</option>)}
         </select>
@@ -102,8 +102,8 @@ function AddAssetModal({ propertyId, onClose, onSaved }: { propertyId: string; o
           {['GOOD','FAIR','POOR'].map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <FmModalFooter>
-          <FmButton type="button" variant="secondary" size="sm" onClick={onClose}>Cancel</FmButton>
-          <FmButton type="submit" size="sm" loading={saving}>Add Asset</FmButton>
+          <FmButton type="button" variant="secondary" size="sm" onClick={onClose}>Cancelar</FmButton>
+          <FmButton type="submit" size="sm" loading={saving}>Agregar Activo</FmButton>
         </FmModalFooter>
       </form>
     </FmModal>
@@ -162,7 +162,7 @@ export default function FMPropertyDetailPage() {
     setLoading(true)
     Promise.all([
       fetch(`/api/fm/properties/${id}`).then((r) => {
-        if (!r.ok) throw new Error('Property not found')
+        if (!r.ok) throw new Error('Propiedad no encontrada')
         return r.json() as Promise<FmProperty>
       }),
       fetch(`/api/fm/work-orders?propertyId=${id}`).then((r) =>
@@ -200,9 +200,9 @@ export default function FMPropertyDetailPage() {
     return (
       <div style={{ textAlign: 'center', padding: '4rem 0' }}>
         <AlertTriangle size={28} style={{ color: 'var(--red)', margin: '0 auto 0.75rem' }} />
-        <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '1rem' }}>{error ?? 'Property not found'}</p>
+        <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '1rem' }}>{error ?? 'Propiedad no encontrada'}</p>
         <FmButton variant="secondary" size="sm" onClick={() => router.push('/dashboard/fm/properties')}>
-          ← Back to Properties
+          ← Volver a Propiedades
         </FmButton>
       </div>
     )
@@ -213,10 +213,10 @@ export default function FMPropertyDetailPage() {
   const attachments = property.fm_attachments ?? []
 
   const TABS: { value: SubTab; label: string; count: number }[] = [
-    { value: 'overview',     label: 'Overview',     count: 0 },
-    { value: 'assets',       label: 'Assets',       count: assets.length },
-    { value: 'inspections',  label: 'Inspections',  count: inspections.length },
-    { value: 'work-orders',  label: 'Work Orders',  count: workOrders.length },
+    { value: 'overview',     label: 'Resumen',           count: 0 },
+    { value: 'assets',       label: 'Activos',           count: assets.length },
+    { value: 'inspections',  label: 'Inspecciones',      count: inspections.length },
+    { value: 'work-orders',  label: 'Órdenes de Trabajo', count: workOrders.length },
   ]
 
   const propVariant = statusVariant(property.status)
@@ -291,12 +291,12 @@ export default function FMPropertyDetailPage() {
               <div style={{ paddingBottom: '0.5rem' }}>
                 {activeTab === 'assets' && (
                   <FmButton icon={<Plus size={13} />} size="sm" onClick={() => setShowAddAsset(true)}>
-                    Add Asset
+                    Agregar Activo
                   </FmButton>
                 )}
                 {activeTab === 'inspections' && (
                   <Link href="/dashboard/fm/inspections" style={{ textDecoration: 'none' }}>
-                    <FmButton icon={<Plus size={13} />} size="sm">Start Inspection</FmButton>
+                    <FmButton icon={<Plus size={13} />} size="sm">Iniciar Inspección</FmButton>
                   </Link>
                 )}
               </div>
@@ -307,11 +307,11 @@ export default function FMPropertyDetailPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {/* Info tiles */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.75rem' }}>
-                  <InfoTile label="Assets"      value={assets.length} />
-                  <InfoTile label="Inspections" value={inspections.length} />
-                  <InfoTile label="Work Orders" value={workOrders.length} />
-                  <InfoTile label="Attachments" value={attachments.length} />
-                  {property.risk_level && <InfoTile label="Risk Level" value={<FmBadge variant={statusVariant(property.risk_level)}>{property.risk_level}</FmBadge>} />}
+                  <InfoTile label="Activos"             value={assets.length} />
+                  <InfoTile label="Inspecciones"        value={inspections.length} />
+                  <InfoTile label="Órdenes de Trabajo"  value={workOrders.length} />
+                  <InfoTile label="Adjuntos"            value={attachments.length} />
+                  {property.risk_level && <InfoTile label="Nivel de Riesgo" value={<FmBadge variant={statusVariant(property.risk_level)}>{property.risk_level}</FmBadge>} />}
                   {property.latitude != null && property.longitude != null && (
                     <InfoTile label="GPS" value={<span style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{property.latitude.toFixed(4)}, {property.longitude.toFixed(4)}</span>} />
                   )}
@@ -337,12 +337,12 @@ export default function FMPropertyDetailPage() {
                 {assets.length === 0 ? (
                   <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
                     <Wrench size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
-                    No assets for this property
+                    No hay activos en esta propiedad
                   </div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table className="fm-table">
-                      <thead><tr><th>Asset</th><th>Category</th><th>Location</th><th>Condition</th></tr></thead>
+                      <thead><tr><th>Activo</th><th>Categoría</th><th>Ubicación</th><th>Condición</th></tr></thead>
                       <tbody>
                         {assets.map((a) => (
                           <tr key={a.id} onClick={() => router.push(`/dashboard/fm/assets/${a.id}`)} style={{ cursor: 'pointer' }}>
@@ -365,19 +365,19 @@ export default function FMPropertyDetailPage() {
                 {inspections.length === 0 ? (
                   <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
                     <ClipboardCheck size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
-                    No inspections yet
+                    No hay inspecciones aún
                   </div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table className="fm-table">
-                      <thead><tr><th>Template</th><th>Status</th><th>Score</th><th>Date</th></tr></thead>
+                      <thead><tr><th>Plantilla</th><th>Estado</th><th>Puntaje</th><th>Fecha</th></tr></thead>
                       <tbody>
                         {inspections.map((insp) => (
                           <tr key={insp.id} onClick={() => router.push(`/dashboard/fm/inspections/${insp.id}`)} style={{ cursor: 'pointer' }}>
                             <td style={{ fontWeight: 500, color: 'var(--fg)' }}>{insp.fm_inspection_templates?.name ?? '—'}</td>
                             <td><FmBadge variant={statusVariant(insp.status)}>{insp.status.replace(/_/g,' ')}</FmBadge></td>
                             <td style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>{insp.score != null ? `${insp.score}%` : '—'}</td>
-                            <td style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>{insp.started_at ? new Date(insp.started_at).toLocaleDateString() : '—'}</td>
+                            <td style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>{insp.started_at ? new Date(insp.started_at).toLocaleDateString('es-PR') : '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -393,12 +393,12 @@ export default function FMPropertyDetailPage() {
                 {workOrders.length === 0 ? (
                   <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
                     <Wrench size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
-                    No work orders for this property
+                    No hay órdenes de trabajo para esta propiedad
                   </div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table className="fm-table">
-                      <thead><tr><th>Title</th><th>Priority</th><th>Status</th><th>Due</th></tr></thead>
+                      <thead><tr><th>Título</th><th>Prioridad</th><th>Estado</th><th>Vencimiento</th></tr></thead>
                       <tbody>
                         {workOrders.map((wo) => {
                           const isOverdue = wo.due_date && new Date(wo.due_date) < new Date() && wo.status !== 'COMPLETED'
@@ -410,7 +410,7 @@ export default function FMPropertyDetailPage() {
                               <td><FmBadge variant={statusVariant(wo.priority)}>{wo.priority}</FmBadge></td>
                               <td><FmBadge variant={statusVariant(wo.status)}>{wo.status.replace(/_/g,' ')}</FmBadge></td>
                               <td style={{ fontSize: '0.8rem', color: isOverdue ? 'var(--red)' : 'var(--muted)', fontWeight: isOverdue ? 700 : 400 }}>
-                                {wo.due_date ? new Date(wo.due_date).toLocaleDateString() : '—'}
+                                {wo.due_date ? new Date(wo.due_date).toLocaleDateString('es-PR') : '—'}
                               </td>
                             </tr>
                           )
@@ -435,13 +435,13 @@ export default function FMPropertyDetailPage() {
           }}>
             {/* Header */}
             <p style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--primary)', margin: '0 0 1rem' }}>
-              Site Assurance Integrity
+              Integridad del Sitio
             </p>
 
             {integrity == null ? (
               <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--muted)', fontSize: '0.8rem' }}>
                 <Loader2 size={20} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 0.5rem', display: 'block' }} />
-                Loading…
+                Cargando…
               </div>
             ) : (
               <>
@@ -463,7 +463,7 @@ export default function FMPropertyDetailPage() {
 
                 {/* Gap items */}
                 {integrity.gaps.length === 0 ? (
-                  <p style={{ fontSize: '0.8rem', color: 'var(--muted)', textAlign: 'center', padding: '0.75rem 0' }}>No issues found</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--muted)', textAlign: 'center', padding: '0.75rem 0' }}>No se encontraron problemas</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                     {integrity.gaps.map((gap, i) => (
@@ -489,7 +489,7 @@ export default function FMPropertyDetailPage() {
                               padding: 0, textDecoration: 'underline',
                             }}
                           >
-                            → Fix
+                            → Corregir
                           </button>
                         </div>
                       </div>

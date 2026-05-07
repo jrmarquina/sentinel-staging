@@ -147,7 +147,7 @@ export default function FMAssetDetailPage() {
     setError(null)
     fetch(`/api/fm/assets/${id}`)
       .then((r) => {
-        if (!r.ok) throw new Error('Asset not found')
+        if (!r.ok) throw new Error('Activo no encontrado')
         return r.json() as Promise<FmAsset>
       })
       .then((a) => {
@@ -170,8 +170,8 @@ export default function FMAssetDetailPage() {
   async function handleEdit(e: React.FormEvent) {
     e.preventDefault()
     setEditError(null)
-    if (!editForm.name.trim()) { setEditError('Name is required'); return }
-    if (!editForm.code.trim()) { setEditError('Code is required'); return }
+    if (!editForm.name.trim()) { setEditError('El nombre es obligatorio'); return }
+    if (!editForm.code.trim()) { setEditError('El código es obligatorio'); return }
     setEditSaving(true)
     try {
       const res = await fetch(`/api/fm/assets/${id}`, {
@@ -188,7 +188,7 @@ export default function FMAssetDetailPage() {
       })
       if (!res.ok) {
         const body = await res.json() as { error?: string }
-        throw new Error(body.error ?? 'Failed to update asset')
+        throw new Error(body.error ?? 'Error al actualizar el activo')
       }
       setShowEdit(false)
       load()
@@ -210,11 +210,11 @@ export default function FMAssetDetailPage() {
       const res = await fetch(`/api/fm/assets/${id}/attachments`, { method: 'POST', body: fd })
       if (!res.ok) {
         const body = await res.json() as { error?: string }
-        throw new Error(body.error ?? 'Upload failed')
+        throw new Error(body.error ?? 'Error al subir el archivo')
       }
       load()
     } catch (e: unknown) {
-      setUploadError(e instanceof Error ? e.message : 'Upload failed')
+      setUploadError(e instanceof Error ? e.message : 'Error al subir el archivo')
     } finally {
       setUploading(false)
       e.target.value = ''
@@ -244,13 +244,13 @@ export default function FMAssetDetailPage() {
     return (
       <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--red)' }}>
         <AlertTriangle size={28} style={{ margin: '0 auto 0.75rem' }} />
-        <p style={{ fontSize: '0.875rem' }}>{error ?? 'Asset not found'}</p>
+        <p style={{ fontSize: '0.875rem' }}>{error ?? 'Activo no encontrado'}</p>
         <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>
-          Retry
+          Reintentar
         </FmButton>
         <br />
         <FmButton variant="secondary" size="sm" onClick={() => router.push('/dashboard/fm/assets')} style={{ marginTop: '0.5rem' }}>
-          Back to assets
+          Volver a Activos
         </FmButton>
       </div>
     )
@@ -313,15 +313,15 @@ export default function FMAssetDetailPage() {
           size="sm"
           onClick={() => setShowEdit(true)}
         >
-          Edit
+          Editar
         </FmButton>
       </div>
 
       {/* ── Tabs ── */}
       <div style={{ display: 'flex', gap: '1.5rem', borderBottom: '1px solid var(--border)', overflowX: 'auto' }}>
-        <Tab id="overview" active={tab === 'overview'} label="Overview"       icon={<Wrench size={13} />}        onClick={() => setTab('overview')} />
-        <Tab id="history"  active={tab === 'history'}  label="Service History" icon={<ClipboardCheck size={13} />} onClick={() => setTab('history')} />
-        <Tab id="docs"     active={tab === 'docs'}      label="Photos & Docs"   icon={<Image size={13} />}          onClick={() => setTab('docs')} />
+        <Tab id="overview" active={tab === 'overview'} label="Resumen"           icon={<Wrench size={13} />}        onClick={() => setTab('overview')} />
+        <Tab id="history"  active={tab === 'history'}  label="Historial de Servicio" icon={<ClipboardCheck size={13} />} onClick={() => setTab('history')} />
+        <Tab id="docs"     active={tab === 'docs'}      label="Fotos y Documentos"   icon={<Image size={13} />}          onClick={() => setTab('docs')} />
       </div>
 
       {/* ─── Overview tab ─────────────────────────────────────────────────── */}
@@ -329,12 +329,12 @@ export default function FMAssetDetailPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Specs grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
-            <SpecTile label="Category"  value={asset.category.replace(/_/g, ' ')} icon={<Tag size={12} />} />
-            <SpecTile label="Condition" value={<FmBadge variant={conditionVariant(asset.condition)}>{asset.condition}</FmBadge>} />
-            {asset.location && <SpecTile label="Location" value={asset.location} icon={<MapPin size={12} />} />}
+            <SpecTile label="Categoría"  value={asset.category.replace(/_/g, ' ')} icon={<Tag size={12} />} />
+            <SpecTile label="Condición" value={<FmBadge variant={conditionVariant(asset.condition)}>{asset.condition}</FmBadge>} />
+            {asset.location && <SpecTile label="Ubicación" value={asset.location} icon={<MapPin size={12} />} />}
             {asset.fm_properties && (
               <SpecTile
-                label="Property"
+                label="Propiedad"
                 icon={<Building2 size={12} />}
                 value={
                   <Link href={`/dashboard/fm/properties/${asset.fm_properties.id}`}
@@ -344,9 +344,9 @@ export default function FMAssetDetailPage() {
                 }
               />
             )}
-            {asset.serial_number && <SpecTile label="Serial No." value={<span style={{ fontFamily: 'monospace' }}>{asset.serial_number}</span>} />}
+            {asset.serial_number && <SpecTile label="N.º de Serie" value={<span style={{ fontFamily: 'monospace' }}>{asset.serial_number}</span>} />}
             {asset.last_inspection && (
-              <SpecTile label="Last Inspection" value={new Date(asset.last_inspection).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} />
+              <SpecTile label="Última Inspección" value={new Date(asset.last_inspection).toLocaleDateString('es-PR', { month: 'short', day: 'numeric', year: 'numeric' })} />
             )}
           </div>
 
@@ -355,7 +355,7 @@ export default function FMAssetDetailPage() {
             <FmSectionLabel>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <QrCode size={13} style={{ color: 'var(--primary)' }} />
-                Asset QR Code
+                Código QR del Activo
               </span>
             </FmSectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', paddingTop: '0.5rem' }}>
@@ -374,7 +374,7 @@ export default function FMAssetDetailPage() {
                 />
               </div>
               <p style={{ fontSize: '0.72rem', color: 'var(--muted)', textAlign: 'center', maxWidth: 260 }}>
-                Scan to open this asset record directly on any device
+                Escanear para abrir este registro de activo directamente en cualquier dispositivo
               </p>
               <p style={{ fontSize: '0.68rem', fontFamily: 'monospace', color: 'var(--faint)' }}>
                 {asset.code}
@@ -391,7 +391,7 @@ export default function FMAssetDetailPage() {
             <FmSectionLabel>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <ClipboardCheck size={13} style={{ color: 'var(--primary)' }} />
-                {inspections.length} inspection{inspections.length !== 1 ? 's' : ''}
+                {inspections.length} inspección{inspections.length !== 1 ? 'es' : ''}
               </span>
             </FmSectionLabel>
             <FmButton
@@ -399,24 +399,24 @@ export default function FMAssetDetailPage() {
               size="sm"
               onClick={() => router.push(`/dashboard/fm/inspections/new?asset=${id}`)}
             >
-              Spot Inspection
+              Inspección Puntual
             </FmButton>
           </div>
 
           {inspections.length === 0 ? (
             <div style={{ padding: '4rem 1rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
               <ClipboardCheck size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
-              No inspections recorded for this asset
+              No hay inspecciones registradas para este activo
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table className="fm-table">
                 <thead>
                   <tr>
-                    <th>Status</th>
-                    <th>Score</th>
-                    <th>Property</th>
-                    <th>Date</th>
+                    <th>Estado</th>
+                    <th>Puntaje</th>
+                    <th>Propiedad</th>
+                    <th>Fecha</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -448,7 +448,7 @@ export default function FMAssetDetailPage() {
                       </td>
                       <td>
                         <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
-                          {new Date(insp.completed_at ?? insp.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {new Date(insp.completed_at ?? insp.created_at).toLocaleDateString('es-PR', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </span>
                       </td>
                     </tr>
@@ -468,7 +468,7 @@ export default function FMAssetDetailPage() {
             <FmSectionLabel>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Upload size={13} style={{ color: 'var(--primary)' }} />
-                Upload File
+                Subir Archivo
               </span>
             </FmSectionLabel>
             <label style={{
@@ -489,10 +489,10 @@ export default function FMAssetDetailPage() {
                 <Upload size={22} style={{ color: 'var(--muted)' }} />
               )}
               <span style={{ fontSize: '0.82rem', color: 'var(--muted)', fontWeight: 600 }}>
-                {uploading ? 'Uploading…' : 'Click to choose a file'}
+                {uploading ? 'Subiendo…' : 'Haz clic para seleccionar un archivo'}
               </span>
               <span style={{ fontSize: '0.72rem', color: 'var(--faint)' }}>
-                Photos, PDFs, and documents up to 10 MB
+                Fotos, PDFs y documentos de hasta 10 MB
               </span>
               <input type="file" style={{ display: 'none' }} onChange={handleUpload} disabled={uploading} />
             </label>
@@ -505,7 +505,7 @@ export default function FMAssetDetailPage() {
           {attachments.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--muted)', fontSize: '0.875rem' }}>
               <FileText size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
-              No files attached yet
+              No hay archivos adjuntos aún
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
@@ -535,7 +535,7 @@ export default function FMAssetDetailPage() {
                       {att.filename}
                     </p>
                     <p style={{ fontSize: '0.7rem', color: 'var(--muted)', margin: 0 }}>
-                      {fileSize(att.file_size)} · {new Date(att.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {fileSize(att.file_size)} · {new Date(att.created_at).toLocaleDateString('es-PR', { month: 'short', day: 'numeric' })}
                     </p>
                   </div>
 
@@ -553,7 +553,7 @@ export default function FMAssetDetailPage() {
                         }}
                         onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--primary)' }}
                         onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)' }}
-                        aria-label="Download"
+                        aria-label="Descargar"
                       >
                         <Download size={15} />
                       </a>
@@ -567,7 +567,7 @@ export default function FMAssetDetailPage() {
                       }}
                       onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--red)' }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)' }}
-                      aria-label="Delete attachment"
+                      aria-label="Eliminar adjunto"
                     >
                       <Trash2 size={15} />
                     </button>
@@ -583,8 +583,8 @@ export default function FMAssetDetailPage() {
       <FmModal
         open={showEdit}
         onClose={() => { setShowEdit(false); setEditError(null) }}
-        title="Edit Asset"
-        subtitle="Update asset specifications"
+        title="Editar Activo"
+        subtitle="Actualizar las especificaciones del activo"
       >
         <form onSubmit={handleEdit} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           {editError && (
@@ -597,7 +597,7 @@ export default function FMAssetDetailPage() {
             {/* Name */}
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Name <span style={{ color: 'var(--red)' }}>*</span>
+                Nombre <span style={{ color: 'var(--red)' }}>*</span>
               </label>
               <input
                 className="fm-input"
@@ -610,7 +610,7 @@ export default function FMAssetDetailPage() {
             {/* Code */}
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Code <span style={{ color: 'var(--red)' }}>*</span>
+                Código <span style={{ color: 'var(--red)' }}>*</span>
               </label>
               <input
                 className="fm-input"
@@ -624,7 +624,7 @@ export default function FMAssetDetailPage() {
             {/* Serial */}
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Serial No. <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+                N.º de Serie <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
               </label>
               <input
                 className="fm-input"
@@ -637,7 +637,7 @@ export default function FMAssetDetailPage() {
 
             {/* Category */}
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Category</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Categoría</label>
               <select className="fm-input" value={editForm.category}
                 onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
                 style={{ appearance: 'none' }}>
@@ -647,7 +647,7 @@ export default function FMAssetDetailPage() {
 
             {/* Condition */}
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Condition</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Condición</label>
               <select className="fm-input" value={editForm.condition}
                 onChange={(e) => setEditForm((f) => ({ ...f, condition: e.target.value }))}
                 style={{ appearance: 'none' }}>
@@ -658,14 +658,14 @@ export default function FMAssetDetailPage() {
             {/* Location */}
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Location <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+                Ubicación <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
               </label>
               <input
                 className="fm-input"
                 type="text"
                 value={editForm.location}
                 onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))}
-                placeholder="Room 204, 2nd Floor"
+                placeholder="Sala 204, 2do piso"
               />
             </div>
           </div>
@@ -673,10 +673,10 @@ export default function FMAssetDetailPage() {
           <FmModalFooter>
             <FmButton type="button" variant="secondary" size="sm"
               onClick={() => { setShowEdit(false); setEditError(null) }}>
-              Cancel
+              Cancelar
             </FmButton>
             <FmButton type="submit" size="sm" loading={editSaving}>
-              {editSaving ? 'Saving…' : 'Save Changes'}
+              {editSaving ? 'Guardando…' : 'Guardar Cambios'}
             </FmButton>
           </FmModalFooter>
         </form>

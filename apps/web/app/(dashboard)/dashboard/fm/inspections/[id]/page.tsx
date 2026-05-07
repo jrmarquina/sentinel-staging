@@ -104,7 +104,7 @@ function ScoreGauge({ score }: { score: number }) {
         </div>
       </div>
       <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-        Compliance Score
+        Puntaje de Cumplimiento
       </p>
     </div>
   )
@@ -128,7 +128,7 @@ export default function FMInspectionDetailPage() {
     setError(null)
     fetch(`/api/fm/inspections/${id}`)
       .then((r) => {
-        if (!r.ok) throw new Error('Inspection not found')
+        if (!r.ok) throw new Error('Inspección no encontrada')
         return r.json() as Promise<FmInspection>
       })
       .then(setInspection)
@@ -145,7 +145,7 @@ export default function FMInspectionDetailPage() {
       const res = await fetch(`/api/fm/inspections/${id}/approve`, { method: 'POST' })
       if (!res.ok) {
         const body = await res.json() as { error?: string }
-        throw new Error(body.error ?? 'Failed to approve')
+        throw new Error(body.error ?? 'Error al aprobar')
       }
       const updated = await res.json() as FmInspection
       setInspection(updated)
@@ -170,9 +170,9 @@ export default function FMInspectionDetailPage() {
     return (
       <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--red)' }}>
         <AlertTriangle size={28} style={{ margin: '0 auto 0.75rem' }} />
-        <p style={{ fontSize: '0.875rem' }}>{error ?? 'Inspection not found'}</p>
+        <p style={{ fontSize: '0.875rem' }}>{error ?? 'Inspección no encontrada'}</p>
         <FmButton variant="secondary" size="sm" onClick={() => router.push('/dashboard/fm/inspections')} style={{ marginTop: '1rem' }}>
-          Back to inspections
+          Volver a Inspecciones
         </FmButton>
       </div>
     )
@@ -232,7 +232,7 @@ export default function FMInspectionDetailPage() {
               onClick={handleApprove}
               size="sm"
             >
-              {approving ? 'Approving…' : 'Approve'}
+              {approving ? 'Aprobando…' : 'Aprobar'}
             </FmButton>
           )}
           {isRunnable && (
@@ -241,7 +241,7 @@ export default function FMInspectionDetailPage() {
               size="sm"
               onClick={() => router.push(`/dashboard/fm/inspections/${id}/run`)}
             >
-              Continue
+              Continuar
             </FmButton>
           )}
         </div>
@@ -264,10 +264,10 @@ export default function FMInspectionDetailPage() {
           <ShieldAlert size={18} style={{ color: 'var(--red)', flexShrink: 0 }} />
           <div>
             <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--red)', margin: 0 }}>
-              {criticalItems.length} Critical Issue{criticalItems.length !== 1 ? 's' : ''} Detected
+              {criticalItems.length} Problema{criticalItems.length !== 1 ? 's' : ''} Crítico{criticalItems.length !== 1 ? 's' : ''} Detectado{criticalItems.length !== 1 ? 's' : ''}
             </p>
             <p style={{ fontSize: '0.75rem', color: 'var(--red)', margin: 0, opacity: 0.8 }}>
-              Immediate attention required: {criticalItems.map((i) => i.label).join(', ')}
+              Se requiere atención inmediata: {criticalItems.map((i) => i.label).join(', ')}
             </p>
           </div>
         </div>
@@ -283,26 +283,26 @@ export default function FMInspectionDetailPage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
           {inspection.inspector?.full_name && (
-            <MetaTile label="Inspector" value={inspection.inspector.full_name} icon={<User size={12} />} />
+            <MetaTile label="Inspector/a" value={inspection.inspector.full_name} icon={<User size={12} />} />
           )}
           {inspection.started_at && (
-            <MetaTile label="Started" value={new Date(inspection.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} icon={<Calendar size={12} />} />
+            <MetaTile label="Iniciada" value={new Date(inspection.started_at).toLocaleDateString('es-PR', { month: 'short', day: 'numeric', year: 'numeric' })} icon={<Calendar size={12} />} />
           )}
           {inspection.completed_at && (
-            <MetaTile label="Completed" value={new Date(inspection.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} icon={<Calendar size={12} />} />
+            <MetaTile label="Completada" value={new Date(inspection.completed_at).toLocaleDateString('es-PR', { month: 'short', day: 'numeric', year: 'numeric' })} icon={<Calendar size={12} />} />
           )}
           {inspection.approved_by?.full_name && (
-            <MetaTile label="Approved By" value={inspection.approved_by.full_name} icon={<CheckCircle size={12} />} />
+            <MetaTile label="Aprobada por" value={inspection.approved_by.full_name} icon={<CheckCircle size={12} />} />
           )}
           {items.length > 0 && (
             <MetaTile
-              label="Items"
+              label="Ítems"
               value={
                 <span>
-                  {items.length} total
+                  {items.length} en total
                   {failedItems.length > 0 && (
                     <span style={{ color: 'var(--red)', marginLeft: '0.4rem', fontWeight: 700 }}>
-                      · {failedItems.length} failed
+                      · {failedItems.length} fallidos
                     </span>
                   )}
                 </span>
@@ -319,24 +319,24 @@ export default function FMInspectionDetailPage() {
           <FmSectionLabel>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <ClipboardCheck size={13} style={{ color: 'var(--primary)' }} />
-              Checklist ({items.length} items)
+              Lista de Verificación ({items.length} ítems)
             </span>
           </FmSectionLabel>
         </div>
 
         {items.length === 0 ? (
           <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
-            No checklist items recorded
+            No hay ítems de verificación registrados
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="fm-table">
               <thead>
                 <tr>
-                  <th>Item</th>
-                  <th>Result</th>
-                  <th>Severity</th>
-                  <th>Notes</th>
+                  <th>Ítem</th>
+                  <th>Resultado</th>
+                  <th>Severidad</th>
+                  <th>Notas</th>
                 </tr>
               </thead>
               <tbody>
@@ -384,7 +384,7 @@ export default function FMInspectionDetailPage() {
           <FmSectionLabel>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <FileText size={13} style={{ color: 'var(--primary)' }} />
-              Attachments ({attachments.length})
+              Adjuntos ({attachments.length})
             </span>
           </FmSectionLabel>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.625rem', marginTop: '0.75rem' }}>
@@ -409,7 +409,7 @@ export default function FMInspectionDetailPage() {
                     style={{ color: 'var(--muted)', display: 'flex', transition: 'color 0.15s' }}
                     onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--primary)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)' }}
-                    aria-label="Download"
+                    aria-label="Descargar"
                   >
                     <Download size={15} />
                   </a>
