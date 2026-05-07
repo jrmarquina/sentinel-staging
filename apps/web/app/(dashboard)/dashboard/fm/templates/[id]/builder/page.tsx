@@ -20,10 +20,10 @@ interface FmTemplate {
 }
 
 const FIELD_TYPES: { value: FieldType; label: string }[] = [
-  { value: 'YES_NO', label: 'Yes / No' },
-  { value: 'PASS_FAIL', label: 'Pass / Fail' },
-  { value: 'TEXT', label: 'Text' },
-  { value: 'NUMBER', label: 'Number' },
+  { value: 'YES_NO', label: 'Sí / No' },
+  { value: 'PASS_FAIL', label: 'Aprobado / Reprobado' },
+  { value: 'TEXT', label: 'Texto' },
+  { value: 'NUMBER', label: 'Número' },
 ]
 
 function generateId(): string {
@@ -68,7 +68,7 @@ export default function TemplateBuilderPage() {
     if (isNew) return
     fetch(`/api/fm/templates/${rawId}`)
       .then((r) => {
-        if (!r.ok) throw new Error('Template not found')
+        if (!r.ok) throw new Error('Plantilla no encontrada')
         return r.json() as Promise<FmTemplate>
       })
       .then((tmpl) => {
@@ -77,7 +77,7 @@ export default function TemplateBuilderPage() {
         const parsed = parseSchema(tmpl.json_schema)
         setFields(parsed.length > 0 ? parsed : [emptyField()])
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Error desconocido'))
       .finally(() => setLoading(false))
   }, [rawId, isNew])
 
@@ -95,9 +95,9 @@ export default function TemplateBuilderPage() {
 
   async function handleSave() {
     setSaveError(null)
-    if (!name.trim()) { setSaveError('Template name is required'); return }
+    if (!name.trim()) { setSaveError('El nombre de la plantilla es obligatorio'); return }
     if (fields.some((f) => !f.label.trim())) {
-      setSaveError('All fields must have a label')
+      setSaveError('Todos los campos deben tener una etiqueta')
       return
     }
 
@@ -125,11 +125,11 @@ export default function TemplateBuilderPage() {
 
       if (!res.ok) {
         const body = await res.json() as { error?: string }
-        throw new Error(body.error ?? 'Failed to save template')
+        throw new Error(body.error ?? 'Error al guardar la plantilla')
       }
       router.push('/dashboard/fm/templates')
     } catch (e: unknown) {
-      setSaveError(e instanceof Error ? e.message : 'Unknown error')
+      setSaveError(e instanceof Error ? e.message : 'Error desconocido')
     } finally {
       setSaving(false)
     }
@@ -148,7 +148,7 @@ export default function TemplateBuilderPage() {
       <div className="py-16 text-center text-red-500">
         <p>{error}</p>
         <button onClick={() => router.push('/dashboard/fm/templates')} className="mt-4 text-sm text-blue-600 hover:underline">
-          Back to templates
+          Volver a plantillas
         </button>
       </div>
     )
@@ -166,7 +166,7 @@ export default function TemplateBuilderPage() {
             <ArrowLeft size={20} />
           </button>
           <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
-            {isNew ? 'Create Template' : 'Edit Template'}
+            {isNew ? 'Crear Plantilla' : 'Editar Plantilla'}
           </h1>
         </div>
         <button
@@ -175,7 +175,7 @@ export default function TemplateBuilderPage() {
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
         >
           {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-          {saving ? 'Saving...' : 'Save Template'}
+          {saving ? 'Guardando...' : 'Guardar Plantilla'}
         </button>
       </div>
 
@@ -186,57 +186,57 @@ export default function TemplateBuilderPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* Left: Meta */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-5 space-y-4">
-          <h2 className="font-semibold text-slate-900 dark:text-white">Template Info</h2>
+          <h2 className="font-semibold text-slate-900 dark:text-white">Información de la Plantilla</h2>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Name <span className="text-red-500">*</span>
+              Nombre <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Monthly Safety Inspection"
+              placeholder="Inspección Mensual de Seguridad"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Description
+              Descripción
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
               className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              placeholder="Used for monthly facility safety walkthroughs..."
+              placeholder="Utilizada para recorridos mensuales de seguridad en instalaciones..."
             />
           </div>
 
           <div className="pt-1 text-sm text-slate-500">
             <span className="font-semibold text-slate-700 dark:text-slate-300">{fields.length}</span>{' '}
-            {fields.length === 1 ? 'field' : 'fields'} configured
+            {fields.length === 1 ? 'campo' : 'campos'} configurado{fields.length === 1 ? '' : 's'}
           </div>
         </div>
 
         {/* Right: Fields */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900 dark:text-white">Checklist Fields</h2>
+            <h2 className="font-semibold text-slate-900 dark:text-white">Campos de la Lista de Verificación</h2>
             <button
               onClick={addField}
               className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
             >
               <Plus size={14} />
-              Add Field
+              Agregar campo
             </button>
           </div>
 
           {fields.length === 0 ? (
             <div className="py-8 text-center text-sm text-slate-400">
-              No fields yet.{' '}
-              <button onClick={addField} className="text-blue-600 hover:underline">Add one</button>
+              Aún no hay campos.{' '}
+              <button onClick={addField} className="text-blue-600 hover:underline">Agregar uno</button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -257,7 +257,7 @@ export default function TemplateBuilderPage() {
                       value={field.label}
                       onChange={(e) => updateField(field.id, { label: e.target.value })}
                       className="w-full px-2.5 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder={`Field ${idx + 1} label...`}
+                      placeholder={`Etiqueta del campo ${idx + 1}...`}
                     />
                     <select
                       value={field.type}
@@ -287,7 +287,7 @@ export default function TemplateBuilderPage() {
             className="w-full py-2.5 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
           >
             <Plus size={14} className="inline mr-1" />
-            Add field
+            Agregar campo
           </button>
         </div>
       </div>

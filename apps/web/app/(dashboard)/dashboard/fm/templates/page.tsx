@@ -38,11 +38,11 @@ export default function FMTemplatesPage() {
     setLoading(true)
     fetch('/api/fm/templates')
       .then((r) => {
-        if (!r.ok) throw new Error('Failed to load templates')
+        if (!r.ok) throw new Error('Error al cargar las plantillas')
         return r.json() as Promise<FmTemplate[]>
       })
       .then(setTemplates)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Error desconocido'))
       .finally(() => setLoading(false))
   }
 
@@ -75,15 +75,15 @@ export default function FMTemplatesPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Inspection Templates</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{templates.length} templates</p>
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Plantillas de Inspección</h1>
+          <p className="text-sm text-slate-500 mt-0.5">{templates.length} plantillas</p>
         </div>
         <button
           onClick={() => router.push('/dashboard/fm/templates/new/builder')}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
         >
           <Plus size={16} />
-          Create Template
+          Crear Plantilla
         </button>
       </div>
 
@@ -92,7 +92,7 @@ export default function FMTemplatesPage() {
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input
           type="text"
-          placeholder="Search templates..."
+          placeholder="Buscar plantillas..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -112,12 +112,12 @@ export default function FMTemplatesPage() {
       ) : filtered.length === 0 ? (
         <div className="py-16 text-center text-slate-400">
           <LayoutList size={32} className="mx-auto mb-3 opacity-40" />
-          <p>No templates found</p>
+          <p>No hay plantillas</p>
           <button
             onClick={() => router.push('/dashboard/fm/templates/new/builder')}
             className="mt-3 inline-block text-sm text-blue-600 hover:underline"
           >
-            Create your first template
+            Crear tu primera plantilla
           </button>
         </div>
       ) : (
@@ -140,10 +140,10 @@ export default function FMTemplatesPage() {
 
                 <div className="flex items-center gap-3 text-xs text-slate-500">
                   <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                    {fields} {fields === 1 ? 'field' : 'fields'}
+                    {fields} {fields === 1 ? 'campo' : 'campos'}
                   </span>
                   <span>
-                    Created {new Date(tmpl.created_at).toLocaleDateString()}
+                    Creado {new Date(tmpl.created_at).toLocaleDateString()}
                   </span>
                 </div>
 
@@ -153,7 +153,7 @@ export default function FMTemplatesPage() {
                     className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                   >
                     <Edit2 size={14} />
-                    Edit
+                    Editar
                   </Link>
 
                   {confirmDelete === tmpl.id ? (
@@ -163,13 +163,13 @@ export default function FMTemplatesPage() {
                         disabled={deleting === tmpl.id}
                         className="text-xs text-red-600 font-medium hover:text-red-700"
                       >
-                        {deleting === tmpl.id ? 'Deleting...' : 'Confirm'}
+                        {deleting === tmpl.id ? 'Eliminando...' : 'Confirmar'}
                       </button>
                       <button
                         onClick={() => setConfirmDelete(null)}
                         className="text-xs text-slate-500"
                       >
-                        Cancel
+                        Cancelar
                       </button>
                     </div>
                   ) : (
