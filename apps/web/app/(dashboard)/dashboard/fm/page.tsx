@@ -27,7 +27,7 @@ const MapView = dynamic(
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-interface PropertyGeo { id: string; name: string; code: string; status: string; latitude: number; longitude: number }
+interface PropertyGeo { id: string; name: string; code: string; status: string; latitude: number; longitude: number; cover_image_url?: string | null }
 
 interface PendingApproval {
   id: string; updated_at: string
@@ -592,9 +592,15 @@ function TopProperties({ properties }: { properties: PropertyGeo[] }) {
             onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)' }}
             onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none' }}
           >
-            {/* Image area — 160px with gradient overlay + name overlay */}
-            <div style={{ height: 160, background: CARD_GRADIENTS[i % CARD_GRADIENTS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-              <Building2 size={36} style={{ color: 'rgba(255,255,255,0.12)' }} />
+            {/* Image area — 160px with cover photo or gradient fallback */}
+            <div style={{
+              height: 160,
+              background: prop.cover_image_url
+                ? `url(${prop.cover_image_url}) center/cover no-repeat`
+                : CARD_GRADIENTS[i % CARD_GRADIENTS.length],
+              display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
+            }}>
+              {!prop.cover_image_url && <Building2 size={36} style={{ color: 'rgba(255,255,255,0.12)' }} />}
               {/* Bottom gradient overlay */}
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)' }} />
               {/* Property name overlay — bottom left */}

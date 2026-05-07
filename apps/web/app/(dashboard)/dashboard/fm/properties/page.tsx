@@ -21,7 +21,7 @@ interface FmProperty {
   status: string
   latitude: number | null
   longitude: number | null
-  image_url?: string | null
+  cover_image_url?: string | null
   fm_assets?: Array<{ id: string }>
   fm_inspections?: Array<{ id: string }>
 }
@@ -62,8 +62,8 @@ function PropertyCard({ prop }: { prop: FmProperty }) {
     prop.status === 'ACTIVE'      ? 'success' as const :
     prop.status === 'MAINTENANCE' ? 'warning' as const : 'danger' as const
 
-  const bgImage = prop.image_url
-    ? `url(${prop.image_url}) center/cover no-repeat`
+  const bgImage = prop.cover_image_url
+    ? `url(${prop.cover_image_url}) center/cover no-repeat`
     : propGradient(prop.id)
 
   return (
@@ -99,7 +99,7 @@ function PropertyCard({ prop }: { prop: FmProperty }) {
             {prop.code}
           </div>
           {/* Building icon texture (no-image only) */}
-          {!prop.image_url && (
+          {!prop.cover_image_url && (
             <div style={{ position: 'absolute', bottom: '0.5rem', right: '0.75rem', opacity: 0.1 }}>
               <Building2 size={48} color="#fff" />
             </div>

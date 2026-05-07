@@ -56,7 +56,7 @@ export async function GET() {
       // Properties with geo coords for map
       supabase
         .from('fm_properties')
-        .select('id, name, code, status, latitude, longitude')
+        .select('id, name, code, status, latitude, longitude, cover_image_url')
         .eq('org_id', orgId)
         .is('deleted_at', null)
         .not('latitude', 'is', null)

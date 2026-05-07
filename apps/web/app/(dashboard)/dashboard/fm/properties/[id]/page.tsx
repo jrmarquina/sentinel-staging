@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { ArrowLeft, MapPin, Loader2, AlertTriangle, Plus, ClipboardCheck, Wrench, Info } from 'lucide-react'
+import { ArrowLeft, MapPin, Loader2, AlertTriangle, Plus, ClipboardCheck, Wrench, Info, Camera, X } from 'lucide-react'
 import { FmCard, FmBadge, FmButton, FmModal, FmModalFooter, statusVariant } from '@/components/fm'
 
 // ── MapView (SSR-disabled) ────────────────────────────────────────────────
@@ -37,7 +37,7 @@ interface FmProperty {
   risk_level: string | null
   latitude: number | null
   longitude: number | null
-  image_url?: string | null
+  cover_image_url?: string | null
   fm_floors?: FmFloor[]
   fm_assets?: FmAssetSummary[]
   fm_inspections?: FmInspectionSummary[]
@@ -158,6 +158,10 @@ export default function FMPropertyDetailPage() {
   const [integrity, setIntegrity]   = useState<IntegrityData | null>(null)
   const [scoreWidth, setScoreWidth] = useState(0)
 
+  // Cover image upload
+  const [coverUploading, setCoverUploading] = useState(false)
+  const [coverError, setCoverError]         = useState<string | null>(null)
+
   function load() {
     setLoading(true)
     Promise.all([
@@ -175,6 +179,41 @@ export default function FMPropertyDetailPage() {
   }
 
   useEffect(() => { load() }, [id])
+
+  async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setCoverError(null)
+    setCoverUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch(`/api/fm/properties/${id}/image`, { method: 'POST', body: fd })
+      if (!res.ok) {
+        const body = await res.json() as { error?: string }
+        throw new Error(body.error ?? 'Error al subir la imagen')
+      }
+      load() // refresh property to show new cover_image_url
+    } catch (err: unknown) {
+      setCoverError(err instanceof Error ? err.message : 'Error al subir la imagen')
+    } finally {
+      setCoverUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  async function handleCoverDelete() {
+    setCoverError(null)
+    setCoverUploading(true)
+    try {
+      await fetch(`/api/fm/properties/${id}/image`, { method: 'DELETE' })
+      load()
+    } catch {
+      setCoverError('Error al eliminar la imagen')
+    } finally {
+      setCoverUploading(false)
+    }
+  }
 
   // Load integrity data separately
   useEffect(() => {
@@ -220,8 +259,8 @@ export default function FMPropertyDetailPage() {
   ]
 
   const propVariant = statusVariant(property.status)
-  const heroBg = property.image_url
-    ? `url(${property.image_url}) center/cover no-repeat`
+  const heroBg = property.cover_image_url
+    ? `url(${property.cover_image_url}) center/cover no-repeat`
     : propGradient(property.id)
 
   const mapMarkers = (property.latitude != null && property.longitude != null) ? [{
@@ -280,6 +319,52 @@ export default function FMPropertyDetailPage() {
             <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', backdropFilter: 'blur(8px)' }}>
               <FmBadge variant={propVariant}>{property.status}</FmBadge>
             </div>
+            {/* Cover image upload controls — top-left */}
+            <div style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', display: 'flex', gap: '0.4rem' }}>
+              <label style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                padding: '0.35rem 0.65rem',
+                background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)',
+                color: '#fff', borderRadius: 8, fontSize: '0.72rem', fontWeight: 600,
+                cursor: coverUploading ? 'wait' : 'pointer', border: '1px solid rgba(255,255,255,0.2)',
+                transition: 'background 0.15s ease',
+              }}>
+                {coverUploading
+                  ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                  : <Camera size={12} />}
+                {property.cover_image_url ? 'Cambiar foto' : 'Subir foto'}
+                <input
+                  type="file" accept="image/jpeg,image/png,image/webp"
+                  style={{ display: 'none' }}
+                  onChange={handleCoverUpload}
+                  disabled={coverUploading}
+                />
+              </label>
+              {property.cover_image_url && !coverUploading && (
+                <button
+                  onClick={handleCoverDelete}
+                  title="Eliminar foto"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 30, height: 30,
+                    background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)',
+                    color: 'rgba(255,255,255,0.8)', borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    cursor: 'pointer', transition: 'background 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(220,38,38,0.7)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0,0,0,0.55)' }}
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            {/* Upload error */}
+            {coverError && (
+              <div style={{ position: 'absolute', bottom: '1.25rem', right: '0.75rem', background: 'rgba(220,38,38,0.85)', color: '#fff', fontSize: '0.72rem', fontWeight: 600, padding: '0.3rem 0.6rem', borderRadius: 6, maxWidth: 240 }}>
+                {coverError}
+              </div>
+            )}
           </div>
 
           {/* Tabs */}

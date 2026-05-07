@@ -20,6 +20,7 @@ const propertySchema = z.object({
   status: z.string().optional(),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
+  cover_image_url: z.string().url().nullable().optional(),
 })
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
