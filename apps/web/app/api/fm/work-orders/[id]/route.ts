@@ -270,7 +270,7 @@ export async function PATCH(
         existing.status === 'PENDING_REVIEW' &&
         updated.assigned_to_id
       ) {
-        notifyAssigneeWOOpen(woSummary, updated.assigned_to_id as string).catch(console.error)
+        notifyAssigneeWOOpen(woSummary, updated.assigned_to_id as string, orgId).catch(console.error)
       }
 
       // N-3: → COMPLETED → notify the manager who engaged the WO
@@ -279,7 +279,7 @@ export async function PATCH(
         existing.status !== 'COMPLETED' &&
         updated.engaged_by_id
       ) {
-        notifyManagerWOCompleted(woSummary, updated.engaged_by_id as string).catch(console.error)
+        notifyManagerWOCompleted(woSummary, updated.engaged_by_id as string, orgId).catch(console.error)
       }
     }
     // ──────────────────────────────────────────────────────────────────────

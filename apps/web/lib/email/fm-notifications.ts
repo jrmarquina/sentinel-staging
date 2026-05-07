@@ -126,7 +126,7 @@ function assigneeLabel(a: string | null) { return a ? (ASSIGNEE_LABELS[a] ?? a) 
 async function getUsersByCapability(
   orgId: string,
   capabilities: string[],
-): Promise<{ email: string; fullName: string }[]> {
+): Promise<{ userId: string; email: string; fullName: string }[]> {
   try {
     const admin = createAdminClient()
 
@@ -152,7 +152,7 @@ async function getUsersByCapability(
     const { data: authData } = await admin.auth.admin.listUsers({ perPage: 1000 })
     return (authData?.users ?? [])
       .filter((u) => userIds.has(u.id) && u.email)
-      .map((u) => ({ email: u.email!, fullName: nameMap.get(u.id) || u.email! }))
+      .map((u) => ({ userId: u.id, email: u.email!, fullName: nameMap.get(u.id) || u.email! }))
   } catch (e) {
     console.error('[fm-notify] getUsersByCapability failed:', e)
     return []
@@ -162,7 +162,7 @@ async function getUsersByCapability(
 /**
  * Returns the email + name of a single user by their profile id.
  */
-async function getUserById(userId: string): Promise<{ email: string; fullName: string } | null> {
+async function getUserById(userId: string): Promise<{ userId: string; email: string; fullName: string } | null> {
   try {
     const admin = createAdminClient()
     const { data: profile } = await admin
@@ -175,6 +175,7 @@ async function getUserById(userId: string): Promise<{ email: string; fullName: s
     if (!authUser?.user?.email) return null
 
     return {
+      userId:   userId,
       email:    authUser.user.email,
       fullName: (profile as { full_name: string | null } | null)?.full_name ?? authUser.user.email,
     }
@@ -182,6 +183,48 @@ async function getUserById(userId: string): Promise<{ email: string; fullName: s
     console.error('[fm-notify] getUserById failed:', e)
     return null
   }
+}
+
+// ── In-app notification insert ─────────────────────────────────────────────
+
+/**
+ * Inserts a row into the `notifications` table so the in-app bell
+ * lights up in real time via Supabase Realtime.
+ * Uses the admin client to bypass RLS (service role insert).
+ */
+async function insertInApp(opts: {
+  userId:       string
+  orgId:        string
+  title:        string
+  body?:        string
+  relatedId?:   string
+  relatedTable?: string
+}): Promise<void> {
+  try {
+    const admin = createAdminClient()
+    await admin.from('notifications').insert({
+      user_id:       opts.userId,
+      org_id:        opts.orgId,
+      title:         opts.title,
+      body:          opts.body ?? null,
+      related_id:    opts.relatedId ?? null,
+      related_table: opts.relatedTable ?? null,
+    })
+  } catch (e) {
+    console.error('[fm-notify] insertInApp failed:', e)
+  }
+}
+
+/**
+ * Fan-out helper — inserts an in-app notification for each recipient.
+ */
+async function insertInAppMany(
+  recipients: { userId: string }[],
+  opts: Omit<Parameters<typeof insertInApp>[0], 'userId'>,
+): Promise<void> {
+  await Promise.allSettled(
+    recipients.map((r) => insertInApp({ ...opts, userId: r.userId }))
+  )
 }
 
 // ── WO type used across notifications ─────────────────────────────────────
@@ -225,11 +268,20 @@ export async function notifyManagersNewWO(wo: WoSummary, orgId: string): Promise
     ctaUrl:   woUrl(wo.id),
   })
 
-  await sendEmail({
-    to:      managers.map((m) => m.email),
-    subject: `[Sentinel FM] Nueva solicitud: ${wo.title}`,
-    html,
-  })
+  await Promise.all([
+    sendEmail({
+      to:      managers.map((m) => m.email),
+      subject: `[Sentinel FM] Nueva solicitud: ${wo.title}`,
+      html,
+    }),
+    insertInAppMany(managers, {
+      orgId:        orgId,
+      title:        `Nueva solicitud: ${wo.title}`,
+      body:         `Pendiente de revisión · ${wo.property_name ?? ''}`,
+      relatedId:    wo.id,
+      relatedTable: 'fm_work_orders',
+    }),
+  ])
 }
 
 // ── N-2: WO triaged to OPEN + assigned → assigned person ──────────────────
@@ -237,6 +289,7 @@ export async function notifyManagersNewWO(wo: WoSummary, orgId: string): Promise
 export async function notifyAssigneeWOOpen(
   wo: WoSummary,
   assignedToId: string,
+  orgId: string,
 ): Promise<void> {
   const assignee = await getUserById(assignedToId)
   if (!assignee) return
@@ -261,11 +314,21 @@ export async function notifyAssigneeWOOpen(
     ctaUrl:   woUrl(wo.id),
   })
 
-  await sendEmail({
-    to:      assignee.email,
-    subject: `[Sentinel FM] Orden asignada: ${wo.title}`,
-    html,
-  })
+  await Promise.all([
+    sendEmail({
+      to:      assignee.email,
+      subject: `[Sentinel FM] Orden asignada: ${wo.title}`,
+      html,
+    }),
+    insertInApp({
+      userId:       assignee.userId,
+      orgId,
+      title:        `Orden asignada: ${wo.title}`,
+      body:         `${wo.property_name ?? ''} · ${wo.priority}`,
+      relatedId:    wo.id,
+      relatedTable: 'fm_work_orders',
+    }),
+  ])
 }
 
 // ── N-3: WO completed → manager who engaged it ────────────────────────────
@@ -273,6 +336,7 @@ export async function notifyAssigneeWOOpen(
 export async function notifyManagerWOCompleted(
   wo: WoSummary,
   engagedById: string,
+  orgId: string,
 ): Promise<void> {
   const manager = await getUserById(engagedById)
   if (!manager) return
@@ -295,11 +359,21 @@ export async function notifyManagerWOCompleted(
     ctaUrl:   woUrl(wo.id),
   })
 
-  await sendEmail({
-    to:      manager.email,
-    subject: `[Sentinel FM] Completada: ${wo.title}`,
-    html,
-  })
+  await Promise.all([
+    sendEmail({
+      to:      manager.email,
+      subject: `[Sentinel FM] Completada: ${wo.title}`,
+      html,
+    }),
+    insertInApp({
+      userId:       manager.userId,
+      orgId,
+      title:        `Orden completada: ${wo.title}`,
+      body:         `${wo.property_name ?? ''} · ${wo.priority}`,
+      relatedId:    wo.id,
+      relatedTable: 'fm_work_orders',
+    }),
+  ])
 }
 
 // ── N-4: DIRECTOR_REFERRAL → all org_viewer users (Director Municipal) ────
@@ -328,9 +402,18 @@ export async function notifyDirectorReferral(wo: WoSummary, orgId: string): Prom
     ctaUrl:   woUrl(wo.id),
   })
 
-  await sendEmail({
-    to:      directors.map((d) => d.email),
-    subject: `[Sentinel FM] Referido al Director: ${wo.title}`,
-    html,
-  })
+  await Promise.all([
+    sendEmail({
+      to:      directors.map((d) => d.email),
+      subject: `[Sentinel FM] Referido al Director: ${wo.title}`,
+      html,
+    }),
+    insertInAppMany(directors, {
+      orgId,
+      title:        `Referido al Director: ${wo.title}`,
+      body:         `${wo.property_name ?? ''} · ${wo.submitter_name ?? ''}`,
+      relatedId:    wo.id,
+      relatedTable: 'fm_work_orders',
+    }),
+  ])
 }
