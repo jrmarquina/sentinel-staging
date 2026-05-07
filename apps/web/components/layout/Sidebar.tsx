@@ -62,7 +62,7 @@ const fmNavItems: NavItem[] = [
   { labelKey: 'nav.fmTemplates',   href: '/dashboard/fm/templates',          icon: ScrollText,    roles: ['admin', 'supervisor'] },
   { labelKey: 'nav.fmSchedules',   href: '/dashboard/fm/schedules',          icon: CalendarClock, roles: ['admin', 'supervisor'] },
   { labelKey: 'nav.fmReports',     href: '/dashboard/fm/reports',            icon: ChartBar,      roles: ['admin', 'supervisor'] },
-  { labelKey: 'nav.team',          href: '/dashboard/team',                  icon: Users,         roles: ['admin'] },
+  { labelKey: 'nav.fmTeam',        href: '/dashboard/fm/team',               icon: Users,         roles: ['admin', 'supervisor'] },
   { labelKey: 'nav.settings',      href: '/dashboard/settings',              icon: Settings,      roles: ['admin'] },
 ]
 

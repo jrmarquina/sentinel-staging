@@ -24,6 +24,7 @@ export const es: Record<TranslationKey, string> = {
   'nav.fmTemplates':  'Plantillas',
   'nav.fmSchedules':  'Programación',
   'nav.fmReports':    'Informes FM',
+  'nav.fmTeam':       'Equipo',
 
   // ── User menu ────────────────────────────────────────────────────────────────
   'menu.appearance':   'Apariencia',

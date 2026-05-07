@@ -22,6 +22,7 @@ export const en = {
   'nav.fmTemplates':  'Templates',
   'nav.fmSchedules':  'Schedules',
   'nav.fmReports':    'Reports',
+  'nav.fmTeam':       'Team',
 
   // ── User menu ────────────────────────────────────────────────────────────────
   'menu.appearance':   'Appearance',

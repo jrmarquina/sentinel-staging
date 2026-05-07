@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { requireRole } from '@/lib/auth/get-session'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getSession } from '@/lib/auth/get-session'
 import { z } from 'zod'
 
 function err(msg: string, status = 500) {
@@ -12,16 +12,32 @@ function caught(e: unknown) {
   return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 }
 
+// FM capability check — managers can manage users
+function isFmManager(cap: string | null, role: string): boolean {
+  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  return ['admin', 'supervisor'].includes(role)
+}
+
+const VALID_CAPABILITIES = [
+  'org_admin', 'org_manager', 'org_viewer', 'contributor', 'worker',
+] as const
+
 const userCreateSchema = z.object({
-  email: z.string().email(),
-  full_name: z.string().min(1),
-  role: z.enum(['admin', 'supervisor', 'inspector', 'vendor', 'viewer']),
-  org_id: z.string().optional(),
+  email:              z.string().email(),
+  full_name:          z.string().min(1),
+  role:               z.enum(['admin', 'supervisor', 'inspector', 'vendor', 'viewer']).default('viewer'),
+  org_id:             z.string().optional(),
+  // FM-specific fields (optional — used when creating from the FM team page)
+  capability:         z.enum(VALID_CAPABILITIES).optional(),
+  role_definition_id: z.string().uuid().nullable().optional(),
 })
 
 export async function GET() {
   try {
-    const session = await requireRole(['admin'])
+    const session = await getSession()
+    if (!session) return err('Unauthorized', 401)
+    if (!isFmManager(session.capability, session.role)) return err('Forbidden', 403)
+
     const supabase = createClient()
 
     const { data, error } = await supabase
@@ -40,35 +56,65 @@ export async function GET() {
 }
 
 /**
- * POST /api/fm/users — Invite a new user to the organisation.
+ * POST /api/fm/users — Create a new user in the organisation.
  *
- * Uses Supabase Auth admin to send an invite email.
- * The user sets their password via the magic link.
+ * Creates the auth user directly (admin API) and inserts the profile
+ * + user_roles row. The invite email is handled by Supabase Auth.
+ * Supports optional FM capability assignment in the same call.
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireRole(['admin'])
+    const session = await getSession()
+    if (!session) return err('Unauthorized', 401)
+    if (!isFmManager(session.capability, session.role)) return err('Forbidden', 403)
+
     const body = await req.json()
     const parsed = userCreateSchema.safeParse(body)
     if (!parsed.success) return err(parsed.error.errors[0].message, 400)
 
-    const supabase = createClient()
+    const admin = createAdminClient()
     const targetOrgId = parsed.data.org_id ?? session.orgId
 
-    // Invite via Supabase Auth (sends magic-link email)
-    const { data: inviteData, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(
-      parsed.data.email,
-      {
-        data: {
-          full_name: parsed.data.full_name,
-          org_id: targetOrgId,
-          role: parsed.data.role,
-        },
-      }
-    )
+    // Create user via admin API (bypasses invite flow — sets password directly)
+    const { data: createdUser, error: createErr } = await admin.auth.admin.createUser({
+      email:             parsed.data.email,
+      password:          undefined, // will be set by user via email
+      email_confirm:     true,
+      user_metadata: {
+        full_name: parsed.data.full_name,
+        org_id:    targetOrgId,
+      },
+    })
 
-    if (inviteErr) return err(inviteErr.message, 400)
+    if (createErr) return err(createErr.message, 400)
+    const userId = createdUser.user.id
 
-    return NextResponse.json({ success: true, user_id: inviteData.user.id }, { status: 201 })
+    // Insert profile
+    const supabase = createClient()
+    await supabase.from('profiles').upsert({
+      id:        userId,
+      org_id:    targetOrgId,
+      full_name: parsed.data.full_name,
+    })
+
+    // Insert / update user_roles
+    const rolePayload: Record<string, unknown> = {
+      user_id:    userId,
+      org_id:     targetOrgId,
+      role:       parsed.data.role,
+    }
+    if (parsed.data.capability) {
+      rolePayload.capability         = parsed.data.capability
+      rolePayload.role_definition_id = parsed.data.role_definition_id ?? null
+    }
+
+    await supabase.from('user_roles').upsert(rolePayload)
+
+    // Send invite email so user can set their password
+    await admin.auth.admin.inviteUserByEmail(parsed.data.email, {
+      data: { full_name: parsed.data.full_name, org_id: targetOrgId },
+    }).catch(() => { /* non-fatal — user still created */ })
+
+    return NextResponse.json({ success: true, user_id: userId }, { status: 201 })
   } catch (e) { return caught(e) }
 }
