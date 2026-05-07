@@ -71,9 +71,9 @@ const CATEGORIES: { value: string; label: string }[] = [
 
 const ASSIGNEE_TYPES: { value: string; label: string }[] = [
   { value: 'HS_STAFF',           label: 'Head Start Staff' },
-  { value: 'MUNICIPALITY',       label: 'Municipality' },
-  { value: 'EXTERNAL_SUPPLIER',  label: 'External Supplier' },
-  { value: 'DIRECTOR_REFERRAL',  label: 'Director Referral' },
+  { value: 'MUNICIPALITY',       label: 'Municipio' },
+  { value: 'EXTERNAL_SUPPLIER',  label: 'Suplidor Externo' },
+  { value: 'DIRECTOR_REFERRAL',  label: 'Referido al Director' },
 ]
 
 const PRIORITIES = ['HIGH', 'MEDIUM', 'LOW'] as const
@@ -93,12 +93,12 @@ const WORKER_STATUS_TRANSITIONS: Record<string, string[]> = {
 }
 
 const ALL_FILTER_TABS: { value: FilterTab; label: string; managerOnly?: boolean }[] = [
-  { value: 'ALL',            label: 'All' },
-  { value: 'PENDING_REVIEW', label: 'Pending Review', managerOnly: true },
-  { value: 'OVERDUE',        label: 'Overdue' },
-  { value: 'OPEN',           label: 'Open' },
-  { value: 'IN_PROGRESS',    label: 'In Progress' },
-  { value: 'COMPLETED',      label: 'Completed' },
+  { value: 'ALL',            label: 'Todas' },
+  { value: 'PENDING_REVIEW', label: 'Por Revisar', managerOnly: true },
+  { value: 'OVERDUE',        label: 'Vencidas' },
+  { value: 'OPEN',           label: 'Abiertas' },
+  { value: 'IN_PROGRESS',    label: 'En Proceso' },
+  { value: 'COMPLETED',      label: 'Completadas' },
 ]
 
 const EMPTY_FORM: CreateForm = {
@@ -137,6 +137,13 @@ function overdueWo(wo: FmWorkOrder): boolean {
 function priorityVariant(p: string) {
   return p === 'HIGH' ? 'danger' as const :
          p === 'MEDIUM' ? 'warning' as const : 'success' as const
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  PENDING_REVIEW: 'Por Revisar',
+  OPEN:           'Abierta',
+  IN_PROGRESS:    'En Proceso',
+  COMPLETED:      'Completada',
 }
 
 // ── Status popover ─────────────────────────────────────────────────────────
@@ -211,7 +218,7 @@ function StatusPopover({
         }}
       >
         {busy ? <Loader2 size={10} style={{ animation: 'spin 1s linear infinite' }} /> : null}
-        {wo.status.replace(/_/g, ' ')}
+        {STATUS_LABELS[wo.status] ?? wo.status.replace(/_/g, ' ')}
         {canTransition && <ChevronDown size={10} />}
       </button>
 
@@ -235,7 +242,7 @@ function StatusPopover({
               onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--card-b)' }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
             >
-              → {s.replace(/_/g, ' ')}
+              → {STATUS_LABELS[s] ?? s.replace(/_/g, ' ')}
             </button>
           ))}
         </div>
@@ -349,8 +356,8 @@ function WoCard({
             color: overdue ? 'var(--red)' : 'var(--muted)', fontWeight: overdue ? 700 : 400,
           }}>
             <Clock size={11} />
-            {overdue ? 'Overdue · ' : 'Due '}
-            {new Date(wo.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {overdue ? 'Vencida · ' : 'Vence '}
+            {new Date(wo.due_date).toLocaleDateString('es-PR', { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
         )}
       </div>
@@ -384,12 +391,12 @@ function ManagerCreateForm({
         {/* Title */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Title <span style={{ color: 'var(--red)' }}>*</span>
+            Título <span style={{ color: 'var(--red)' }}>*</span>
           </label>
           <input className="fm-input" type="text"
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            placeholder="Replace HVAC filter — Building A"
+            placeholder="Reemplazar filtro HVAC — Edificio A"
             autoFocus
           />
         </div>
@@ -397,19 +404,19 @@ function ManagerCreateForm({
         {/* Category */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Category <span style={{ color: 'var(--red)' }}>*</span>
+            Categoría <span style={{ color: 'var(--red)' }}>*</span>
           </label>
           <select className="fm-input" value={form.category}
             onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
             style={{ appearance: 'none' }}>
-            <option value="">— Select category —</option>
+            <option value="">— Seleccionar categoría —</option>
             {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
 
         {/* Priority */}
         <div>
-          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Priority</label>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Prioridad</label>
           <select className="fm-input" value={form.priority}
             onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
             style={{ appearance: 'none' }}>
@@ -420,7 +427,7 @@ function ManagerCreateForm({
         {/* Due date */}
         <div>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Due Date <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+            Fecha Límite <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
           </label>
           <input className="fm-input" type="date" value={form.due_date}
             onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
@@ -430,12 +437,12 @@ function ManagerCreateForm({
         {/* Assignee type */}
         <div>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Assignee Type <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+            Tipo de Asignación <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
           </label>
           <select className="fm-input" value={form.assignee_type}
             onChange={(e) => setForm((f) => ({ ...f, assignee_type: e.target.value, assigned_to_id: '' }))}
             style={{ appearance: 'none' }}>
-            <option value="">— Unassigned —</option>
+            <option value="">— Sin asignar —</option>
             {ASSIGNEE_TYPES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>
         </div>
@@ -444,12 +451,12 @@ function ManagerCreateForm({
         {(form.assignee_type === 'HS_STAFF' || form.assignee_type === 'MUNICIPALITY') && (
           <div>
             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-              Assign To <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+              Asignar A <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
             </label>
             <select className="fm-input" value={form.assigned_to_id}
               onChange={(e) => setForm((f) => ({ ...f, assigned_to_id: e.target.value }))}
               style={{ appearance: 'none' }}>
-              <option value="">— Pick a person —</option>
+              <option value="">— Seleccionar persona —</option>
               {fmUsers.map((u) => (
                 <option key={u.id} value={u.id}>{u.full_name ?? u.email}</option>
               ))}
@@ -459,11 +466,11 @@ function ManagerCreateForm({
 
         {/* Property */}
         <div style={{ gridColumn: '1 / -1' }}>
-          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Property</label>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Centro / Propiedad</label>
           <select className="fm-input" value={form.property_id}
             onChange={(e) => setForm((f) => ({ ...f, property_id: e.target.value }))}
             style={{ appearance: 'none' }}>
-            <option value="">— None —</option>
+            <option value="">— Ninguno —</option>
             {properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
@@ -471,21 +478,21 @@ function ManagerCreateForm({
         {/* Description */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Description <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+            Descripción <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional)</span>
           </label>
           <textarea className="fm-input" rows={3}
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            placeholder="Describe the issue or maintenance task…"
+            placeholder="Describe el problema o tarea de mantenimiento…"
             style={{ resize: 'vertical', minHeight: 70 }}
           />
         </div>
       </div>
 
       <FmModalFooter>
-        <FmButton type="button" variant="secondary" size="sm" onClick={onClose}>Cancel</FmButton>
+        <FmButton type="button" variant="secondary" size="sm" onClick={onClose}>Cancelar</FmButton>
         <FmButton type="submit" size="sm" loading={saving}>
-          {saving ? 'Creating…' : 'Create Work Order'}
+          {saving ? 'Creando…' : 'Crear Orden de Trabajo'}
         </FmButton>
       </FmModalFooter>
     </form>
@@ -515,19 +522,19 @@ function ContributorCreateForm({
 
       {/* Info banner */}
       <div style={{ background: 'var(--primary-c)', border: '1px solid var(--primary)', borderRadius: 8, padding: '0.625rem 0.875rem', fontSize: '0.78rem', color: 'var(--primary)', lineHeight: 1.5 }}>
-        Your request will be sent to the Facilities Manager for review and assignment.
+        Tu solicitud será enviada al Gerente de Facilidades para revisión y asignación.
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         {/* Title */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Issue Title <span style={{ color: 'var(--red)' }}>*</span>
+            Título del Problema <span style={{ color: 'var(--red)' }}>*</span>
           </label>
           <input className="fm-input" type="text"
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            placeholder="Leaking sink — Cafeteria Building B"
+            placeholder="Fuga en el fregadero — Cafetería Edificio B"
             autoFocus
           />
         </div>
@@ -535,23 +542,23 @@ function ContributorCreateForm({
         {/* Category */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Category <span style={{ color: 'var(--red)' }}>*</span>
+            Categoría <span style={{ color: 'var(--red)' }}>*</span>
           </label>
           <select className="fm-input" value={form.category}
             onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
             style={{ appearance: 'none' }}>
-            <option value="">— Select category —</option>
+            <option value="">— Seleccionar categoría —</option>
             {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
 
         {/* Property */}
         <div style={{ gridColumn: '1 / -1' }}>
-          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Property / Location</label>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Centro / Ubicación</label>
           <select className="fm-input" value={form.property_id}
             onChange={(e) => setForm((f) => ({ ...f, property_id: e.target.value }))}
             style={{ appearance: 'none' }}>
-            <option value="">— Not sure —</option>
+            <option value="">— No estoy seguro/a —</option>
             {properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
@@ -559,7 +566,7 @@ function ContributorCreateForm({
         {/* Due date */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Urgency Date <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional — date you need this resolved by)</span>
+            Fecha de Urgencia <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(opcional — fecha en que necesitas resolución)</span>
           </label>
           <input className="fm-input" type="date" value={form.due_date}
             onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
@@ -569,21 +576,21 @@ function ContributorCreateForm({
         {/* Description */}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
-            Description <span style={{ color: 'var(--red)' }}>*</span>
+            Descripción <span style={{ color: 'var(--red)' }}>*</span>
           </label>
           <textarea className="fm-input" rows={4}
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            placeholder="Describe the issue in detail. Include location, severity, and any relevant observations…"
+            placeholder="Describe el problema con detalle. Incluye ubicación, gravedad y cualquier observación relevante…"
             style={{ resize: 'vertical', minHeight: 90 }}
           />
         </div>
       </div>
 
       <FmModalFooter>
-        <FmButton type="button" variant="secondary" size="sm" onClick={onClose}>Cancel</FmButton>
+        <FmButton type="button" variant="secondary" size="sm" onClick={onClose}>Cancelar</FmButton>
         <FmButton type="submit" size="sm" loading={saving}>
-          {saving ? 'Submitting…' : 'Submit Request'}
+          {saving ? 'Enviando…' : 'Enviar Solicitud'}
         </FmButton>
       </FmModalFooter>
     </form>
@@ -636,7 +643,7 @@ export default function FMWorkOrdersPage() {
     setLoading(true)
     Promise.all([
       fetch('/api/fm/work-orders').then((r) => {
-        if (!r.ok) throw new Error('Failed to load work orders')
+        if (!r.ok) throw new Error('Error al cargar las órdenes de trabajo')
         return r.json() as Promise<FmWorkOrder[]>
       }),
       fetch('/api/fm/properties').then((r) => r.json() as Promise<FmProperty[]>),
@@ -684,9 +691,9 @@ export default function FMWorkOrdersPage() {
     e.preventDefault()
     setFormError(null)
 
-    if (!form.title.trim()) { setFormError('Title is required'); return }
-    if (!form.category)     { setFormError('Category is required'); return }
-    if (isContributor && !form.description.trim()) { setFormError('Description is required'); return }
+    if (!form.title.trim()) { setFormError('El título es requerido'); return }
+    if (!form.category)     { setFormError('La categoría es requerida'); return }
+    if (isContributor && !form.description.trim()) { setFormError('La descripción es requerida'); return }
 
     const payload: Record<string, unknown> = {
       title:       form.title.trim(),
@@ -712,7 +719,7 @@ export default function FMWorkOrdersPage() {
       })
       if (!res.ok) {
         const body = await res.json() as { error?: string }
-        throw new Error(body.error ?? 'Failed to create work order')
+        throw new Error(body.error ?? 'Error al crear la orden de trabajo')
       }
       closeCreate()
       load()
@@ -758,24 +765,24 @@ export default function FMWorkOrdersPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Work Orders</h1>
+          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Órdenes de Trabajo</h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
-            {workOrders.length} total
+            {workOrders.length} en total
             {overdueCount > 0 && (
               <span style={{ color: 'var(--red)', fontWeight: 700, marginLeft: '0.4rem' }}>
-                · {overdueCount} overdue
+                · {overdueCount} vencida{overdueCount !== 1 ? 's' : ''}
               </span>
             )}
             {isManager && pendingCount > 0 && (
               <span style={{ color: 'var(--amber)', fontWeight: 700, marginLeft: '0.4rem' }}>
-                · {pendingCount} pending review
+                · {pendingCount} por revisar
               </span>
             )}
           </p>
         </div>
         {canCreate && levelReady && (
           <FmButton icon={<Plus size={15} />} onClick={() => setShowCreate(true)} size="sm">
-            {isManager ? 'New Work Order' : 'Submit Request'}
+            {isManager ? 'Nueva Orden' : 'Enviar Solicitud'}
           </FmButton>
         )}
       </div>
@@ -785,7 +792,7 @@ export default function FMWorkOrdersPage() {
         <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', pointerEvents: 'none' }} />
         <input
           type="text"
-          placeholder="Search by title, description, category or property…"
+          placeholder="Buscar por título, descripción, categoría o propiedad…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="fm-input"
@@ -845,16 +852,16 @@ export default function FMWorkOrdersPage() {
         <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--red)' }}>
           <AlertTriangle size={28} style={{ margin: '0 auto 0.75rem' }} />
           <p style={{ fontSize: '0.875rem' }}>{error}</p>
-          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>Retry</FmButton>
+          <FmButton variant="secondary" size="sm" onClick={load} style={{ marginTop: '1rem' }}>Reintentar</FmButton>
         </div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--muted)', fontSize: '0.875rem' }}>
           <ClipboardList size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
           {search || activeTab !== 'ALL'
-            ? 'No work orders match your filters'
+            ? 'Ninguna orden coincide con los filtros'
             : isContributor
-              ? 'You haven\'t submitted any requests yet'
-              : 'No work orders yet'}
+              ? 'Todavía no has enviado ninguna solicitud'
+              : 'No hay órdenes de trabajo'}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.875rem' }}>
@@ -874,11 +881,11 @@ export default function FMWorkOrdersPage() {
       <FmModal
         open={showCreate}
         onClose={closeCreate}
-        title={isManager ? 'New Work Order' : 'Submit Maintenance Request'}
+        title={isManager ? 'Nueva Orden de Trabajo' : 'Enviar Solicitud de Mantenimiento'}
         subtitle={
           isManager
-            ? 'Create a work order and assign it directly'
-            : 'Report a facility issue for review by the Facilities Manager'
+            ? 'Crea una orden de trabajo y asígnala directamente'
+            : 'Reporta un problema de facilidades para revisión del Gerente'
         }
       >
         {isManager ? (

@@ -16,14 +16,14 @@ export const es: Record<TranslationKey, string> = {
   'nav.designSettings':'Configuración de Diseño',
   'nav.municipalityOf':'Municipio de',
   // FM module nav
-  'nav.fmDashboard':  'Panel FM',
-  'nav.fmProperties': 'Propiedades',
+  'nav.fmDashboard':  'Panel de Facilidades',
+  'nav.fmProperties': 'Centros',
   'nav.fmAssets':     'Activos',
-  'nav.fmInspections':'Inspecciones FM',
-  'nav.fmWorkOrders': 'Órdenes de Trabajo FM',
+  'nav.fmInspections':'Inspecciones',
+  'nav.fmWorkOrders': 'Órdenes de Trabajo',
   'nav.fmTemplates':  'Plantillas',
   'nav.fmSchedules':  'Programación',
-  'nav.fmReports':    'Informes FM',
+  'nav.fmReports':    'Reportes',
   'nav.fmTeam':       'Equipo',
 
   // ── User menu ────────────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   Download, Trash2, Loader2, AlertTriangle, FileBarChart,
-  RefreshCw, BarChart3, Clock, CheckCircle2, AlertCircle, TrendingUp,
+  RefreshCw, BarChart3, Clock, CheckCircle2, AlertCircle, TrendingUp, Building2,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -29,6 +29,11 @@ interface Analytics {
   byPriority: Record<string, number>
   byAssigneeType: Record<string, number>
   bySource: Record<string, number>
+  byProperty: {
+    property_id: string; property_name: string; property_code: string | null
+    total: number; open: number; inProgress: number; completed: number
+    pendingReview: number; overdue: number; avgResolutionHours: number | null
+  }[]
   completionTrend: { date: string; count: number }[]
   inspections: { total: number; completed: number; avgScore: number | null; passRate: number | null }
 }
@@ -36,7 +41,7 @@ interface Analytics {
 type MainTab = 'REPORTS' | 'ANALYTICS'
 type ReportTab = 'ALL' | 'INSPECTION' | 'PORTFOLIO'
 
-// ── Constants ──────────────────────────────────────────────────────────────
+// ── Spanish label maps ─────────────────────────────────────────────────────
 
 const CATEGORY_LABELS: Record<string, string> = {
   PLOMERIA: 'Plomería', CARPINTERIA: 'Carpintería', ELECTRICIDAD: 'Electricidad',
@@ -64,9 +69,9 @@ const TYPE_BADGE: Record<string, string> = {
 }
 
 const REPORT_TABS: { value: ReportTab; label: string }[] = [
-  { value: 'ALL',        label: 'All' },
-  { value: 'INSPECTION', label: 'Inspection' },
-  { value: 'PORTFOLIO',  label: 'Portfolio' },
+  { value: 'ALL',        label: 'Todos' },
+  { value: 'INSPECTION', label: 'Inspección' },
+  { value: 'PORTFOLIO',  label: 'Portafolio' },
 ]
 
 function isInspectionReport(r: FmReport) { return r.type.toLowerCase().includes('inspection') }
@@ -161,7 +166,7 @@ function AnalyticsPanel() {
     </div>
   )
 
-  const { summary, avgResolutionHours, byCategory, byPriority, byAssigneeType, completionTrend, inspections } = data
+  const { summary, avgResolutionHours, byCategory, byPriority, byAssigneeType, byProperty, completionTrend, inspections } = data
 
   const maxCat = Math.max(...byCategory.map((c) => c.count), 1)
 
@@ -170,18 +175,18 @@ function AnalyticsPanel() {
 
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
-        <StatCard label="Total WOs"       value={summary.total} />
-        <StatCard label="Open"            value={summary.open}        accent="var(--primary)" />
-        <StatCard label="In Progress"     value={summary.inProgress}  accent="var(--amber)" />
-        <StatCard label="Completed"       value={summary.completed}   accent="var(--teal)" />
-        <StatCard label="Pending Review"  value={summary.pendingReview} accent={summary.pendingReview > 0 ? 'var(--amber)' : undefined} />
-        <StatCard label="Overdue"         value={summary.overdue}     accent={summary.overdue > 0 ? 'var(--red)' : undefined} />
-        <StatCard label="High Priority"   value={summary.highPriority} accent={summary.highPriority > 0 ? 'var(--red)' : undefined}
-          sub="open / in progress" />
+        <StatCard label="Total OT"         value={summary.total} />
+        <StatCard label="Abiertas"         value={summary.open}          accent="var(--primary)" />
+        <StatCard label="En Proceso"       value={summary.inProgress}    accent="var(--amber)" />
+        <StatCard label="Completadas"      value={summary.completed}     accent="var(--teal)" />
+        <StatCard label="Por Revisar"      value={summary.pendingReview} accent={summary.pendingReview > 0 ? 'var(--amber)' : undefined} />
+        <StatCard label="Vencidas"         value={summary.overdue}       accent={summary.overdue > 0 ? 'var(--red)' : undefined} />
+        <StatCard label="Prioridad Alta"   value={summary.highPriority}  accent={summary.highPriority > 0 ? 'var(--red)' : undefined}
+          sub="abiertas / en proceso" />
         <StatCard
-          label="Avg Resolution"
+          label="Tiempo Prom."
           value={avgResolutionHours != null ? formatHours(avgResolutionHours) : '—'}
-          sub="time to complete"
+          sub="tiempo de resolución"
         />
       </div>
 
@@ -189,7 +194,7 @@ function AnalyticsPanel() {
       <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '1rem 1.125rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.875rem' }}>
           <TrendingUp size={14} style={{ color: 'var(--teal)' }} />
-          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>Completions — last 14 days</p>
+          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>Completadas — últimos 14 días</p>
         </div>
         <Sparkline data={completionTrend} />
       </div>
@@ -279,6 +284,51 @@ function AnalyticsPanel() {
         </div>
 
       </div>
+
+      {/* By-property breakdown */}
+      {byProperty && byProperty.length > 0 && (
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '1rem 1.125rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <Building2 size={14} style={{ color: 'var(--primary)' }} />
+            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>OTs por Centro</p>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  {['Centro', 'Total', 'Abiertas', 'En Proceso', 'Completadas', 'Por Revisar', 'Vencidas', 'T. Prom.'].map((h) => (
+                    <th key={h} style={{ padding: '0.4rem 0.75rem', textAlign: h === 'Centro' ? 'left' : 'right', color: 'var(--muted)', fontWeight: 600, fontSize: '0.7rem', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {byProperty.map((p) => (
+                  <tr key={p.property_id} style={{ borderBottom: '1px solid var(--border)' }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = 'var(--card-b)' }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent' }}>
+                    <td style={{ padding: '0.5rem 0.75rem', color: 'var(--fg)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {p.property_name}
+                      {p.property_code && (
+                        <span style={{ marginLeft: '0.4rem', fontSize: '0.68rem', color: 'var(--faint)', fontWeight: 400 }}>{p.property_code}</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', fontWeight: 700, color: 'var(--fg)' }}>{p.total}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', color: p.open > 0 ? 'var(--primary)' : 'var(--faint)' }}>{p.open}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', color: p.inProgress > 0 ? 'var(--amber)' : 'var(--faint)' }}>{p.inProgress}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', color: p.completed > 0 ? 'var(--teal)' : 'var(--faint)' }}>{p.completed}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', color: p.pendingReview > 0 ? 'var(--amber)' : 'var(--faint)' }}>{p.pendingReview}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', color: p.overdue > 0 ? 'var(--red)' : 'var(--faint)', fontWeight: p.overdue > 0 ? 700 : 400 }}>{p.overdue}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', color: 'var(--muted)' }}>
+                      {p.avgResolutionHours != null ? formatHours(p.avgResolutionHours) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
@@ -322,7 +372,7 @@ export default function FMReportsPage() {
         body: JSON.stringify({ type: 'PORTFOLIO_COMPLIANCE' }),
       })
       if (res.ok) {
-        setGenMsg('Portfolio report generation started — refresh in a moment.')
+        setGenMsg('Generación iniciada — refresca en un momento.')
         load()
       } else {
         const body = await res.json() as { error?: string }
@@ -365,9 +415,9 @@ export default function FMReportsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Reports</h1>
+          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Reportes</h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
-            {reports.length} generated report{reports.length !== 1 ? 's' : ''}
+            {reports.length} reporte{reports.length !== 1 ? 's' : ''} generado{reports.length !== 1 ? 's' : ''}
           </p>
         </div>
         {mainTab === 'REPORTS' && (
@@ -387,7 +437,7 @@ export default function FMReportsPage() {
               {generating
                 ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
                 : <RefreshCw size={14} />}
-              Generate Portfolio Report
+              Generar Reporte de Portafolio
             </button>
           </div>
         )}
@@ -396,8 +446,8 @@ export default function FMReportsPage() {
       {/* Main tabs: Reports | Analytics */}
       <div style={{ display: 'flex', gap: '0.25rem', borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
         {([
-          { value: 'REPORTS' as MainTab,   label: 'Generated Reports', icon: FileBarChart },
-          { value: 'ANALYTICS' as MainTab, label: 'Analytics',         icon: BarChart3 },
+          { value: 'REPORTS' as MainTab,   label: 'Reportes Generados', icon: FileBarChart },
+          { value: 'ANALYTICS' as MainTab, label: 'Estadísticas',       icon: BarChart3 },
         ]).map(({ value, label, icon: Icon }) => (
           <button
             key={value}
@@ -454,7 +504,7 @@ export default function FMReportsPage() {
           ) : filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--muted)' }}>
               <FileBarChart size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.35 }} />
-              <p style={{ fontSize: '0.875rem' }}>No reports found</p>
+              <p style={{ fontSize: '0.875rem' }}>No hay reportes</p>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.875rem' }}>
@@ -490,7 +540,7 @@ export default function FMReportsPage() {
                       <a href={report.signed_url} target="_blank" rel="noopener noreferrer"
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.375rem 0.75rem', background: 'var(--teal)', color: '#fff', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none' }}>
                         <Download size={13} />
-                        Download
+                        Descargar
                       </a>
                     ) : <div />}
 
@@ -498,11 +548,11 @@ export default function FMReportsPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <button onClick={() => handleDelete(report.id)} disabled={deleting === report.id}
                           style={{ fontSize: '0.75rem', color: 'var(--red)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>
-                          {deleting === report.id ? 'Deleting…' : 'Confirm'}
+                          {deleting === report.id ? 'Eliminando…' : 'Confirmar'}
                         </button>
                         <button onClick={() => setConfirmDelete(null)}
                           style={{ fontSize: '0.75rem', color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
-                          Cancel
+                          Cancelar
                         </button>
                       </div>
                     ) : (
