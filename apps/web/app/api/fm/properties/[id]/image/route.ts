@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/get-session'
 
 function err(msg: string, status = 500) {
@@ -23,7 +23,8 @@ const MAX_BYTES = 10 * 1024 * 1024 // 10 MB
 // Upload or replace the cover image for a property.
 // Body: multipart/form-data with field "file" (image).
 // Stores in Supabase Storage "photos" bucket at:
-//   fm/properties/{propertyId}/cover.{ext}
+//   {orgId}/fm/properties/{propertyId}/cover.{ext}
+//   (orgId prefix satisfies the "upload only to own org folder" RLS policy)
 // Updates fm_properties.cover_image_url with the public URL.
 
 export async function POST(
@@ -43,9 +44,9 @@ export async function POST(
     const file = formData.get('file') as File | null
     if (!file) return err('No file provided', 400)
     if (!ALLOWED_MIME.includes(file.type)) {
-      return err(`Unsupported file type: ${file.type}. Use JPEG, PNG, or WebP.`, 400)
+      return err(`Tipo de archivo no soportado: ${file.type}. Usa JPEG, PNG o WebP.`, 400)
     }
-    if (file.size > MAX_BYTES) return err('File exceeds 10 MB limit', 400)
+    if (file.size > MAX_BYTES) return err('El archivo supera el límite de 10 MB', 400)
 
     // Determine extension
     const extMap: Record<string, string> = {
@@ -53,7 +54,9 @@ export async function POST(
       'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic',
     }
     const ext  = extMap[file.type] ?? 'jpg'
-    const path = `fm/properties/${params.id}/cover.${ext}`
+
+    // Path under orgId prefix so the existing storage RLS policy accepts it
+    const storagePath = `${session.orgId}/fm/properties/${params.id}/cover.${ext}`
 
     // Verify property belongs to this org before uploading
     const supabase = createClient()
@@ -65,26 +68,24 @@ export async function POST(
       .is('deleted_at', null)
       .single()
 
-    if (propErr || !prop) return err('Property not found', 404)
+    if (propErr || !prop) return err('Propiedad no encontrada', 404)
 
-    // Upload to storage using admin client (bypasses storage RLS)
-    const admin = createAdminClient()
+    // Upload using the session client — the orgId prefix satisfies RLS
     const arrayBuffer = await file.arrayBuffer()
-
-    const { error: uploadErr } = await admin.storage
+    const { error: uploadErr } = await supabase.storage
       .from('photos')
-      .upload(path, arrayBuffer, {
+      .upload(storagePath, arrayBuffer, {
         contentType: file.type,
-        upsert: true, // replace existing cover
+        upsert: true, // replace existing cover on re-upload
       })
 
-    if (uploadErr) return err(`Storage upload failed: ${uploadErr.message}`)
+    if (uploadErr) return err(`Error al subir la imagen: ${uploadErr.message}`)
 
     // Get the public URL
-    const { data: urlData } = admin.storage.from('photos').getPublicUrl(path)
+    const { data: urlData } = supabase.storage.from('photos').getPublicUrl(storagePath)
     const coverUrl = urlData.publicUrl
 
-    // Persist to fm_properties
+    // Persist URL to fm_properties
     const { error: patchErr } = await supabase
       .from('fm_properties')
       .update({ cover_image_url: coverUrl, updated_at: new Date().toISOString() })
@@ -98,7 +99,7 @@ export async function POST(
 }
 
 // ── DELETE /api/fm/properties/[id]/image ─────────────────────────────────
-// Remove the cover image — clears the URL and deletes the file from storage.
+// Remove the cover image — clears the URL and best-effort removes the file.
 
 export async function DELETE(
   _req: NextRequest,
@@ -110,9 +111,8 @@ export async function DELETE(
     if (!isFmManager(session.capability, session.role)) return err('Forbidden', 403)
 
     const supabase = createClient()
-    const admin    = createAdminClient()
 
-    // Clear the URL in the DB
+    // Clear the URL in the DB first
     const { error: patchErr } = await supabase
       .from('fm_properties')
       .update({ cover_image_url: null, updated_at: new Date().toISOString() })
@@ -121,11 +121,13 @@ export async function DELETE(
 
     if (patchErr) return err(patchErr.message)
 
-    // Best-effort delete from storage (try all known extensions)
+    // Best-effort: remove all possible extension variants from storage
     const exts = ['jpg', 'png', 'webp', 'heic']
     await Promise.allSettled(
       exts.map((ext) =>
-        admin.storage.from('photos').remove([`fm/properties/${params.id}/cover.${ext}`])
+        supabase.storage
+          .from('photos')
+          .remove([`${session.orgId}/fm/properties/${params.id}/cover.${ext}`])
       )
     )
 
