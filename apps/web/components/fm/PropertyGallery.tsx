@@ -38,6 +38,9 @@ export interface GalleryItem {
 
 interface Props {
   propertyId: string
+  /** Called after a successful upload or delete so the parent page can
+   *  refresh its tab counts and other dependent UI. */
+  onChange?: () => void
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -84,7 +87,7 @@ function pdfViewerUrl(fileUrl: string): string {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export default function PropertyGallery({ propertyId }: Props) {
+export default function PropertyGallery({ propertyId, onChange }: Props) {
   const t = useFmT()
   const [items, setItems]       = useState<GalleryItem[]>([])
   const [loading, setLoading]   = useState(true)
@@ -123,6 +126,7 @@ export default function PropertyGallery({ propertyId }: Props) {
       }
       const created = await res.json() as GalleryItem
       setItems(prev => [created, ...prev])
+      onChange?.()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('gallery.error'))
     } finally {
@@ -140,6 +144,7 @@ export default function PropertyGallery({ propertyId }: Props) {
       })
       if (!res.ok) throw new Error(t('error.generic'))
       setItems(prev => prev.filter(it => it.id !== id))
+      onChange?.()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('error.generic'))
     } finally {

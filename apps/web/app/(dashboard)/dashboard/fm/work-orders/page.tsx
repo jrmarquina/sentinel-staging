@@ -691,6 +691,17 @@ export default function FMWorkOrdersPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Refresh tab counts when the user returns to this tab.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+  }, [load])
+
   // Auto-switch to ALL when focused via deep-link
   useEffect(() => { if (focusId) setActiveTab('ALL') }, [focusId])
 

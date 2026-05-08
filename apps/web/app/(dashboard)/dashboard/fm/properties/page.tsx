@@ -164,6 +164,20 @@ export default function FMPropertiesPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Refresh when the user returns to this tab — covers cases where they
+  // edited a property in detail view and come back to the list.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => { if (showModal) setTimeout(() => nameRef.current?.focus(), 50) }, [showModal])
 
   // Filter

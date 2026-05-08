@@ -84,6 +84,18 @@ export default function FMInspectionsPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Refresh tab counts when the user returns to this tab (e.g. after
+  // running and completing an inspection in the runner sub-route).
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+  }, [load])
+
   const filteredAssets = assets.filter(
     (a) => !form.property_id || a.property_id === form.property_id
   )

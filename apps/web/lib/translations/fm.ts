@@ -91,6 +91,7 @@ export const fm = {
     'prop.detail.tile.wo':      'Work Orders',
     'prop.detail.tile.docs':    'Attachments',
     'prop.detail.tile.risk':    'Risk Level',
+    'prop.detail.directions':   'Directions',
 
     // ── Gallery ──────────────────────────────────────────────────────────────
     'prop.detail.tab.gallery':  'Gallery',
@@ -478,6 +479,7 @@ export const fm = {
     'prop.detail.tile.wo':      'Órdenes de Trabajo',
     'prop.detail.tile.docs':    'Adjuntos',
     'prop.detail.tile.risk':    'Nivel de Riesgo',
+    'prop.detail.directions':   'Cómo llegar',
 
     // ── Gallery ──────────────────────────────────────────────────────────────
     'prop.detail.tab.gallery':  'Galería',

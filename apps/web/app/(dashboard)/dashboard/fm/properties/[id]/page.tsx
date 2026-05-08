@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { ArrowLeft, MapPin, Loader2, AlertTriangle, Plus, ClipboardCheck, Wrench, Info, Camera, X } from 'lucide-react'
+import { ArrowLeft, MapPin, Loader2, AlertTriangle, Plus, ClipboardCheck, Wrench, Info, Camera, X, Navigation } from 'lucide-react'
 import { FmCard, FmBadge, FmButton, FmModal, FmModalFooter, statusVariant } from '@/components/fm'
 import PropertyGallery from '@/components/fm/PropertyGallery'
 import { useFmT, useLocale } from '@/lib/locale'
@@ -185,6 +185,19 @@ export default function FMPropertyDetailPage() {
 
   useEffect(() => { load() }, [id])
 
+  // Refresh counts when the tab regains focus (e.g. user returns from a
+  // detail page where they added an asset / inspection / WO).
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+
   async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -261,7 +274,7 @@ export default function FMPropertyDetailPage() {
     { value: 'assets',       label: t('prop.detail.tab.assets'),   count: assets.length },
     { value: 'inspections',  label: t('prop.detail.tab.insp'),     count: inspections.length },
     { value: 'work-orders',  label: t('prop.detail.tab.wo'),       count: workOrders.length },
-    { value: 'gallery',      label: t('prop.detail.tab.gallery'),  count: 0 },
+    { value: 'gallery',      label: t('prop.detail.tab.gallery'),  count: attachments.length },
   ]
 
   const propVariant = statusVariant(property.status)
@@ -412,13 +425,38 @@ export default function FMPropertyDetailPage() {
 
                 {/* MapView */}
                 {property.latitude != null && property.longitude != null && (
-                  <div style={{ height: 280, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
+                  <div style={{ position: 'relative', height: 280, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
                     <MapView
                       markers={mapMarkers}
                       center={{ lat: property.latitude, lng: property.longitude }}
                       zoom={15}
                       showOutsideOverlay={false}
                     />
+                    {/* "Get Directions" button — opens Google Maps in the
+                        appropriate app (native on iOS/Android, web on
+                        desktop). Falls back gracefully on any browser. */}
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${property.latitude},${property.longitude}&travelmode=driving`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={t('prop.detail.directions')}
+                      style={{
+                        position: 'absolute', top: 10, right: 10, zIndex: 5,
+                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                        padding: '0.5rem 0.75rem',
+                        background: 'var(--card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 8,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                        color: 'var(--fg)',
+                        textDecoration: 'none',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <Navigation size={14} style={{ color: 'var(--primary)' }} />
+                      {t('prop.detail.directions')}
+                    </a>
                   </div>
                 )}
               </div>
@@ -518,7 +556,7 @@ export default function FMPropertyDetailPage() {
             {/* Gallery tab */}
             {activeTab === 'gallery' && (
               <FmCard style={{ padding: '1.25rem' }}>
-                <PropertyGallery propertyId={id as string} />
+                <PropertyGallery propertyId={id as string} onChange={load} />
               </FmCard>
             )}
           </div>
