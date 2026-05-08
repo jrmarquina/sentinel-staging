@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/get-session'
+
+function storageAdmin() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  )
+}
 
 function err(msg: string, status = 500) {
   return NextResponse.json({ error: msg }, { status })
@@ -34,9 +43,10 @@ export async function DELETE(
       .single()
     if (lookupErr || !row) return err('Attachment not found', 404)
 
-    // Best-effort storage delete
+    // Best-effort storage delete (service-role bypasses storage RLS)
     if (row.file_key) {
-      await supabase.storage.from(BUCKET).remove([row.file_key])
+      const admin = storageAdmin()
+      await admin.storage.from(BUCKET).remove([row.file_key])
     }
 
     const { error: deleteErr } = await supabase

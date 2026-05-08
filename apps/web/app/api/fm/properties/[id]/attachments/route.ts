@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/get-session'
+
+function storageAdmin() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  )
+}
 
 function err(msg: string, status = 500) {
   return NextResponse.json({ error: msg }, { status })
@@ -69,9 +78,10 @@ export async function GET(
 
     if (error) return err(error.message)
 
-    // Resolve public URLs from file_key.
+    // Resolve public URLs from file_key (service-role for stable public URL helper).
+    const admin = storageAdmin()
     const items = (data ?? []).map(row => {
-      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(row.file_key)
+      const { data: urlData } = admin.storage.from(BUCKET).getPublicUrl(row.file_key)
       return {
         id:         row.id,
         name:       row.name,
@@ -123,8 +133,10 @@ export async function POST(
     const cleanName = safeFilename(file.name || `attachment.${ext}`)
     const fileKey  = `${session.orgId}/properties/${params.id}/gallery/${uuid}.${ext}`
 
+    // Upload via service-role — bypasses storage.objects RLS.
+    const admin = storageAdmin()
     const arrayBuffer = await file.arrayBuffer()
-    const { error: uploadErr } = await supabase.storage
+    const { error: uploadErr } = await admin.storage
       .from(BUCKET)
       .upload(fileKey, arrayBuffer, { contentType: file.type, upsert: false })
     if (uploadErr) {
@@ -146,11 +158,11 @@ export async function POST(
 
     if (insertErr) {
       // Rollback upload if metadata insert failed
-      await supabase.storage.from(BUCKET).remove([fileKey])
+      await admin.storage.from(BUCKET).remove([fileKey])
       return err(insertErr.message)
     }
 
-    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(fileKey)
+    const { data: urlData } = admin.storage.from(BUCKET).getPublicUrl(fileKey)
 
     return NextResponse.json({
       id:         row.id,

@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/get-session'
+
+/**
+ * Storage admin client — service-role JWT goes straight to the Storage
+ * REST API. Bypasses RLS on storage.objects unconditionally. Use this for
+ * uploads/deletes from server routes; do NOT expose to the browser.
+ */
+function storageAdmin() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  )
+}
 
 function err(msg: string, status = 500) {
   return NextResponse.json({ error: msg }, { status })
@@ -65,9 +79,12 @@ export async function POST(
       .single()
     if (propErr || !prop) return err('Property not found', 404)
 
-    // Upload via the user session — RLS allows writes to their own org folder.
+    // Upload via service-role client — bypasses storage.objects RLS.
+    // (The @supabase/ssr session client does not reliably forward the
+    // user JWT to the Storage REST endpoint in self-hosted setups.)
+    const admin = storageAdmin()
     const arrayBuffer = await file.arrayBuffer()
-    const { error: uploadErr } = await supabase.storage
+    const { error: uploadErr } = await admin.storage
       .from(BUCKET)
       .upload(path, arrayBuffer, { contentType: file.type, upsert: true })
 
@@ -78,7 +95,7 @@ export async function POST(
 
     // Public bucket → embeddable URL. Add a cache-busting timestamp so the
     // browser refreshes the <img> after a re-upload (same path, new bytes).
-    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path)
+    const { data: urlData } = admin.storage.from(BUCKET).getPublicUrl(path)
     const coverUrl = `${urlData.publicUrl}?t=${Date.now()}`
 
     const { error: patchErr } = await supabase
@@ -112,10 +129,11 @@ export async function DELETE(
       .eq('org_id', session.orgId)
     if (patchErr) return err(patchErr.message)
 
-    // Best-effort: remove all known extension variants
+    // Best-effort: remove all known extension variants (service-role)
+    const admin = storageAdmin()
     await Promise.allSettled(
       ['jpg', 'png', 'webp', 'heic'].map((ext) =>
-        supabase.storage.from(BUCKET)
+        admin.storage.from(BUCKET)
           .remove([`${session.orgId}/properties/${params.id}/cover.${ext}`])
       )
     )
