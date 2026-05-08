@@ -63,8 +63,23 @@ function fileTypeIcon(mime: string, size = 32) {
   return <FileIcon size={size} />
 }
 
+/**
+ * Office-Online viewer URL. We use the view.aspx endpoint instead of
+ * embed.aspx — view.aspx renders read-only without the "Edit in Word /
+ * Excel / PowerPoint" affordance that embed.aspx exposes.
+ */
 function officeViewerUrl(fileUrl: string): string {
-  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`
+  return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileUrl)}&wdAllowInteractivity=False&wdHideHeaders=True&wdHideGridlines=True`
+}
+
+/**
+ * PDF iframe URL. The hash fragment is read by Chrome's built-in PDF
+ * viewer and disables: top toolbar (download, print, save-to-Drive,
+ * edit), navigation pane, and scrollbars. Multi-page nav and zoom still
+ * work via pinch / Ctrl+scroll / keyboard.
+ */
+function pdfViewerUrl(fileUrl: string): string {
+  return `${fileUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH`
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -281,11 +296,18 @@ function AttachmentViewer({
   const [idx, setIdx]     = useState(startIndex)
   const [zoom, setZoom]   = useState(1)
   const [fullscreen, setFullscreen] = useState(false)
+  // Pan offset (in screen pixels) — only consulted when zoom > 1 on images
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null)
+  const [dragging, setDragging] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const item = items[idx]
 
-  useEffect(() => { setZoom(1) }, [idx])
+  // Reset zoom + pan whenever the active item changes
+  useEffect(() => { setZoom(1); setPan({ x: 0, y: 0 }) }, [idx])
+  // Reset pan whenever we return to 1× zoom
+  useEffect(() => { if (zoom <= 1) setPan({ x: 0, y: 0 }) }, [zoom])
 
   // Keyboard nav
   useEffect(() => {
@@ -391,18 +413,39 @@ function AttachmentViewer({
           <img
             src={item.url}
             alt={item.name}
+            onMouseDown={(e) => {
+              if (zoom <= 1) return
+              dragRef.current = {
+                startX: e.clientX, startY: e.clientY,
+                baseX: pan.x, baseY: pan.y,
+              }
+              setDragging(true)
+              e.preventDefault()
+            }}
+            onMouseMove={(e) => {
+              if (!dragRef.current) return
+              const d = dragRef.current
+              setPan({
+                x: d.baseX + (e.clientX - d.startX),
+                y: d.baseY + (e.clientY - d.startY),
+              })
+            }}
+            onMouseUp={() => { dragRef.current = null; setDragging(false) }}
+            onMouseLeave={() => { dragRef.current = null; setDragging(false) }}
             style={{
               maxWidth: '95%', maxHeight: '90%',
-              transform: `scale(${zoom})`,
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
               transformOrigin: 'center center',
-              transition: 'transform 0.15s ease',
+              transition: dragging ? 'none' : 'transform 0.15s ease',
               userSelect: 'none',
+              cursor: zoom > 1 ? (dragging ? 'grabbing' : 'grab') : 'default',
+              willChange: zoom > 1 ? 'transform' : 'auto',
             }}
             draggable={false}
           />
         ) : isPdfFile ? (
           <iframe
-            src={item.url}
+            src={pdfViewerUrl(item.url)}
             title={item.name}
             style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
           />
