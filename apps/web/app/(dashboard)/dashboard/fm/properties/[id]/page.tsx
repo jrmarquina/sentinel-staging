@@ -6,6 +6,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { ArrowLeft, MapPin, Loader2, AlertTriangle, Plus, ClipboardCheck, Wrench, Info, Camera, X } from 'lucide-react'
 import { FmCard, FmBadge, FmButton, FmModal, FmModalFooter, statusVariant } from '@/components/fm'
+import PropertyGallery from '@/components/fm/PropertyGallery'
 import { useFmT, useLocale } from '@/lib/locale'
 
 // ── MapView (SSR-disabled) ────────────────────────────────────────────────
@@ -50,7 +51,7 @@ interface IntegrityData {
   gaps: Array<{ type: string; message: string; severity: 'CRITICAL' | 'WARNING'; tab: string }>
 }
 
-type SubTab = 'overview' | 'assets' | 'inspections' | 'work-orders'
+type SubTab = 'overview' | 'assets' | 'inspections' | 'work-orders' | 'gallery'
 
 // ── Gradient helper ────────────────────────────────────────────────────────
 
@@ -260,6 +261,7 @@ export default function FMPropertyDetailPage() {
     { value: 'assets',       label: t('prop.detail.tab.assets'),   count: assets.length },
     { value: 'inspections',  label: t('prop.detail.tab.insp'),     count: inspections.length },
     { value: 'work-orders',  label: t('prop.detail.tab.wo'),       count: workOrders.length },
+    { value: 'gallery',      label: t('prop.detail.tab.gallery'),  count: 0 },
   ]
 
   const propVariant = statusVariant(property.status)
@@ -510,6 +512,13 @@ export default function FMPropertyDetailPage() {
                     </table>
                   </div>
                 )}
+              </FmCard>
+            )}
+
+            {/* Gallery tab */}
+            {activeTab === 'gallery' && (
+              <FmCard style={{ padding: '1.25rem' }}>
+                <PropertyGallery propertyId={id as string} />
               </FmCard>
             )}
           </div>

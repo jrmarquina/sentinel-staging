@@ -1,0 +1,480 @@
+'use client'
+
+/**
+ * PropertyGallery
+ * ──────────────────────────────────────────────────────────────────────────
+ * Tab body for the "Galería" / "Gallery" section on the property detail page.
+ *
+ *   - Lists fm_attachments scoped to a property.
+ *   - Upload accepts: images (jpg/png/webp/heic/gif), PDF, Word, Excel,
+ *     PowerPoint, plain text, CSV. Limit 20 MB.
+ *   - Click a tile → AttachmentViewer modal:
+ *       images: zoomable, full-screen capable
+ *       PDF:    iframe with browser-native PDF viewer (multi-page, zoom)
+ *       office: Office Online viewer iframe (read-only preview)
+ *       other:  fallback open/download buttons
+ *   - All viewers expose download + open-in-new-tab + full-screen.
+ */
+
+import { useEffect, useState, useCallback, useRef } from 'react'
+import {
+  Upload, Trash2, X, ZoomIn, ZoomOut, Maximize2, Minimize2,
+  Download, ExternalLink, ChevronLeft, ChevronRight,
+  FileText, FileSpreadsheet, File as FileIcon, Image as ImageIcon,
+  Loader2, AlertTriangle,
+} from 'lucide-react'
+import { useFmT } from '@/lib/locale'
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export interface GalleryItem {
+  id:         string
+  name:       string
+  type:       string   // mime
+  file_key:   string
+  url:        string
+  created_at: string
+}
+
+interface Props {
+  propertyId: string
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function isImage(mime: string)  { return mime.startsWith('image/') }
+function isPdf(mime: string)    { return mime === 'application/pdf' }
+function isOffice(mime: string) {
+  return [
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  ].includes(mime)
+}
+
+function fileTypeIcon(mime: string, size = 32) {
+  if (isImage(mime))  return <ImageIcon size={size} />
+  if (isPdf(mime))    return <FileText size={size} />
+  if (mime.includes('sheet') || mime.includes('excel')) return <FileSpreadsheet size={size} />
+  if (mime.includes('word'))  return <FileText size={size} />
+  return <FileIcon size={size} />
+}
+
+function officeViewerUrl(fileUrl: string): string {
+  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
+
+export default function PropertyGallery({ propertyId }: Props) {
+  const t = useFmT()
+  const [items, setItems]       = useState<GalleryItem[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError]       = useState<string | null>(null)
+  const [activeIdx, setActiveIdx] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const load = useCallback(() => {
+    setLoading(true)
+    setError(null)
+    fetch(`/api/fm/properties/${propertyId}/attachments`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(t('gallery.error'))))
+      .then((data: GalleryItem[]) => setItems(data))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : t('gallery.error')))
+      .finally(() => setLoading(false))
+  }, [propertyId, t])
+
+  useEffect(() => { load() }, [load])
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setError(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch(`/api/fm/properties/${propertyId}/attachments`, {
+        method: 'POST', body: fd,
+      })
+      if (!res.ok) {
+        const body = await res.json() as { error?: string }
+        throw new Error(body.error ?? t('gallery.error'))
+      }
+      const created = await res.json() as GalleryItem
+      setItems(prev => [created, ...prev])
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t('gallery.error'))
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm(t('gallery.deleteConfirm'))) return
+    setDeleting(id)
+    try {
+      const res = await fetch(`/api/fm/properties/${propertyId}/attachments/${id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error(t('error.generic'))
+      setItems(prev => prev.filter(it => it.id !== id))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t('error.generic'))
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  return (
+    <div>
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--fg)' }}>
+          {t('gallery.title')}
+          {items.length > 0 && (
+            <span style={{ marginLeft: '0.5rem', color: 'var(--muted)', fontWeight: 400, fontSize: '0.85rem' }}>
+              ({items.length})
+            </span>
+          )}
+        </h3>
+        <label style={{
+          display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+          padding: '0.5rem 0.875rem',
+          background: uploading ? 'var(--card-b)' : 'var(--primary)',
+          color: uploading ? 'var(--muted)' : '#fff',
+          borderRadius: 8, fontSize: '0.8rem', fontWeight: 600,
+          cursor: uploading ? 'not-allowed' : 'pointer',
+          border: '1px solid transparent',
+        }}>
+          {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+          {uploading ? t('gallery.uploading') : t('gallery.upload')}
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={handleUpload}
+            disabled={uploading}
+            accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv"
+            style={{ display: 'none' }}
+          />
+        </label>
+      </div>
+
+      {error && (
+        <div style={{
+          padding: '0.75rem 1rem', marginBottom: '1rem',
+          background: 'rgba(220, 38, 38, 0.08)',
+          border: '1px solid rgba(220, 38, 38, 0.3)',
+          borderRadius: 8, color: '#dc2626',
+          fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
+        }}>
+          <AlertTriangle size={14} /> {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
+          <Loader2 size={20} className="animate-spin" />
+        </div>
+      ) : items.length === 0 ? (
+        <div style={{
+          padding: '3rem 1rem', textAlign: 'center',
+          color: 'var(--muted)', background: 'var(--card-b)',
+          border: '1px dashed var(--border)', borderRadius: 12,
+          fontSize: '0.9rem',
+        }}>
+          {t('gallery.empty')}
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+          gap: '0.875rem',
+        }}>
+          {items.map((it, idx) => (
+            <GalleryTile
+              key={it.id}
+              item={it}
+              onClick={() => setActiveIdx(idx)}
+              onDelete={() => handleDelete(it.id)}
+              deleting={deleting === it.id}
+            />
+          ))}
+        </div>
+      )}
+
+      {activeIdx !== null && (
+        <AttachmentViewer
+          items={items}
+          startIndex={activeIdx}
+          onClose={() => setActiveIdx(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Tile ───────────────────────────────────────────────────────────────────
+
+function GalleryTile({
+  item, onClick, onDelete, deleting,
+}: { item: GalleryItem; onClick: () => void; onDelete: () => void; deleting: boolean }) {
+  const showImage = isImage(item.type)
+  return (
+    <div
+      style={{
+        position: 'relative',
+        background: 'var(--card-b)',
+        border: '1px solid var(--border)',
+        borderRadius: 12, overflow: 'hidden',
+        cursor: 'pointer',
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+      }}
+      onClick={onClick}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.12)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '' }}
+    >
+      <div style={{
+        aspectRatio: '4 / 3',
+        background: showImage ? `url(${item.url}) center/cover no-repeat`
+                              : 'linear-gradient(145deg, #1b263b, #415a77)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff',
+      }}>
+        {!showImage && fileTypeIcon(item.type, 40)}
+      </div>
+      <div style={{ padding: '0.5rem 0.625rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{
+            margin: 0, fontSize: '0.78rem', color: 'var(--fg)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>{item.name}</p>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
+          disabled={deleting}
+          title="Delete"
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            color: 'var(--muted)', padding: 4, display: 'flex', alignItems: 'center',
+          }}
+        >
+          {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Viewer modal ───────────────────────────────────────────────────────────
+
+function AttachmentViewer({
+  items, startIndex, onClose,
+}: { items: GalleryItem[]; startIndex: number; onClose: () => void }) {
+  const t = useFmT()
+  const [idx, setIdx]     = useState(startIndex)
+  const [zoom, setZoom]   = useState(1)
+  const [fullscreen, setFullscreen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const item = items[idx]
+
+  useEffect(() => { setZoom(1) }, [idx])
+
+  // Keyboard nav
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      if (e.key === 'ArrowRight') setIdx(i => Math.min(items.length - 1, i + 1))
+      if (e.key === 'ArrowLeft')  setIdx(i => Math.max(0, i - 1))
+      if (e.key === '+' || e.key === '=') setZoom(z => Math.min(5, z + 0.25))
+      if (e.key === '-') setZoom(z => Math.max(0.25, z - 0.25))
+      if (e.key === '0') setZoom(1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [items.length, onClose])
+
+  function toggleFullscreen() {
+    const el = containerRef.current
+    if (!el) return
+    if (!document.fullscreenElement) {
+      el.requestFullscreen?.().then(() => setFullscreen(true)).catch(() => {})
+    } else {
+      document.exitFullscreen?.().then(() => setFullscreen(false)).catch(() => {})
+    }
+  }
+
+  if (!item) return null
+
+  const isImg = isImage(item.type)
+  const isPdfFile = isPdf(item.type)
+  const isOfficeFile = isOffice(item.type)
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'rgba(8, 10, 16, 0.95)',
+        display: 'flex', flexDirection: 'column',
+      }}
+      onClick={onClose}
+    >
+      {/* Header */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0.75rem 1rem',
+          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          color: '#fff', flexWrap: 'wrap', gap: '0.5rem',
+        }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1 }}>
+          <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+            {idx + 1} {t('gallery.viewer.of')} {items.length}
+          </span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.85rem' }}>
+            {item.name}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          {isImg && (
+            <>
+              <ToolBtn title={t('gallery.viewer.zoomOut')} onClick={() => setZoom(z => Math.max(0.25, z - 0.25))}><ZoomOut size={16} /></ToolBtn>
+              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem', minWidth: 38, textAlign: 'center' }}>
+                {Math.round(zoom * 100)}%
+              </span>
+              <ToolBtn title={t('gallery.viewer.zoomIn')} onClick={() => setZoom(z => Math.min(5, z + 0.25))}><ZoomIn size={16} /></ToolBtn>
+              <span style={{ width: 12 }} />
+            </>
+          )}
+          <ToolBtn title={t('gallery.viewer.openTab')} onClick={() => window.open(item.url, '_blank', 'noopener')}>
+            <ExternalLink size={16} />
+          </ToolBtn>
+          <ToolBtn title={t('gallery.viewer.download')} as="a" href={item.url} download={item.name}>
+            <Download size={16} />
+          </ToolBtn>
+          <ToolBtn title={fullscreen ? t('gallery.viewer.exitFs') : t('gallery.viewer.fullscreen')} onClick={toggleFullscreen}>
+            {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </ToolBtn>
+          <ToolBtn title={t('gallery.viewer.close')} onClick={onClose}><X size={16} /></ToolBtn>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          flex: 1, position: 'relative', overflow: 'auto',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+        {/* Prev / Next */}
+        {idx > 0 && (
+          <NavBtn side="left" onClick={() => setIdx(idx - 1)} title={t('gallery.viewer.prev')}>
+            <ChevronLeft size={28} />
+          </NavBtn>
+        )}
+        {idx < items.length - 1 && (
+          <NavBtn side="right" onClick={() => setIdx(idx + 1)} title={t('gallery.viewer.next')}>
+            <ChevronRight size={28} />
+          </NavBtn>
+        )}
+
+        {isImg ? (
+          <img
+            src={item.url}
+            alt={item.name}
+            style={{
+              maxWidth: '95%', maxHeight: '90%',
+              transform: `scale(${zoom})`,
+              transformOrigin: 'center center',
+              transition: 'transform 0.15s ease',
+              userSelect: 'none',
+            }}
+            draggable={false}
+          />
+        ) : isPdfFile ? (
+          <iframe
+            src={item.url}
+            title={item.name}
+            style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
+          />
+        ) : isOfficeFile ? (
+          <iframe
+            src={officeViewerUrl(item.url)}
+            title={item.name}
+            style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
+          />
+        ) : (
+          <div style={{ color: '#fff', textAlign: 'center', padding: '2rem' }}>
+            <p style={{ marginBottom: '1rem', opacity: 0.8 }}>{t('gallery.unsupported')}</p>
+            <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
+              <a href={item.url} target="_blank" rel="noopener noreferrer"
+                 style={{ color: '#fff', padding: '0.5rem 0.875rem', background: 'rgba(255,255,255,0.1)', borderRadius: 6, textDecoration: 'none', fontSize: '0.85rem' }}>
+                {t('gallery.viewer.openTab')}
+              </a>
+              <a href={item.url} download={item.name}
+                 style={{ color: '#fff', padding: '0.5rem 0.875rem', background: 'rgba(255,255,255,0.1)', borderRadius: 6, textDecoration: 'none', fontSize: '0.85rem' }}>
+                {t('gallery.viewer.download')}
+              </a>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Small UI helpers ───────────────────────────────────────────────────────
+
+function ToolBtn(
+  props: { children: React.ReactNode; title: string; onClick?: () => void; as?: 'a'; href?: string; download?: string }
+) {
+  const { children, title, onClick, as, href, download } = props
+  const styles: React.CSSProperties = {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    width: 32, height: 32, borderRadius: 6,
+    background: 'rgba(255,255,255,0.08)', border: 'none',
+    color: '#fff', cursor: 'pointer', textDecoration: 'none',
+  }
+  if (as === 'a' && href) {
+    return (
+      <a href={href} download={download} title={title} target={download ? undefined : '_blank'} rel="noopener noreferrer" style={styles}>
+        {children}
+      </a>
+    )
+  }
+  return (
+    <button onClick={onClick} title={title} style={styles}>
+      {children}
+    </button>
+  )
+}
+
+function NavBtn({ side, onClick, title, children }: {
+  side: 'left' | 'right'; onClick: () => void; title: string; children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        position: 'absolute', top: '50%', [side]: 12, transform: 'translateY(-50%)',
+        width: 44, height: 44, borderRadius: '50%',
+        background: 'rgba(255,255,255,0.12)', color: '#fff',
+        border: 'none', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 2,
+      }}
+    >
+      {children}
+    </button>
+  )
+}

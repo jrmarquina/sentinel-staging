@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/get-session'
 
@@ -17,28 +16,6 @@ function isFmManager(cap: string | null, role: string): boolean {
   return ['admin', 'supervisor'].includes(role)
 }
 
-/**
- * Service-role storage client using @supabase/supabase-js directly.
- * createServerClient from @supabase/ssr does not properly forward the
- * service-role bearer token to the Storage service — use this instead
- * whenever you need to bypass storage RLS.
- */
-function storageAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url) throw new Error('NEXT_PUBLIC_SUPABASE_URL is not set on the server')
-  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set on the server — cannot bypass storage RLS')
-  // Sanity-check the key looks like a service-role JWT (starts with eyJ, has 3 segments)
-  // and is NOT the anon key. The anon key would silently fail with RLS errors.
-  const segs = key.split('.')
-  if (segs.length !== 3 || !key.startsWith('eyJ')) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY does not look like a JWT — check the env var')
-  }
-  return createSupabaseClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
-}
-
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'])
 const MAX_BYTES    = 10 * 1024 * 1024 // 10 MB
 
@@ -47,10 +24,12 @@ const EXT_MAP: Record<string, string> = {
   'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic',
 }
 
+const BUCKET = 'fm-uploads'
+
 // ── POST /api/fm/properties/[id]/image ────────────────────────────────────
 // Upload or replace the cover image for a property.
 // Body: multipart/form-data, field "file" (image ≤ 10 MB).
-// Stores at: fm/properties/{propertyId}/cover.{ext}
+// Stores at: {orgId}/properties/{propertyId}/cover.{ext}
 // Updates fm_properties.cover_image_url with the public URL.
 
 export async function POST(
@@ -72,10 +51,11 @@ export async function POST(
     if (file.size > MAX_BYTES) return err('File exceeds 10 MB limit', 400)
 
     const ext  = EXT_MAP[file.type] ?? 'jpg'
-    const path = `fm/properties/${params.id}/cover.${ext}`
+    const path = `${session.orgId}/properties/${params.id}/cover.${ext}`
 
-    // Verify property ownership before touching storage
     const supabase = createClient()
+
+    // Verify property ownership
     const { data: prop, error: propErr } = await supabase
       .from('fm_properties')
       .select('id')
@@ -83,51 +63,12 @@ export async function POST(
       .eq('org_id', session.orgId)
       .is('deleted_at', null)
       .single()
-
     if (propErr || !prop) return err('Property not found', 404)
 
-    // Upload via service-role client — bypasses storage RLS entirely
-    const admin        = storageAdmin()
-    const arrayBuffer  = await file.arrayBuffer()
-
-    // Diagnostic: decode the JWT payload and confirm role === "service_role".
-    // If anon key was loaded by mistake, the bucket RLS denies the upload.
-    try {
-      const payload = JSON.parse(
-        Buffer.from(process.env.SUPABASE_SERVICE_ROLE_KEY!.split('.')[1], 'base64').toString()
-      )
-      if (payload.role !== 'service_role') {
-        return err(
-          `Server misconfiguration: expected service_role JWT, got role="${payload.role}". ` +
-          `Update SUPABASE_SERVICE_ROLE_KEY in the staging environment.`,
-          500
-        )
-      }
-    } catch {
-      return err('Server misconfiguration: SUPABASE_SERVICE_ROLE_KEY is not a valid JWT', 500)
-    }
-
-    // Ensure the "photos" bucket exists. Service-role can list buckets.
-    const { data: buckets, error: bucketsErr } = await admin.storage.listBuckets()
-    if (bucketsErr) {
-      console.error('listBuckets error:', bucketsErr)
-      return err(`Cannot list storage buckets: ${bucketsErr.message}`)
-    }
-    if (!buckets?.some(b => b.name === 'photos')) {
-      // Create it on the fly (public, image-only, 10MB limit)
-      const { error: createErr } = await admin.storage.createBucket('photos', {
-        public: true,
-        fileSizeLimit: MAX_BYTES,
-        allowedMimeTypes: Array.from(ALLOWED_MIME),
-      })
-      if (createErr) {
-        console.error('createBucket error:', createErr)
-        return err(`"photos" bucket missing and could not be created: ${createErr.message}`)
-      }
-    }
-
-    const { error: uploadErr } = await admin.storage
-      .from('photos')
+    // Upload via the user session — RLS allows writes to their own org folder.
+    const arrayBuffer = await file.arrayBuffer()
+    const { error: uploadErr } = await supabase.storage
+      .from(BUCKET)
       .upload(path, arrayBuffer, { contentType: file.type, upsert: true })
 
     if (uploadErr) {
@@ -135,16 +76,16 @@ export async function POST(
       return err(`Upload failed: ${uploadErr.message}`)
     }
 
-    const { data: urlData } = admin.storage.from('photos').getPublicUrl(path)
-    const coverUrl = urlData.publicUrl
+    // Public bucket → embeddable URL. Add a cache-busting timestamp so the
+    // browser refreshes the <img> after a re-upload (same path, new bytes).
+    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path)
+    const coverUrl = `${urlData.publicUrl}?t=${Date.now()}`
 
-    // Persist URL
     const { error: patchErr } = await supabase
       .from('fm_properties')
       .update({ cover_image_url: coverUrl, updated_at: new Date().toISOString() })
       .eq('id', params.id)
       .eq('org_id', session.orgId)
-
     if (patchErr) return err(patchErr.message)
 
     return NextResponse.json({ cover_image_url: coverUrl })
@@ -169,14 +110,13 @@ export async function DELETE(
       .update({ cover_image_url: null, updated_at: new Date().toISOString() })
       .eq('id', params.id)
       .eq('org_id', session.orgId)
-
     if (patchErr) return err(patchErr.message)
 
     // Best-effort: remove all known extension variants
-    const admin = storageAdmin()
     await Promise.allSettled(
       ['jpg', 'png', 'webp', 'heic'].map((ext) =>
-        admin.storage.from('photos').remove([`fm/properties/${params.id}/cover.${ext}`])
+        supabase.storage.from(BUCKET)
+          .remove([`${session.orgId}/properties/${params.id}/cover.${ext}`])
       )
     )
 
