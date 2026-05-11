@@ -21,11 +21,11 @@ const ROLE_LABEL: Record<AppRole, string> = {
 }
 
 const ROLE_DESC: Record<AppRole, string> = {
-  admin:      'Full access — manage team, all records, and settings',
-  supervisor: 'Create & edit all work records, assign work orders',
-  inspector:  'Complete inspections, update assigned work orders',
-  vendor:     'View assigned work orders and update status only',
-  viewer:     'Read-only access to all records',
+  admin:      'God mode — unrestricted access to all records, settings, team, and modules',
+  supervisor: 'Manage work orders and inspections, assign tasks, edit all operational records',
+  inspector:  'Run inspections, complete checklists, update assigned work orders',
+  vendor:     'View and update assigned work orders only — no other access',
+  viewer:     'Read-only access to all records — no create, edit, or delete',
 }
 
 const ROLE_COLOR: Record<AppRole, string> = {

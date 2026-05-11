@@ -288,11 +288,11 @@ export function TeamClient({ team: initialTeam, currentRole }: Props) {
         </div>
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           {[
-            { role: 'admin',      desc: 'Full access — manage team, all records, settings' },
-            { role: 'supervisor', desc: 'Create & edit all work records, assign work orders' },
-            { role: 'inspector',  desc: 'Complete inspections, update assigned work orders' },
-            { role: 'vendor',     desc: 'View assigned work orders and update status only' },
-            { role: 'viewer',     desc: 'Read-only access to all records' },
+            { role: 'admin',      desc: 'God mode — unrestricted access to all records, settings, team, and modules' },
+            { role: 'supervisor', desc: 'Manage work orders and inspections, assign tasks, edit all operational records' },
+            { role: 'inspector',  desc: 'Run inspections, complete checklists, update assigned work orders' },
+            { role: 'vendor',     desc: 'View and update assigned work orders only — no other access' },
+            { role: 'viewer',     desc: 'Read-only access to all records — no create, edit, or delete' },
           ].map(({ role, desc }) => (
             <div key={role} className="flex items-start gap-2.5">
               <span className={cn('mt-0.5 text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0', ROLE_COLOR[role as AppRole])}>

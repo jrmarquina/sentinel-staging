@@ -32,11 +32,11 @@ type Member = {
 // ── Capability styling ─────────────────────────────────────────────────────
 
 const CAPABILITY_META: Record<string, { label: string; color: string }> = {
-  org_admin:    { label: 'Admin FM',      color: 'bg-violet-500/20 text-violet-300 border border-violet-500/30' },
-  org_manager:  { label: 'Manager FM',    color: 'bg-blue-500/20 text-blue-300 border border-blue-500/30' },
-  org_viewer:   { label: 'Director',      color: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' },
-  contributor:  { label: 'Contributor',   color: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' },
-  worker:       { label: 'Worker',        color: 'bg-amber-500/20 text-amber-300 border border-amber-500/30' },
+  org_admin:    { label: 'Administrator',       color: 'bg-violet-500/20 text-violet-300 border border-violet-500/30' },
+  org_manager:  { label: 'Facilities Manager',  color: 'bg-blue-500/20 text-blue-300 border border-blue-500/30' },
+  org_viewer:   { label: 'Director',            color: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' },
+  contributor:  { label: 'Inspector',           color: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' },
+  worker:       { label: 'Maintenance Worker',  color: 'bg-amber-500/20 text-amber-300 border border-amber-500/30' },
 }
 
 function capabilityMeta(cap: string) {
@@ -418,11 +418,11 @@ export function FmTeamClient({ members: initialMembers, roleDefs, isManager, cur
         </div>
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           {[
-            { cap: 'org_admin',   desc: 'Full access — team management, settings, all records' },
-            { cap: 'org_manager', desc: 'Full operational management — orders, inspections, assignments' },
-            { cap: 'org_viewer',  desc: 'Read all FM records — no modifications' },
-            { cap: 'contributor', desc: 'Create and manage their own maintenance requests' },
-            { cap: 'worker',      desc: 'View and update assigned work orders' },
+            { cap: 'org_admin',   desc: 'God mode — unrestricted access to all FM records, settings, team, and modules' },
+            { cap: 'org_manager', desc: 'Manage work orders and inspections, assign tasks, edit all operational records' },
+            { cap: 'org_viewer',  desc: 'Read-only access to all FM records — no create, edit, or delete' },
+            { cap: 'contributor', desc: 'Run inspections, complete checklists, update assigned work orders' },
+            { cap: 'worker',      desc: 'View and update assigned work orders only — no other access' },
           ].map(({ cap, desc }) => {
             const { label, color } = capabilityMeta(cap)
             return (
