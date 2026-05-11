@@ -69,13 +69,15 @@ export async function PATCH(
 
       const isFail = item.result?.toLowerCase() === 'fail' || item.severity === 'HIGH'
 
+      // DB constraint requires lowercase result ('pass', 'fail', 'yes', 'no')
+      // but the run page UI sends uppercase. Normalise before saving.
       await supabase
         .from('fm_checklist_item_responses')
         .update({
-          result: item.result ?? null,
-          severity: item.severity ?? null,
-          notes: item.notes ?? null,
-          evidence: item.evidence ?? null,
+          result:        item.result != null ? item.result.toLowerCase() : null,
+          severity:      item.severity ?? null,
+          notes:         item.notes ?? null,
+          evidence:      item.evidence ?? null,
           location_data: item.pin ?? null,
         })
         .eq('id', itemId)
