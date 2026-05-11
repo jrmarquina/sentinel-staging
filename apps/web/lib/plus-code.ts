@@ -11,7 +11,21 @@
  *   Short codes — "9VH8+XX"             (no suffix → Guaynabo used as reference)
  */
 
-import * as OLC from 'open-location-code'
+/* eslint-disable @typescript-eslint/no-require-imports */
+
+// open-location-code ships as a CommonJS module whose default export IS the
+// OpenLocationCode namespace object.  We type it inline so we do not depend
+// on @types/open-location-code (whose declarations mis-classify the exports).
+type OLCLib = {
+  isValid(code: string): boolean
+  isShort(code: string): boolean
+  isFull(code: string): boolean
+  encode(latitude: number, longitude: number, codeLength?: number): string
+  decode(code: string): { latitudeCenter: number; longitudeCenter: number; codeLength: number }
+  recoverNearest(shortCode: string, referenceLatitude: number, referenceLongitude: number): string
+}
+
+const OLC: OLCLib = require('open-location-code')
 
 // Default reference: Guaynabo, Puerto Rico
 const DEFAULT_REF_LAT = 18.3830
