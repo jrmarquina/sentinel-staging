@@ -9,6 +9,7 @@ import { ArrowLeft, MapPin, Loader2, AlertTriangle, Plus, ClipboardCheck, Wrench
 import { FmCard, FmBadge, FmButton, FmModal, FmModalFooter, statusVariant } from '@/components/fm'
 import PropertyGallery from '@/components/fm/PropertyGallery'
 import { useFmT, useLocale } from '@/lib/locale'
+import { isPlusCodeLike, parsePlusCode } from '@/lib/plus-code'
 
 // ── MapView (SSR-disabled) ────────────────────────────────────────────────
 
@@ -131,8 +132,32 @@ function EditPropertyModal({ property, onClose, onSaved }: {
     latitude:   property.latitude  != null ? String(property.latitude)  : '',
     longitude:  property.longitude != null ? String(property.longitude) : '',
   })
-  const [saving, setSaving] = useState(false)
-  const [err, setErr]       = useState<string | null>(null)
+  const [saving, setSaving]           = useState(false)
+  const [err, setErr]                 = useState<string | null>(null)
+  const [plusCode, setPlusCode]       = useState('')
+  const [plusDecoding, setPlusDecoding] = useState(false)
+  const [plusErr, setPlusErr]         = useState<string | null>(null)
+
+  async function decodePlus() {
+    const input = plusCode.trim()
+    if (!input) return
+    setPlusErr(null)
+    setPlusDecoding(true)
+    try {
+      const result = await parsePlusCode(input)
+      if (!result) throw new Error('Could not decode — check the plus code and try again')
+      setForm(f => ({
+        ...f,
+        latitude:  result.lat.toFixed(7),
+        longitude: result.lng.toFixed(7),
+      }))
+      setPlusCode('')
+    } catch (e: unknown) {
+      setPlusErr(e instanceof Error ? e.message : 'Decode failed')
+    } finally {
+      setPlusDecoding(false)
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -218,6 +243,51 @@ function EditPropertyModal({ property, onClose, onSaved }: {
           </div>
         </div>
 
+        {/* Plus Code decoder */}
+        <div>
+          {inputLabel('Plus Code')}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              className="fm-input"
+              type="text"
+              placeholder="e.g. VGGW+4W Guaynabo  or  J828VGGW+4W"
+              value={plusCode}
+              onChange={(e) => {
+                setPlusCode(e.target.value)
+                setPlusErr(null)
+              }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); decodePlus() } }}
+              style={{ flex: 1, fontFamily: 'monospace' }}
+            />
+            <button
+              type="button"
+              onClick={decodePlus}
+              disabled={plusDecoding || !plusCode.trim()}
+              style={{
+                padding: '0 0.875rem',
+                background: isPlusCodeLike(plusCode) ? 'var(--primary)' : 'var(--card-b)',
+                color:      isPlusCodeLike(plusCode) ? '#fff'           : 'var(--muted)',
+                border: '1px solid var(--border)',
+                borderRadius: 8, fontWeight: 600, fontSize: '0.8rem',
+                cursor: plusDecoding || !plusCode.trim() ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap', flexShrink: 0,
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
+              {plusDecoding
+                ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                : '→ Decode'}
+            </button>
+          </div>
+          {plusErr && (
+            <p style={{ margin: '0.3rem 0 0', fontSize: '0.72rem', color: 'var(--red)' }}>{plusErr}</p>
+          )}
+          <p style={{ margin: '0.3rem 0 0', fontSize: '0.68rem', color: 'var(--muted)' }}>
+            Decodes to lat / lng below. Short codes without a location suffix default to Guaynabo.
+          </p>
+        </div>
+
+        {/* Lat / Lng */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
           <div>
             {inputLabel('Latitude')}
