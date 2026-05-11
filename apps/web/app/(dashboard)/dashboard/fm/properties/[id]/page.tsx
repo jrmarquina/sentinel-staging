@@ -5,11 +5,12 @@ import { createPortal } from 'react-dom'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { ArrowLeft, MapPin, Loader2, AlertTriangle, Plus, ClipboardCheck, Wrench, Info, Camera, X, Navigation, Maximize2, Pencil } from 'lucide-react'
+import { ArrowLeft, MapPin, Loader2, AlertTriangle, Plus, ClipboardCheck, Wrench, Info, Camera, X, Navigation, Maximize2, Pencil, Trash2 } from 'lucide-react'
 import { FmCard, FmBadge, FmButton, FmModal, FmModalFooter, statusVariant } from '@/components/fm'
 import PropertyGallery from '@/components/fm/PropertyGallery'
 import { useFmT, useLocale } from '@/lib/locale'
 import { isPlusCodeLike, parsePlusCode } from '@/lib/plus-code'
+import { useIsAdmin } from '@/hooks/useRole'
 
 // ── MapView (SSR-disabled) ────────────────────────────────────────────────
 
@@ -352,6 +353,7 @@ export default function FMPropertyDetailPage() {
   const params   = useParams()
   const router   = useRouter()
   const id       = Array.isArray(params.id) ? params.id[0] : (params.id as string)
+  const isAdmin  = useIsAdmin()
 
   const [property, setProperty]     = useState<FmProperty | null>(null)
   const [workOrders, setWorkOrders] = useState<FmWorkOrderSummary[]>([])
@@ -360,6 +362,8 @@ export default function FMPropertyDetailPage() {
   const [activeTab, setActiveTab]   = useState<SubTab>('overview')
   const [showAddAsset, setShowAddAsset]   = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting]     = useState(false)
   const [integrity, setIntegrity]   = useState<IntegrityData | null>(null)
   const [scoreWidth, setScoreWidth] = useState(0)
 
@@ -382,6 +386,18 @@ export default function FMPropertyDetailPage() {
       .then(([prop, wos]) => { setProperty(prop); setWorkOrders(wos) })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : t('error.generic')))
       .finally(() => setLoading(false))
+  }
+
+  async function handleDelete() {
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/fm/properties/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete property')
+      router.push('/dashboard/fm/properties')
+    } catch {
+      setDeleting(false)
+      setShowDeleteConfirm(false)
+    }
   }
 
   useEffect(() => { load() }, [id])
@@ -534,6 +550,24 @@ export default function FMPropertyDetailPage() {
             >
               <Pencil size={11} /> Edit
             </button>
+            {isAdmin && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                title="Delete property"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                  padding: '0.3rem 0.65rem',
+                  background: 'var(--card-b)', border: '1px solid var(--border)',
+                  borderRadius: 7, color: 'var(--muted)', cursor: 'pointer',
+                  fontSize: '0.72rem', fontWeight: 600,
+                  transition: 'color 0.15s, border-color 0.15s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#ef4444' }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+              >
+                <Trash2 size={11} /> Delete
+              </button>
+            )}
           </div>
           {property.address && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.35rem', fontSize: '0.8rem', color: 'var(--muted)' }}>
@@ -884,6 +918,43 @@ export default function FMPropertyDetailPage() {
 
       {showAddAsset  && <AddAssetModal propertyId={property.id} onClose={() => setShowAddAsset(false)} onSaved={load} />}
       {showEditModal && <EditPropertyModal property={property} onClose={() => setShowEditModal(false)} onSaved={load} />}
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <FmModal open onClose={() => !deleting && setShowDeleteConfirm(false)} title="Delete Property" subtitle="This action cannot be undone">
+          <div style={{ padding: '0.25rem 0 1rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <div style={{ flexShrink: 0, width: 36, height: 36, borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Trash2 size={16} style={{ color: '#ef4444' }} />
+              </div>
+              <div>
+                <p style={{ margin: '0 0 0.35rem', fontSize: '0.875rem', fontWeight: 600, color: 'var(--fg)' }}>
+                  Delete &ldquo;{property.name}&rdquo;?
+                </p>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--muted)', lineHeight: 1.5 }}>
+                  The property record will be archived and removed from all lists. Associated assets, inspections, and work orders will remain in the database but will no longer be accessible through this property.
+                </p>
+              </div>
+            </div>
+          </div>
+          <FmModalFooter>
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={deleting}
+              style={{ padding: '0.5rem 1rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card-b)', color: 'var(--fg)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500 }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              style={{ padding: '0.5rem 1.1rem', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', cursor: deleting ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.4rem', opacity: deleting ? 0.7 : 1 }}
+            >
+              {deleting ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Deleting…</> : <><Trash2 size={13} /> Delete Property</>}
+            </button>
+          </FmModalFooter>
+        </FmModal>
+      )}
 
       {/* Cover image lightbox — rendered into document.body via portal so it
           escapes any parent transform/overflow stacking context */}
