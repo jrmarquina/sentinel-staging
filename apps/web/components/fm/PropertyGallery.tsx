@@ -87,6 +87,8 @@ function pdfViewerUrl(fileUrl: string): string {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
+type FilterType = 'all' | 'images' | 'documents'
+
 export default function PropertyGallery({ propertyId, onChange }: Props) {
   const t = useFmT()
   const [items, setItems]       = useState<GalleryItem[]>([])
@@ -95,6 +97,7 @@ export default function PropertyGallery({ propertyId, onChange }: Props) {
   const [error, setError]       = useState<string | null>(null)
   const [activeIdx, setActiveIdx] = useState<number | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [filter, setFilter]     = useState<FilterType>('all')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(() => {
@@ -152,6 +155,12 @@ export default function PropertyGallery({ propertyId, onChange }: Props) {
     }
   }
 
+  const filteredItems = items.filter(it => {
+    if (filter === 'images')    return isImage(it.type)
+    if (filter === 'documents') return !isImage(it.type)
+    return true
+  })
+
   return (
     <div>
       {/* Toolbar */}
@@ -186,6 +195,33 @@ export default function PropertyGallery({ propertyId, onChange }: Props) {
         </label>
       </div>
 
+      {/* Filter pills */}
+      {items.length > 0 && (
+        <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          {(['all', 'images', 'documents'] as FilterType[]).map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={{
+                padding: '0.3rem 0.75rem',
+                borderRadius: 9999,
+                fontSize: '0.75rem', fontWeight: 600,
+                cursor: 'pointer',
+                border: `1px solid ${filter === f ? 'var(--primary)' : 'var(--border)'}`,
+                background: filter === f ? 'var(--primary-c)' : 'transparent',
+                color: filter === f ? 'var(--primary)' : 'var(--muted)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {t(`gallery.filter.${f}` as Parameters<typeof t>[0])}
+              <span style={{ marginLeft: '0.35rem', opacity: 0.7 }}>
+                ({f === 'all' ? items.length : f === 'images' ? items.filter(i => isImage(i.type)).length : items.filter(i => !isImage(i.type)).length})
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {error && (
         <div style={{
           padding: '0.75rem 1rem', marginBottom: '1rem',
@@ -211,21 +247,33 @@ export default function PropertyGallery({ propertyId, onChange }: Props) {
         }}>
           {t('gallery.empty')}
         </div>
+      ) : filteredItems.length === 0 ? (
+        <div style={{
+          padding: '3rem 1rem', textAlign: 'center',
+          color: 'var(--muted)', background: 'var(--card-b)',
+          border: '1px dashed var(--border)', borderRadius: 12,
+          fontSize: '0.9rem',
+        }}>
+          No {filter === 'images' ? 'images' : 'documents'} uploaded yet.
+        </div>
       ) : (
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
           gap: '0.875rem',
         }}>
-          {items.map((it, idx) => (
-            <GalleryTile
-              key={it.id}
-              item={it}
-              onClick={() => setActiveIdx(idx)}
-              onDelete={() => handleDelete(it.id)}
-              deleting={deleting === it.id}
-            />
-          ))}
+          {filteredItems.map((it) => {
+            const originalIdx = items.indexOf(it)
+            return (
+              <GalleryTile
+                key={it.id}
+                item={it}
+                onClick={() => setActiveIdx(originalIdx)}
+                onDelete={() => handleDelete(it.id)}
+                deleting={deleting === it.id}
+              />
+            )
+          })}
         </div>
       )}
 

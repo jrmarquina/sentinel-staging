@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { ArrowLeft, MapPin, Loader2, AlertTriangle, Plus, ClipboardCheck, Wrench, Info, Camera, X, Navigation } from 'lucide-react'
+import { ArrowLeft, MapPin, Loader2, AlertTriangle, Plus, ClipboardCheck, Wrench, Info, Camera, X, Navigation, Maximize2, Pencil } from 'lucide-react'
 import { FmCard, FmBadge, FmButton, FmModal, FmModalFooter, statusVariant } from '@/components/fm'
 import PropertyGallery from '@/components/fm/PropertyGallery'
 import { useFmT, useLocale } from '@/lib/locale'
@@ -113,6 +114,134 @@ function AddAssetModal({ propertyId, onClose, onSaved }: { propertyId: string; o
   )
 }
 
+// ── Edit Property Modal ────────────────────────────────────────────────────
+
+function EditPropertyModal({ property, onClose, onSaved }: {
+  property: FmProperty
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const t = useFmT()
+  const [form, setForm] = useState({
+    name:       property.name,
+    code:       property.code,
+    address:    property.address ?? '',
+    status:     property.status,
+    risk_level: property.risk_level ?? '',
+    latitude:   property.latitude  != null ? String(property.latitude)  : '',
+    longitude:  property.longitude != null ? String(property.longitude) : '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [err, setErr]       = useState<string | null>(null)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.name.trim() || !form.code.trim()) { setErr('Name and code are required'); return }
+    setSaving(true)
+    setErr(null)
+    try {
+      const res = await fetch(`/api/fm/properties/${property.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name:       form.name.trim(),
+          code:       form.code.trim().toUpperCase(),
+          address:    form.address.trim() || null,
+          status:     form.status,
+          risk_level: form.risk_level || null,
+          latitude:   form.latitude  ? parseFloat(form.latitude)  : null,
+          longitude:  form.longitude ? parseFloat(form.longitude) : null,
+        }),
+      })
+      if (!res.ok) {
+        const b = await res.json() as { error?: string }
+        throw new Error(b.error ?? t('error.generic'))
+      }
+      onSaved()
+      onClose()
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : t('error.generic'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inputLabel = (text: string) => (
+    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>{text}</label>
+  )
+
+  return (
+    <FmModal open onClose={onClose} title="Edit Property" subtitle="Update property information">
+      <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {err && (
+          <div style={{ background: 'var(--red-c)', border: '1px solid var(--red)', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: 'var(--red)' }}>
+            {err}
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div>
+            {inputLabel('Name *')}
+            <input className="fm-input" type="text" value={form.name}
+              onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} required />
+          </div>
+          <div>
+            {inputLabel('Code *')}
+            <input className="fm-input" type="text"
+              style={{ fontFamily: 'monospace', textTransform: 'uppercase' }}
+              value={form.code}
+              onChange={(e) => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} required />
+          </div>
+        </div>
+
+        <div>
+          {inputLabel('Address')}
+          <input className="fm-input" type="text" value={form.address}
+            onChange={(e) => setForm(f => ({ ...f, address: e.target.value }))} />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div>
+            {inputLabel('Status')}
+            <select className="fm-input" style={{ appearance: 'none' }} value={form.status}
+              onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}>
+              {['ACTIVE', 'MAINTENANCE', 'INACTIVE'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            {inputLabel('Risk Level')}
+            <select className="fm-input" style={{ appearance: 'none' }} value={form.risk_level}
+              onChange={(e) => setForm(f => ({ ...f, risk_level: e.target.value }))}>
+              <option value="">— None —</option>
+              {['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div>
+            {inputLabel('Latitude')}
+            <input className="fm-input" type="number" step="any" placeholder="18.3830"
+              value={form.latitude}
+              onChange={(e) => setForm(f => ({ ...f, latitude: e.target.value }))} />
+          </div>
+          <div>
+            {inputLabel('Longitude')}
+            <input className="fm-input" type="number" step="any" placeholder="-66.0858"
+              value={form.longitude}
+              onChange={(e) => setForm(f => ({ ...f, longitude: e.target.value }))} />
+          </div>
+        </div>
+
+        <FmModalFooter>
+          <FmButton type="button" variant="secondary" size="sm" onClick={onClose}>Cancel</FmButton>
+          <FmButton type="submit" size="sm" loading={saving}>Save Changes</FmButton>
+        </FmModalFooter>
+      </form>
+    </FmModal>
+  )
+}
+
 // ── Tab Button ─────────────────────────────────────────────────────────────
 
 function Tab({ label, count, active, onClick }: { label: string; count: number; active: boolean; onClick: () => void }) {
@@ -159,13 +288,15 @@ export default function FMPropertyDetailPage() {
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState<string | null>(null)
   const [activeTab, setActiveTab]   = useState<SubTab>('overview')
-  const [showAddAsset, setShowAddAsset] = useState(false)
+  const [showAddAsset, setShowAddAsset]   = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [integrity, setIntegrity]   = useState<IntegrityData | null>(null)
   const [scoreWidth, setScoreWidth] = useState(0)
 
   // Cover image upload
-  const [coverUploading, setCoverUploading] = useState(false)
-  const [coverError, setCoverError]         = useState<string | null>(null)
+  const [coverUploading, setCoverUploading]     = useState(false)
+  const [coverError, setCoverError]             = useState<string | null>(null)
+  const [coverLightboxOpen, setCoverLightboxOpen] = useState(false)
 
   function load() {
     setLoading(true)
@@ -197,6 +328,13 @@ export default function FMPropertyDetailPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  // Close cover lightbox on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setCoverLightboxOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -310,6 +448,22 @@ export default function FMPropertyDetailPage() {
               {property.code}
             </span>
             <FmBadge variant={propVariant}>{property.status}</FmBadge>
+            <button
+              onClick={() => setShowEditModal(true)}
+              title="Edit property"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                padding: '0.3rem 0.65rem',
+                background: 'var(--card-b)', border: '1px solid var(--border)',
+                borderRadius: 7, color: 'var(--muted)', cursor: 'pointer',
+                fontSize: '0.72rem', fontWeight: 600,
+                transition: 'color 0.15s, border-color 0.15s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--fg)'; e.currentTarget.style.borderColor = 'var(--primary)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+            >
+              <Pencil size={11} /> Edit
+            </button>
           </div>
           {property.address && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.35rem', fontSize: '0.8rem', color: 'var(--muted)' }}>
@@ -328,20 +482,38 @@ export default function FMPropertyDetailPage() {
           {/* Hero */}
           <div style={{ height: 260, borderRadius: 16, overflow: 'hidden', position: 'relative', background: heroBg, flexShrink: 0 }}>
             {/* Dark overlay at bottom */}
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%', background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)' }} />
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%', background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)', pointerEvents: 'none' }} />
             {/* Property name + address overlay */}
-            <div style={{ position: 'absolute', bottom: '1.25rem', left: '1.25rem' }}>
+            <div style={{ position: 'absolute', bottom: '1.25rem', left: '1.25rem', pointerEvents: 'none' }}>
               <p style={{ color: '#fff', fontSize: '1.4rem', fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{property.name}</p>
               {property.address && (
                 <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', margin: '0.3rem 0 0' }}>{property.address}</p>
               )}
             </div>
-            {/* Status badge top-right */}
-            <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', backdropFilter: 'blur(8px)' }}>
+            {/* Top-right: zoom button (when image exists) + status badge */}
+            <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', zIndex: 2 }}>
+              {property.cover_image_url && (
+                <button
+                  onClick={() => setCoverLightboxOpen(true)}
+                  title="View full image"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 30, height: 30,
+                    background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)',
+                    color: '#fff', borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    cursor: 'pointer', transition: 'background 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0,0,0,0.75)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0,0,0,0.55)' }}
+                >
+                  <Maximize2 size={13} />
+                </button>
+              )}
               <FmBadge variant={propVariant}>{property.status}</FmBadge>
             </div>
             {/* Cover image upload controls — top-left */}
-            <div style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', display: 'flex', gap: '0.4rem' }}>
+            <div style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', display: 'flex', gap: '0.4rem', zIndex: 2 }}>
               <label style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
                 padding: '0.35rem 0.65rem',
@@ -640,7 +812,56 @@ export default function FMPropertyDetailPage() {
         </div>
       </div>
 
-      {showAddAsset && <AddAssetModal propertyId={property.id} onClose={() => setShowAddAsset(false)} onSaved={load} />}
+      {showAddAsset  && <AddAssetModal propertyId={property.id} onClose={() => setShowAddAsset(false)} onSaved={load} />}
+      {showEditModal && <EditPropertyModal property={property} onClose={() => setShowEditModal(false)} onSaved={load} />}
+
+      {/* Cover image lightbox — rendered into document.body via portal so it
+          escapes any parent transform/overflow stacking context */}
+      {coverLightboxOpen && property.cover_image_url && createPortal(
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.92)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'zoom-out',
+          }}
+          onClick={() => setCoverLightboxOpen(false)}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setCoverLightboxOpen(false)}
+            style={{
+              position: 'absolute', top: '1.25rem', right: '1.25rem',
+              background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 8, color: '#fff', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 40, height: 40,
+              backdropFilter: 'blur(8px)',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+          {/* Full image — stop propagation so clicking it doesn't close */}
+          <img
+            src={property.cover_image_url}
+            alt={property.name}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              objectFit: 'contain',
+              borderRadius: 8,
+              boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+              cursor: 'default',
+            }}
+          />
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

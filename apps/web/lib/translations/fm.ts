@@ -93,16 +93,19 @@ export const fm = {
     'prop.detail.tile.risk':    'Risk Level',
     'prop.detail.directions':   'Directions',
 
-    // ── Gallery ──────────────────────────────────────────────────────────────
-    'prop.detail.tab.gallery':  'Gallery',
-    'gallery.title':            'Gallery',
+    // ── Documents (formerly Gallery) ─────────────────────────────────────────
+    'prop.detail.tab.gallery':  'Documents',
+    'gallery.title':            'Documents',
     'gallery.upload':           'Upload File',
     'gallery.uploading':        'Uploading…',
     'gallery.empty':            'No files yet — upload photos, PDFs or Office documents to start.',
-    'gallery.error':            'Failed to load gallery',
+    'gallery.error':            'Failed to load documents',
     'gallery.deleteConfirm':    'Delete this file?',
     'gallery.deleting':         'Deleting…',
     'gallery.unsupported':      'Preview not available — open or download the file instead.',
+    'gallery.filter.all':       'All',
+    'gallery.filter.images':    'Images',
+    'gallery.filter.docs':      'Documents',
     'gallery.viewer.zoomIn':    'Zoom in',
     'gallery.viewer.zoomOut':   'Zoom out',
     'gallery.viewer.reset':     'Reset zoom',
