@@ -13,10 +13,10 @@
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 
-// open-location-code ships as a CommonJS module whose default export IS the
-// OpenLocationCode namespace object.  We type it inline so we do not depend
-// on @types/open-location-code (whose declarations mis-classify the exports).
-type OLCLib = {
+// open-location-code exports { OpenLocationCode } where OpenLocationCode is a
+// class with instance methods (isValid, decode, recoverNearest, …).
+// We instantiate once at module load and reuse the instance.
+interface OLCInstance {
   isValid(code: string): boolean
   isShort(code: string): boolean
   isFull(code: string): boolean
@@ -25,7 +25,8 @@ type OLCLib = {
   recoverNearest(shortCode: string, referenceLatitude: number, referenceLongitude: number): string
 }
 
-const OLC: OLCLib = require('open-location-code')
+const { OpenLocationCode } = require('open-location-code') as { OpenLocationCode: new () => OLCInstance }
+const olc: OLCInstance = new OpenLocationCode()
 
 // Default reference: Guaynabo, Puerto Rico
 const DEFAULT_REF_LAT = 18.3830
@@ -39,7 +40,7 @@ const DEFAULT_REF_LNG = -66.0858
  */
 export function isPlusCodeLike(input: string): boolean {
   const codePart = input.trim().split(' ')[0]
-  return OLC.isValid(codePart)
+  return olc.isValid(codePart)
 }
 
 /**
@@ -59,14 +60,11 @@ export async function parsePlusCode(
     const codePart = (spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)).toUpperCase()
     const locPart  = spaceIdx === -1 ? '' : trimmed.slice(spaceIdx + 1).trim()
 
-    if (!OLC.isValid(codePart)) return null
+    if (!olc.isValid(codePart)) return null
 
     let fullCode: string
 
-    if (OLC.isFull(codePart)) {
-      // Full code — decode directly
-      fullCode = codePart
-    } else {
+    if (olc.isShort(codePart)) {
       // Short code — recover using a reference location
       let refLat = DEFAULT_REF_LAT
       let refLng = DEFAULT_REF_LNG
@@ -87,10 +85,13 @@ export async function parsePlusCode(
         }
       }
 
-      fullCode = OLC.recoverNearest(codePart, refLat, refLng)
+      fullCode = olc.recoverNearest(codePart, refLat, refLng)
+    } else {
+      // Full code (or non-short valid code) — decode directly
+      fullCode = codePart
     }
 
-    const area = OLC.decode(fullCode)
+    const area = olc.decode(fullCode)
     return { lat: area.latitudeCenter, lng: area.longitudeCenter }
   } catch {
     return null
