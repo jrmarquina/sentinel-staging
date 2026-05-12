@@ -53,9 +53,10 @@ interface FmInspection {
 }
 
 interface TeamMember {
-  user_id: string
-  full_name: string
+  user_id:    string
+  full_name:  string
   capability: string
+  is_me:      boolean
 }
 
 type Result   = 'PASS' | 'FAIL' | 'NA'
