@@ -1,8 +1,9 @@
 import { loginAction, forgotPasswordAction } from '@/lib/auth/actions'
 import LoginForm from './login-form'
+import Image from 'next/image'
 
 export const metadata = {
-  title: 'Sign In — Sentinel Public Works',
+  title: 'Sign In — SIMS',
 }
 
 export default function LoginPage({
@@ -15,23 +16,17 @@ export default function LoginPage({
       <div className="w-full max-w-md">
         {/* Logo / wordmark */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-4">
-            <svg
-              className="w-9 h-9 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-              />
-            </svg>
+          <div className="flex items-center justify-center mb-3">
+            <Image
+              src="/logo-white.png"
+              alt="Sentinel"
+              width={200}
+              height={52}
+              priority
+              className="h-12 w-auto"
+            />
           </div>
-          <h1 className="text-2xl font-bold text-white">Sentinel</h1>
-          <p className="text-blue-300 text-sm mt-1">Public Works Management</p>
+          <p className="text-blue-300 text-sm mt-1">SIMS — Sentinel Infrastructure Management System</p>
         </div>
 
         {/* Card */}
@@ -54,7 +49,14 @@ export default function LoginPage({
         </div>
 
         <p className="text-center text-xs text-slate-600 mt-6">
-          Sentinel Management Group · Guaynabo, Puerto Rico
+          <a
+            href="https://sentinelmgpr.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-slate-400 transition-colors"
+          >
+            Sentinel Management Group
+          </a>
         </p>
       </div>
     </div>

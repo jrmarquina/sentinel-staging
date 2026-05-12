@@ -12,7 +12,16 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
  * to /login.  Works even when the session is broken or expired.
  */
 export async function GET(request: NextRequest) {
-  const response = NextResponse.redirect(new URL('/login', request.url))
+  // Build the redirect URL from the incoming request's host header so the user
+  // always lands back on the same domain they came from (sims., staging., etc.).
+  // nginx passes the original Host header, so this is always correct behind a proxy.
+  const proto = request.headers.get('x-forwarded-proto') ?? 'https'
+  const host  = request.headers.get('x-forwarded-host')
+             ?? request.headers.get('host')
+             ?? (process.env.NEXT_PUBLIC_APP_URL
+                  ? new URL(process.env.NEXT_PUBLIC_APP_URL).host
+                  : 'localhost')
+  const response = NextResponse.redirect(`${proto}://${host}/login`)
 
   // Best-effort GoTrue signOut — ignore errors (stale / invalid session)
   try {
