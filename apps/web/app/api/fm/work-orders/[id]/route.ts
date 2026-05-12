@@ -61,7 +61,7 @@ const WORKER_TRANSITIONS: Record<string, string[]> = {
 }
 
 function canReadWO(cap: string | null, role: string): boolean {
-  if (cap) return ['org_admin', 'org_manager', 'org_viewer', 'contributor', 'worker'].includes(cap)
+  if (cap) return ['org_admin', 'fm_manager', 'fm_viewer', 'fm_contributor', 'fm_worker'].includes(cap)
   return ['admin', 'supervisor', 'inspector', 'vendor', 'viewer'].includes(role)
 }
 
@@ -101,17 +101,17 @@ export async function GET(
 // ── Capability helpers ─────────────────────────────────────────────────────
 
 function isFmManager(cap: string | null, role: string): boolean {
-  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  if (cap) return ['org_admin', 'fm_manager'].includes(cap)
   return ['admin', 'supervisor'].includes(role)
 }
 
 function isFmWorker(cap: string | null, role: string): boolean {
-  if (cap) return cap === 'worker'
+  if (cap) return cap === 'fm_worker'
   return role === 'vendor'
 }
 
 function isFmContributor(cap: string | null, role: string): boolean {
-  if (cap) return cap === 'contributor'
+  if (cap) return cap === 'fm_contributor'
   return role === 'inspector'
 }
 

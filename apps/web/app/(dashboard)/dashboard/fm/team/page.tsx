@@ -7,22 +7,22 @@ import { FmTeamClient } from './team-client'
 export const metadata = { title: 'FM Team — Sentinel' }
 
 function isFmManager(cap: string | null, role: string): boolean {
-  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  if (cap) return ['org_admin', 'fm_manager'].includes(cap)
   return ['admin', 'supervisor'].includes(role)
 }
 
 function getFmAccessLevel(cap: string | null, role: string): string | null {
   if (cap) {
-    if (['org_admin', 'org_manager'].includes(cap)) return 'manager'
-    if (cap === 'org_viewer')  return 'viewer'
-    if (cap === 'contributor') return 'contributor'
-    if (cap === 'worker')      return 'worker'
+    if (['org_admin', 'fm_manager'].includes(cap)) return 'manager'
+    if (cap === 'fm_viewer')  return 'viewer'
+    if (cap === 'fm_contributor') return 'fm_contributor'
+    if (cap === 'fm_worker')      return 'fm_worker'
     return null
   }
   if (['admin', 'supervisor'].includes(role)) return 'manager'
   if (role === 'viewer')    return 'viewer'
-  if (role === 'inspector') return 'contributor'
-  if (role === 'vendor')    return 'worker'
+  if (role === 'inspector') return 'fm_contributor'
+  if (role === 'vendor')    return 'fm_worker'
   return null
 }
 

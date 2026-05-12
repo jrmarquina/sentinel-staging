@@ -13,11 +13,11 @@ function caught(e: unknown) {
 
 // FM capability helpers
 function isFmManager(cap: string | null, role: string): boolean {
-  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  if (cap) return ['org_admin', 'fm_manager'].includes(cap)
   return ['admin', 'supervisor'].includes(role)
 }
 function canReadInspection(cap: string | null, role: string): boolean {
-  if (cap) return ['org_admin', 'org_manager', 'org_viewer'].includes(cap)
+  if (cap) return ['org_admin', 'fm_manager', 'fm_viewer'].includes(cap)
   return ['admin', 'supervisor', 'inspector', 'viewer'].includes(role)
 }
 

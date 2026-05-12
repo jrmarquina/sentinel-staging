@@ -35,7 +35,7 @@ const VALID_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'] as const
 
 // ── Capability helpers ─────────────────────────────────────────────────────
 
-type FmAccessLevel = 'manager' | 'viewer' | 'contributor' | 'worker'
+type FmAccessLevel = 'manager' | 'viewer' | 'fm_contributor' | 'fm_worker'
 
 /**
  * Maps a session to a FM access level.
@@ -48,21 +48,21 @@ function getFmAccessLevel(
   role: string,
 ): FmAccessLevel | null {
   if (capability) {
-    if (['org_admin', 'org_manager'].includes(capability)) return 'manager'
-    if (capability === 'org_viewer')  return 'viewer'
-    if (capability === 'contributor') return 'contributor'
-    if (capability === 'worker')      return 'worker'
+    if (['org_admin', 'fm_manager'].includes(capability)) return 'manager'
+    if (capability === 'fm_viewer')  return 'viewer'
+    if (capability === 'fm_contributor') return 'fm_contributor'
+    if (capability === 'fm_worker')      return 'fm_worker'
     return null
   }
   // Legacy app_role fallback
   if (['admin', 'supervisor'].includes(role)) return 'manager'
   if (role === 'viewer')    return 'viewer'
-  if (role === 'inspector') return 'contributor'
-  if (role === 'vendor')    return 'worker'
+  if (role === 'inspector') return 'fm_contributor'
+  if (role === 'vendor')    return 'fm_worker'
   return null
 }
 
-/** Convenience — true for org_admin / org_manager / legacy admin+supervisor */
+/** Convenience — true for org_admin / fm_manager / legacy admin+supervisor */
 function isFmManager(capability: string | null, role: string): boolean {
   return getFmAccessLevel(capability, role) === 'manager'
 }
@@ -70,7 +70,7 @@ function isFmManager(capability: string | null, role: string): boolean {
 /** True for any role that can submit a new WO (manager or contributor) */
 function canSubmitWO(capability: string | null, role: string): boolean {
   const level = getFmAccessLevel(capability, role)
-  return level === 'manager' || level === 'contributor'
+  return level === 'manager' || level === 'fm_contributor'
 }
 
 // ── Validation schemas ──────────────────────────────────────────────────────
@@ -209,12 +209,12 @@ export async function GET(req: NextRequest) {
         query = query.neq('status', 'PENDING_REVIEW')
         break
 
-      case 'contributor':
+      case 'fm_contributor':
         // Zone/Nutrition Managers see only their own submissions
         query = query.eq('submitted_by_id', session.userId)
         break
 
-      case 'worker':
+      case 'fm_worker':
         // Maintenance workers and suppliers see only their assigned WOs.
         // PENDING_REVIEW rows have no assignee yet so this is also naturally
         // empty for workers, but we exclude explicitly for clarity.
@@ -351,7 +351,7 @@ export async function POST(req: NextRequest) {
       notifyManagersNewWO(woSummary, session.orgId).catch(console.error)
     }
 
-    // N-4: director referral → notify all org_viewer users
+    // N-4: director referral → notify all fm_viewer users
     if (created.assignee_type === 'DIRECTOR_REFERRAL') {
       notifyDirectorReferral(woSummary, session.orgId).catch(console.error)
     }

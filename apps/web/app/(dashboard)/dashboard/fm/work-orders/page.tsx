@@ -45,7 +45,7 @@ interface CreateForm {
   assigned_to_id: string
 }
 
-type FmAccessLevel = 'manager' | 'viewer' | 'contributor' | 'worker' | null
+type FmAccessLevel = 'manager' | 'viewer' | 'fm_contributor' | 'fm_worker' | null
 type FilterTab = 'ALL' | 'PENDING_REVIEW' | 'OVERDUE' | 'OPEN' | 'IN_PROGRESS' | 'COMPLETED'
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -97,17 +97,17 @@ const EMPTY_FORM: CreateForm = {
 
 function getFmAccessLevel(capability: string | null, role: string): FmAccessLevel {
   if (capability) {
-    if (['org_admin', 'org_manager'].includes(capability)) return 'manager'
-    if (capability === 'org_viewer')  return 'viewer'
-    if (capability === 'contributor') return 'contributor'
-    if (capability === 'worker')      return 'worker'
+    if (['org_admin', 'fm_manager'].includes(capability)) return 'manager'
+    if (capability === 'fm_viewer')  return 'viewer'
+    if (capability === 'fm_contributor') return 'fm_contributor'
+    if (capability === 'fm_worker')      return 'fm_worker'
     return null
   }
   // Legacy app_role fallback
   if (['admin', 'supervisor'].includes(role)) return 'manager'
   if (role === 'viewer')    return 'viewer'
-  if (role === 'inspector') return 'contributor'
-  if (role === 'vendor')    return 'worker'
+  if (role === 'inspector') return 'fm_contributor'
+  if (role === 'vendor')    return 'fm_worker'
   return null
 }
 
@@ -674,7 +674,7 @@ export default function FMWorkOrdersPage() {
   }, [])
 
   const isManager     = fmLevel === 'manager'
-  const isContributor = fmLevel === 'contributor'
+  const isContributor = fmLevel === 'fm_contributor'
   const canCreate     = isManager || isContributor
 
   // ── Fetch data ─────────────────────────────────────────────────────────

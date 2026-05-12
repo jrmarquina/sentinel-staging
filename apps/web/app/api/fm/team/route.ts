@@ -14,27 +14,28 @@ function caught(e: unknown) {
 
 // FM capability helpers
 function isFmManager(cap: string | null, role: string): boolean {
-  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  if (cap) return ['org_admin', 'fm_manager'].includes(cap)
   return ['admin', 'supervisor'].includes(role)
 }
 
 function getFmAccessLevel(cap: string | null, role: string): string | null {
   if (cap) {
-    if (['org_admin', 'org_manager'].includes(cap)) return 'manager'
-    if (cap === 'org_viewer')  return 'viewer'
-    if (cap === 'contributor') return 'contributor'
-    if (cap === 'worker')      return 'worker'
+    if (['org_admin', 'fm_manager'].includes(cap)) return 'manager'
+    if (cap === 'fm_viewer')  return 'viewer'
+    if (cap === 'fm_contributor') return 'fm_contributor'
+    if (cap === 'fm_worker')      return 'fm_worker'
     return null
   }
   if (['admin', 'supervisor'].includes(role)) return 'manager'
   if (role === 'viewer')    return 'viewer'
-  if (role === 'inspector') return 'contributor'
-  if (role === 'vendor')    return 'worker'
+  if (role === 'inspector') return 'fm_contributor'
+  if (role === 'vendor')    return 'fm_worker'
   return null
 }
 
 const VALID_CAPABILITIES = [
-  'org_admin', 'org_manager', 'org_viewer', 'contributor', 'worker',
+  'org_admin', 'fm_manager', 'fm_viewer', 'fm_contributor', 'fm_worker',
+  'pw_manager', 'pw_viewer', 'pw_worker',
 ] as const
 
 const patchSchema = z.object({
@@ -148,7 +149,7 @@ export async function PATCH(req: NextRequest) {
     const { user_id, capability, role_definition_id } = parsed.data
 
     // Prevent self-demotion (can't remove your own manager access)
-    if (user_id === session.userId && !['org_admin', 'org_manager'].includes(capability)) {
+    if (user_id === session.userId && !['org_admin', 'fm_manager'].includes(capability)) {
       return err('Cannot remove your own manager access', 422)
     }
 

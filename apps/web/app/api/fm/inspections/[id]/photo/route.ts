@@ -21,7 +21,7 @@ function caught(e: unknown) {
 }
 
 function canRunInspection(cap: string | null, role: string): boolean {
-  if (cap) return ['org_admin', 'org_manager', 'contributor'].includes(cap)
+  if (cap) return ['org_admin', 'fm_manager', 'fm_contributor'].includes(cap)
   return ['admin', 'supervisor', 'inspector'].includes(role)
 }
 

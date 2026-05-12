@@ -32,11 +32,17 @@ type Member = {
 // ── Capability styling ─────────────────────────────────────────────────────
 
 const CAPABILITY_META: Record<string, { label: string; color: string }> = {
-  org_admin:    { label: 'Administrator',       color: 'bg-violet-500/20 text-violet-300 border border-violet-500/30' },
-  org_manager:  { label: 'Facilities Manager',  color: 'bg-blue-500/20 text-blue-300 border border-blue-500/30' },
-  org_viewer:   { label: 'Director',            color: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' },
-  contributor:  { label: 'Inspector',           color: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' },
-  worker:       { label: 'Maintenance Worker',  color: 'bg-amber-500/20 text-amber-300 border border-amber-500/30' },
+  // Org-wide
+  org_admin:      { label: 'Administrator',        color: 'bg-violet-500/20 text-violet-300 border border-violet-500/30' },
+  // FM capabilities
+  fm_manager:     { label: 'FM Manager',           color: 'bg-blue-500/20 text-blue-300 border border-blue-500/30' },
+  fm_viewer:      { label: 'FM Viewer',            color: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' },
+  fm_contributor: { label: 'FM Inspector',         color: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' },
+  fm_worker:      { label: 'FM Maintenance',       color: 'bg-amber-500/20 text-amber-300 border border-amber-500/30' },
+  // PW capabilities
+  pw_manager:     { label: 'PW Manager',           color: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' },
+  pw_viewer:      { label: 'PW Viewer',            color: 'bg-sky-500/20 text-sky-300 border border-sky-500/30' },
+  pw_worker:      { label: 'PW Field Worker',      color: 'bg-orange-500/20 text-orange-300 border border-orange-500/30' },
 }
 
 function capabilityMeta(cap: string) {
@@ -313,16 +319,24 @@ export function FmTeamClient({ members: initialMembers, roleDefs, isManager, cur
   }
 
   // Group by capability tier for display
-  const managers      = members.filter((m) => ['org_admin', 'org_manager'].includes(m.capability))
-  const directors     = members.filter((m) => m.capability === 'org_viewer')
-  const contributors  = members.filter((m) => m.capability === 'contributor')
-  const workers       = members.filter((m) => m.capability === 'worker')
+  const admins        = members.filter((m) => m.capability === 'org_admin')
+  const fmManagers    = members.filter((m) => m.capability === 'fm_manager')
+  const fmViewers     = members.filter((m) => m.capability === 'fm_viewer')
+  const fmContribs    = members.filter((m) => m.capability === 'fm_contributor')
+  const fmWorkers     = members.filter((m) => m.capability === 'fm_worker')
+  const pwManagers    = members.filter((m) => m.capability === 'pw_manager')
+  const pwViewers     = members.filter((m) => m.capability === 'pw_viewer')
+  const pwWorkers     = members.filter((m) => m.capability === 'pw_worker')
 
   const groups: { label: string; items: Member[] }[] = [
-    { label: t('team.fm.group.managers'),     items: managers },
-    { label: t('team.fm.group.viewers'),      items: directors },
-    { label: t('team.fm.group.contributors'), items: contributors },
-    { label: t('team.fm.group.workers'),      items: workers },
+    { label: 'Administrators',   items: admins },
+    { label: 'FM Managers',      items: fmManagers },
+    { label: 'FM Viewers',       items: fmViewers },
+    { label: 'FM Inspectors',    items: fmContribs },
+    { label: 'FM Maintenance',   items: fmWorkers },
+    { label: 'PW Managers',      items: pwManagers },
+    { label: 'PW Viewers',       items: pwViewers },
+    { label: 'PW Field Workers', items: pwWorkers },
   ].filter((g) => g.items.length > 0)
 
   return (
@@ -414,15 +428,18 @@ export function FmTeamClient({ members: initialMembers, roleDefs, isManager, cur
       {/* Role reference */}
       <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
         <div className="px-5 py-2.5 border-b border-white/5">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">FM Access Levels</p>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">SIMS Access Levels</p>
         </div>
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           {[
-            { cap: 'org_admin',   desc: 'God mode — unrestricted access to all FM records, settings, team, and modules' },
-            { cap: 'org_manager', desc: 'Manage work orders and inspections, assign tasks, edit all operational records' },
-            { cap: 'org_viewer',  desc: 'Read-only access to all FM records — no create, edit, or delete' },
-            { cap: 'contributor', desc: 'Run inspections, complete checklists, update assigned work orders' },
-            { cap: 'worker',      desc: 'View and update assigned work orders only — no other access' },
+            { cap: 'org_admin',      desc: 'God mode — full access to all modules, settings, and team management' },
+            { cap: 'fm_manager',     desc: 'Full Facilities access: work orders, inspections, properties, team' },
+            { cap: 'fm_viewer',      desc: 'Read-only Facilities access — no create, edit, or delete' },
+            { cap: 'fm_contributor', desc: 'Run inspections, complete checklists, submit FM work orders' },
+            { cap: 'fm_worker',      desc: 'View and update FM work orders assigned to them only' },
+            { cap: 'pw_manager',     desc: 'Full Public Works access: work orders, map, contracts, incidents' },
+            { cap: 'pw_viewer',      desc: 'Read-only Public Works access — no create, edit, or delete' },
+            { cap: 'pw_worker',      desc: 'View and update PW work orders assigned to them only' },
           ].map(({ cap, desc }) => {
             const { label, color } = capabilityMeta(cap)
             return (

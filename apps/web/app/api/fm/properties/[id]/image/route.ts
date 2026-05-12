@@ -26,7 +26,7 @@ function caught(e: unknown) {
 }
 
 function isFmManager(cap: string | null, role: string): boolean {
-  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  if (cap) return ['org_admin', 'fm_manager'].includes(cap)
   return ['admin', 'supervisor'].includes(role)
 }
 

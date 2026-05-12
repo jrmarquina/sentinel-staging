@@ -7,14 +7,17 @@ import { useDesignTheme } from '@/lib/design-theme'
 import type { AppRole } from '@sentinel/shared'
 
 interface DashboardShellProps {
-  children:      React.ReactNode
-  userEmail?:    string
-  userFullName?: string | null
-  userAvatar?:   string | null
+  children:         React.ReactNode
+  userEmail?:       string
+  userFullName?:    string | null
+  userAvatar?:      string | null
   /** Passed from server so Sidebar shows real org name without an extra client fetch */
-  orgName?:      string | null
+  orgName?:         string | null
   /** Passed from server for initial render; Sidebar/Header also call useRole() client-side */
-  userRole?:     AppRole | null
+  userRole?:        AppRole | null
+  /** New capability system — determines which nav sections to show */
+  userCapability?:  string | null
+  userDepartment?:  string | null
 }
 
 export default function DashboardShell({
@@ -24,6 +27,8 @@ export default function DashboardShell({
   userAvatar,
   orgName,
   userRole,
+  userCapability,
+  userDepartment,
 }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { setDesignTheme } = useDesignTheme()
@@ -41,6 +46,8 @@ export default function DashboardShell({
         mobileOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         orgName={orgName ?? undefined}
+        userCapability={userCapability ?? null}
+        userDepartment={userDepartment ?? null}
       />
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">

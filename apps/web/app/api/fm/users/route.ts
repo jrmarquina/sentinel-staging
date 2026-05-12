@@ -14,12 +14,13 @@ function caught(e: unknown) {
 
 // FM capability check — managers can manage users
 function isFmManager(cap: string | null, role: string): boolean {
-  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  if (cap) return ['org_admin', 'fm_manager'].includes(cap)
   return ['admin', 'supervisor'].includes(role)
 }
 
 const VALID_CAPABILITIES = [
-  'org_admin', 'org_manager', 'org_viewer', 'contributor', 'worker',
+  'org_admin', 'fm_manager', 'fm_viewer', 'fm_contributor', 'fm_worker',
+  'pw_manager', 'pw_viewer', 'pw_worker',
 ] as const
 
 const userCreateSchema = z.object({

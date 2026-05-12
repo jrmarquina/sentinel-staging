@@ -244,7 +244,7 @@ interface WoSummary {
 // ── N-1: Contributor submitted → all FM managers ──────────────────────────
 
 export async function notifyManagersNewWO(wo: WoSummary, orgId: string): Promise<void> {
-  const managers = await getUsersByCapability(orgId, ['org_admin', 'org_manager'])
+  const managers = await getUsersByCapability(orgId, ['org_admin', 'fm_manager'])
   if (!managers.length) return
 
   const rows: [string, string][] = [
@@ -379,7 +379,7 @@ export async function notifyManagerWOCompleted(
 // ── N-4: DIRECTOR_REFERRAL → all org_viewer users (Director Municipal) ────
 
 export async function notifyDirectorReferral(wo: WoSummary, orgId: string): Promise<void> {
-  const directors = await getUsersByCapability(orgId, ['org_viewer'])
+  const directors = await getUsersByCapability(orgId, ['fm_viewer'])
   if (!directors.length) return
 
   const rows: [string, string][] = [

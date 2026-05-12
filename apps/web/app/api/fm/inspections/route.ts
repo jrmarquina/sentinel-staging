@@ -14,15 +14,15 @@ function caught(e: unknown) {
 
 // FM capability helpers — mirrors WO route pattern
 function isFmManager(cap: string | null, role: string): boolean {
-  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  if (cap) return ['org_admin', 'fm_manager'].includes(cap)
   return ['admin', 'supervisor'].includes(role)
 }
 function canRunInspection(cap: string | null, role: string): boolean {
-  if (cap) return ['org_admin', 'org_manager'].includes(cap)
+  if (cap) return ['org_admin', 'fm_manager'].includes(cap)
   return ['admin', 'supervisor', 'inspector'].includes(role)
 }
 function canReadInspection(cap: string | null, role: string): boolean {
-  if (cap) return ['org_admin', 'org_manager', 'org_viewer'].includes(cap)
+  if (cap) return ['org_admin', 'fm_manager', 'fm_viewer'].includes(cap)
   return ['admin', 'supervisor', 'inspector', 'viewer'].includes(role)
 }
 

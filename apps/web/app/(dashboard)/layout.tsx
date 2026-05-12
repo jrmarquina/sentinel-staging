@@ -15,6 +15,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       userFullName={session.fullName}
       userAvatar={session.avatarUrl}
       userRole={session.role}
+      userCapability={session.capability}
+      userDepartment={session.department}
       orgName={session.orgName}
     >
       {children}

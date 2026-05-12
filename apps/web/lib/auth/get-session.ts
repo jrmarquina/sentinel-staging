@@ -22,7 +22,7 @@ export interface SessionProfile {
   // Null for users whose user_roles row hasn't been migrated yet;
   // callers should fall back to `role` in that case.
   department: string | null   // 'pw' | 'fm' | 'both'
-  capability: string | null   // 'org_admin' | 'org_manager' | 'org_viewer' | 'contributor' | 'worker'
+  capability: string | null   // 'org_admin' | 'fm_manager' | 'fm_viewer' | 'fm_contributor' | 'fm_worker'
   roleSlug: string | null     // e.g. 'facilities_manager', 'zone_manager'
   roleName: string | null     // display name e.g. 'Facilities Manager'
   roleColor: string | null    // hex colour for UI badge

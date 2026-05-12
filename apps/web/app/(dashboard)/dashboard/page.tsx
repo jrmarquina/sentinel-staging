@@ -1,4 +1,6 @@
+import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getSession } from '@/lib/auth/get-session'
 import { isWithinInterval, addDays, parseISO, isPast, format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { DashboardClient } from './dashboard-client'
 import type {
@@ -25,6 +27,18 @@ function delayStatus(endDate: string | null, status: string): 'overdue' | 'at_ri
 }
 
 export default async function DashboardPage() {
+  // ── Capability-based routing ───────────────────────────────────────────────
+  // Non-admin users are sent directly to their home section on login.
+  const session = await getSession()
+  if (session) {
+    const cap = session.capability
+    if (cap === 'fm_manager' || cap === 'fm_viewer') redirect('/dashboard/fm')
+    if (cap === 'fm_contributor')                    redirect('/dashboard/fm/inspections')
+    if (cap === 'fm_worker')                         redirect('/dashboard/fm/work-orders')
+    if (cap === 'pw_worker')                         redirect('/dashboard/work-orders')
+    // org_admin, pw_manager, pw_viewer — stay on this page
+  }
+
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 

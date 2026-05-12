@@ -131,14 +131,14 @@ function isOverdue(wo: FmWorkOrder) {
 
 function getFmLevel(capability: string | null, role: string) {
   if (capability) {
-    if (['org_admin', 'org_manager'].includes(capability)) return 'manager'
-    if (capability === 'org_viewer')  return 'viewer'
-    if (capability === 'contributor') return 'contributor'
-    if (capability === 'worker')      return 'worker'
+    if (['org_admin', 'fm_manager'].includes(capability)) return 'manager'
+    if (capability === 'fm_viewer')  return 'viewer'
+    if (capability === 'fm_contributor') return 'fm_contributor'
+    if (capability === 'fm_worker')      return 'fm_worker'
   }
   if (['admin', 'supervisor'].includes(role)) return 'manager'
-  if (role === 'inspector') return 'contributor'
-  if (role === 'vendor')    return 'worker'
+  if (role === 'inspector') return 'fm_contributor'
+  if (role === 'vendor')    return 'fm_worker'
   return 'viewer'
 }
 
@@ -331,7 +331,7 @@ export default function FmWorkOrderDetailPage() {
   }
 
   const isManager    = fmLevel === 'manager'
-  const isWorker     = fmLevel === 'worker'
+  const isWorker     = fmLevel === 'fm_worker'
   const overdue      = isOverdue(wo)
   const transitions  = isManager
     ? (MANAGER_TRANSITIONS[wo.status] ?? [])
@@ -340,7 +340,7 @@ export default function FmWorkOrderDetailPage() {
       : []
 
   const canEdit = isManager ||
-    (fmLevel === 'contributor' && wo.status === 'PENDING_REVIEW')
+    (fmLevel === 'fm_contributor' && wo.status === 'PENDING_REVIEW')
 
   // Build timeline
   type TLEvent = { ts: string; label: string; icon: React.ReactNode; color: string }
