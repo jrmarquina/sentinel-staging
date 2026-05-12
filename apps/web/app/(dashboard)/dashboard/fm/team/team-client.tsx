@@ -15,6 +15,7 @@ type RoleDef = {
   capability_level: string
   description:      string | null
   color:            string | null
+  department_id:    string | null
 }
 
 type Member = {
@@ -153,120 +154,218 @@ function CapabilityDropdown({
 
 function AddMemberModal({
   roleDefs,
+  departments,
   onClose,
   onSuccess,
 }: {
-  roleDefs:  RoleDef[]
-  onClose:   () => void
-  onSuccess: () => void
+  roleDefs:    RoleDef[]
+  departments: DeptDef[]
+  onClose:     () => void
+  onSuccess:   () => void
 }) {
   const t = useFmT()
-  const [name, setName]           = useState('')
-  const [email, setEmail]         = useState('')
-  const [password, setPassword]   = useState('')
-  const [showPwd, setShowPwd]     = useState(false)
-  const [roleDefId, setRoleDefId] = useState(roleDefs[0]?.id ?? '')
-  const [error, setError]         = useState('')
-  const [pending, startTransition] = useTransition()
 
-  const selectedDef = roleDefs.find((r) => r.id === roleDefId)
+  // Department — default to first dept
+  const [deptId, setDeptId]           = useState(departments[0]?.id ?? '')
+  const [name, setName]               = useState('')
+  const [email, setEmail]             = useState('')
+  const [password, setPassword]       = useState('')
+  const [showPwd, setShowPwd]         = useState(false)
+  const [pwdLocked, setPwdLocked]     = useState(false)
+  const [sendInvite, setSendInvite]   = useState(false)  // if true, skip password field
+  const [roleDefId, setRoleDefId]     = useState('')
+  const [error, setError]             = useState('')
+  const [pending, startTransition]    = useTransition()
+
+  // Filter role definitions to selected department
+  const deptRoleDefs = roleDefs.filter((r) => r.department_id === deptId)
+
+  // Auto-select first role when dept changes
+  const firstRoleId = deptRoleDefs[0]?.id ?? ''
+  const effectiveRoleDefId = deptRoleDefs.find((r) => r.id === roleDefId) ? roleDefId : firstRoleId
+  const selectedDef = deptRoleDefs.find((r) => r.id === effectiveRoleDefId)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     if (!selectedDef) { setError('Select a role'); return }
+    if (!deptId)       { setError('Select a department'); return }
+    if (!sendInvite && password.length < 8) { setError('Password must be at least 8 characters'); return }
 
     startTransition(async () => {
+      const body: Record<string, unknown> = {
+        email:              email.trim(),
+        full_name:          name.trim(),
+        role_definition_id: effectiveRoleDefId,
+        department_id:      deptId,
+        password_locked:    pwdLocked,
+      }
+      if (!sendInvite && password) {
+        body.password = password
+      }
+
       const res = await fetch('/api/fm/users', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          email:      email.trim(),
-          full_name:  name.trim(),
-          role:       'viewer', // PW app_role default — FM access via capability
-          capability: selectedDef.capability_level,
-          role_definition_id: selectedDef.id,
-        }),
+        body:    JSON.stringify(body),
       })
       if (!res.ok) {
-        const { error: msg } = await res.json().catch(() => ({ error: t('error.generic') }))
-        setError(msg ?? t('error.generic'))
+        const { error: msg } = await res.json().catch(() => ({ error: 'An error occurred' }))
+        setError(msg ?? 'An error occurred')
         return
       }
       onSuccess()
     })
   }
 
+  const inputCls = 'w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500'
+  const labelCls = 'block text-xs font-medium text-slate-400 mb-1'
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#0d1b2e] border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm">
+      <div className="bg-[#0d1b2e] border border-white/10 rounded-2xl shadow-2xl w-full max-w-md overflow-y-auto max-h-[90vh]">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-          <h2 className="text-sm font-bold text-white">{t('team.fm.modal.title')}</h2>
+          <h2 className="text-sm font-bold text-white">Add Team Member</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="px-5 py-5 space-y-4">
+
+          {/* Department */}
+          <div>
+            <label className={labelCls}>Department</label>
+            <div className="flex gap-2">
+              {departments.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => { setDeptId(d.id); setRoleDefId('') }}
+                  className={cn(
+                    'flex-1 py-2 text-xs font-semibold rounded-lg border transition-colors',
+                    deptId === d.id
+                      ? 'bg-blue-600 border-blue-600 text-white'
+                      : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
+                  )}
+                >
+                  {d.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Role — filtered by department */}
+          <div>
+            <label className={labelCls}>Role</label>
+            {deptRoleDefs.length === 0 ? (
+              <p className="text-xs text-slate-500">No active roles for this department.</p>
+            ) : (
+              <>
+                <select
+                  value={effectiveRoleDefId}
+                  onChange={(e) => setRoleDefId(e.target.value)}
+                  className={inputCls}
+                >
+                  {deptRoleDefs.map((rd) => (
+                    <option key={rd.id} value={rd.id} className="bg-[#0d1b2e]">
+                      {rd.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedDef?.description && (
+                  <p className="mt-1 text-xs text-slate-500">{selectedDef.description}</p>
+                )}
+              </>
+            )}
+          </div>
+
           {/* Name */}
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">{t('team.fm.form.name')}</label>
+            <label className={labelCls}>Full name</label>
             <input
               type="text" required value={name} onChange={(e) => setName(e.target.value)}
               placeholder="María Pérez"
-              className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={inputCls}
             />
           </div>
 
           {/* Email */}
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">{t('team.fm.form.email')}</label>
+            <label className={labelCls}>Email / Username</label>
             <div className="relative">
               <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
                 type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                 placeholder="maria@example.com"
-                className="w-full pl-8 pr-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={cn(inputCls, 'pl-8')}
               />
             </div>
           </div>
 
-          {/* Password */}
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">Initial password</label>
-            <div className="relative">
-              <KeyRound size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-              <input
-                type={showPwd ? 'text' : 'password'} required minLength={6}
-                value={password} onChange={(e) => setPassword(e.target.value)}
-                placeholder="Minimum 6 characters"
-                className="w-full pl-8 pr-9 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button type="button" tabIndex={-1} onClick={() => setShowPwd((v) => !v)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
-                {showPwd ? <EyeOff size={13} /> : <Eye size={13} />}
-              </button>
-            </div>
-          </div>
-
-          {/* Role */}
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">{t('team.fm.form.role')}</label>
-            <select
-              value={roleDefId}
-              onChange={(e) => setRoleDefId(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          {/* Password mode toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSendInvite((v) => !v)}
+              className={cn(
+                'relative w-9 h-5 rounded-full transition-colors',
+                sendInvite ? 'bg-blue-600' : 'bg-white/20'
+              )}
             >
-              {roleDefs.map((rd) => (
-                <option key={rd.id} value={rd.id} className="bg-[#0d1b2e]">
-                  {rd.name}
-                </option>
-              ))}
-            </select>
-            {selectedDef?.description && (
-              <p className="mt-1 text-xs text-slate-500">{selectedDef.description}</p>
-            )}
+              <span className={cn(
+                'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform',
+                sendInvite ? 'translate-x-4' : 'translate-x-0.5'
+              )} />
+            </button>
+            <span className="text-xs text-slate-400">
+              {sendInvite ? 'Send invite email — user sets their own password' : 'Set password now'}
+            </span>
           </div>
+
+          {/* Password field — shown only when not sending invite */}
+          {!sendInvite && (
+            <div>
+              <label className={labelCls}>Password</label>
+              <div className="relative">
+                <KeyRound size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type={showPwd ? 'text' : 'password'}
+                  minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Minimum 8 characters"
+                  className={cn(inputCls, 'pl-8 pr-9')}
+                />
+                <button type="button" tabIndex={-1} onClick={() => setShowPwd((v) => !v)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
+                  {showPwd ? <EyeOff size={13} /> : <Eye size={13} />}
+                </button>
+              </div>
+
+              {/* Password lock */}
+              <div className="flex items-center gap-3 mt-2.5">
+                <button
+                  type="button"
+                  onClick={() => setPwdLocked((v) => !v)}
+                  className={cn(
+                    'relative w-9 h-5 rounded-full transition-colors',
+                    pwdLocked ? 'bg-amber-500' : 'bg-white/20'
+                  )}
+                >
+                  <span className={cn(
+                    'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform',
+                    pwdLocked ? 'translate-x-4' : 'translate-x-0.5'
+                  )} />
+                </button>
+                <span className="text-xs text-slate-400">
+                  {pwdLocked
+                    ? '🔒 Password locked — user cannot change it'
+                    : 'User can change their own password'}
+                </span>
+              </div>
+            </div>
+          )}
 
           {error && (
             <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-lg">{error}</p>
@@ -275,11 +374,11 @@ function AddMemberModal({
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose}
               className="flex-1 px-4 py-2 text-sm border border-white/10 rounded-lg hover:bg-white/5 transition-colors text-slate-300">
-              {t('cancel')}
+              Cancel
             </button>
-            <button type="submit" disabled={pending}
+            <button type="submit" disabled={pending || deptRoleDefs.length === 0}
               className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50">
-              {pending ? t('team.fm.form.adding') : t('team.fm.form.addBtn')}
+              {pending ? 'Adding…' : 'Add Member'}
             </button>
           </div>
         </form>
@@ -290,14 +389,18 @@ function AddMemberModal({
 
 // ── Main component ─────────────────────────────────────────────────────────
 
+interface DeptDef { id: string; name: string; slug: string }
+
 interface Props {
   members:       Member[]
   roleDefs:      RoleDef[]
+  departments:   DeptDef[]
   isManager:     boolean
+  isAdmin:       boolean
   currentUserId: string
 }
 
-export function FmTeamClient({ members: initialMembers, roleDefs, isManager, currentUserId }: Props) {
+export function FmTeamClient({ members: initialMembers, roleDefs, departments, isManager, isAdmin, currentUserId }: Props) {
   const router = useRouter()
   const t = useFmT()
   const [members, setMembers]     = useState(initialMembers)
@@ -457,6 +560,7 @@ export function FmTeamClient({ members: initialMembers, roleDefs, isManager, cur
       {showInvite && (
         <AddMemberModal
           roleDefs={roleDefs}
+          departments={departments}
           onClose={() => setShowInvite(false)}
           onSuccess={() => { setShowInvite(false); router.refresh() }}
         />

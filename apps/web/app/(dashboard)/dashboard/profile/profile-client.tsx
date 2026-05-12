@@ -2,15 +2,16 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { User, KeyRound, Eye, EyeOff, Check } from 'lucide-react'
+import { User, KeyRound, Eye, EyeOff, Check, Lock } from 'lucide-react'
 import { updateProfile, changePassword } from './actions'
 
 interface Props {
-  userId:    string
-  email:     string
-  fullName:  string | null
-  avatarUrl: string | null
-  role:      string
+  userId:         string
+  email:          string
+  fullName:       string | null
+  avatarUrl:      string | null
+  role:           string
+  passwordLocked: boolean
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -64,7 +65,7 @@ function PasswordInput({ value, onChange, placeholder }: {
   )
 }
 
-export function ProfileClient({ userId, email, fullName, avatarUrl, role }: Props) {
+export function ProfileClient({ userId, email, fullName, avatarUrl, role, passwordLocked }: Props) {
   const router = useRouter()
 
   // Profile form state
@@ -206,42 +207,57 @@ export function ProfileClient({ userId, email, fullName, avatarUrl, role }: Prop
       </div>
 
       {/* Password form */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-5">
-        <div className="flex items-center gap-2 mb-1">
-          <KeyRound size={15} className="text-slate-400" />
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white">Change Password</h2>
-        </div>
-
-        <div className="space-y-1">
-          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
-            New Password
-          </label>
-          <PasswordInput
-            value={pwd}
-            onChange={v => { setPwd(v); setPwdMsg(null) }}
-            placeholder="Minimum 8 characters"
-          />
-        </div>
-
-        {pwdMsg && (
-          <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${
-            pwdMsg.ok
-              ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
-              : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-          }`}>
-            {pwdMsg.ok && <Check size={12} />}
-            {pwdMsg.text}
+      {passwordLocked ? (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <KeyRound size={15} className="text-slate-400" />
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Change Password</h2>
           </div>
-        )}
+          <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+            <Lock size={15} className="text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+              Your password is managed by your administrator and cannot be changed here. Contact your system administrator if you need a password reset.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-5">
+          <div className="flex items-center gap-2 mb-1">
+            <KeyRound size={15} className="text-slate-400" />
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Change Password</h2>
+          </div>
 
-        <button
-          onClick={savePassword}
-          disabled={pwdPending}
-          className="px-4 py-2 text-sm font-semibold text-white bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 rounded-lg transition-colors disabled:opacity-50"
-        >
-          {pwdPending ? 'Updating…' : 'Update Password'}
-        </button>
-      </div>
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+              New Password
+            </label>
+            <PasswordInput
+              value={pwd}
+              onChange={v => { setPwd(v); setPwdMsg(null) }}
+              placeholder="Minimum 8 characters"
+            />
+          </div>
+
+          {pwdMsg && (
+            <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${
+              pwdMsg.ok
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
+                : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+            }`}>
+              {pwdMsg.ok && <Check size={12} />}
+              {pwdMsg.text}
+            </div>
+          )}
+
+          <button
+            onClick={savePassword}
+            disabled={pwdPending}
+            className="px-4 py-2 text-sm font-semibold text-white bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {pwdPending ? 'Updating…' : 'Update Password'}
+          </button>
+        </div>
+      )}
 
     </div>
   )

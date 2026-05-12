@@ -11,7 +11,7 @@ export default async function ProfilePage() {
   if (!user) redirect('/login')
 
   const [{ data: profile }, { data: roleData }] = await Promise.all([
-    supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single(),
+    supabase.from('profiles').select('full_name, avatar_url, password_locked').eq('id', user.id).single(),
     supabase.from('user_roles').select('role').eq('user_id', user.id).single(),
   ])
 
@@ -22,6 +22,7 @@ export default async function ProfilePage() {
       fullName={profile?.full_name ?? null}
       avatarUrl={profile?.avatar_url ?? null}
       role={roleData?.role ?? 'viewer'}
+      passwordLocked={(profile as { password_locked?: boolean } | null)?.password_locked ?? false}
     />
   )
 }

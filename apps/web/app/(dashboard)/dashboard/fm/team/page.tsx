@@ -36,8 +36,8 @@ export default async function FmTeamPage() {
   const supabase = createClient()
   const isManager = isFmManager(session.capability, session.role)
 
-  // Parallel fetch: team members, role definitions
-  const [{ data: rolesData }, { data: roleDefsData }, { data: profilesData }] = await Promise.all([
+  // Parallel fetch: team members, role definitions, departments
+  const [{ data: rolesData }, { data: roleDefsData }, { data: profilesData }, { data: deptsData }] = await Promise.all([
     supabase
       .from('user_roles')
       .select(`
@@ -54,7 +54,7 @@ export default async function FmTeamPage() {
 
     supabase
       .from('org_role_definitions')
-      .select('id, name, slug, capability_level, description, color')
+      .select('id, name, slug, capability_level, description, color, department_id')
       .eq('org_id', session.orgId)
       .eq('active', true)
       .order('capability_level', { ascending: true }),
@@ -64,6 +64,13 @@ export default async function FmTeamPage() {
       .select('id, full_name, avatar_url')
       .eq('org_id', session.orgId)
       .is('deleted_at', null),
+
+    supabase
+      .from('org_departments')
+      .select('id, name, slug')
+      .eq('org_id', session.orgId)
+      .eq('active', true)
+      .order('slug', { ascending: true }),
   ])
 
   const profileMap = new Map(
@@ -111,14 +118,19 @@ export default async function FmTeamPage() {
     capability_level: string
     description: string | null
     color: string | null
+    department_id: string | null
   }
+
+  type DeptRow = { id: string; name: string; slug: string }
 
   return (
     <FmTeamClient
       members={members}
       roleDefs={(roleDefsData ?? []) as RoleDefRow[]}
+      departments={(deptsData ?? []) as DeptRow[]}
       isManager={isManager}
       currentUserId={session.userId}
+      isAdmin={session.capability === 'org_admin'}
     />
   )
 }
