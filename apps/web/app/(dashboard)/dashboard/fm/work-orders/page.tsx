@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import {
   Plus, Search, Loader2, AlertTriangle, X,
-  ClipboardList, ChevronDown, Clock, Building2, Tag, UserCheck,
+  ClipboardList, ChevronDown, Clock, Building2, Tag, UserCheck, ExternalLink,
 } from 'lucide-react'
 import {
   FmCard, FmBadge, FmButton, FmModal,
@@ -287,9 +288,13 @@ function WoCard({
     >
       {/* Title row */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem' }}>
-        <p style={{ flex: 1, fontWeight: 700, fontSize: '0.9rem', color: 'var(--fg)', margin: 0, lineHeight: 1.35 }}>
+        <Link
+          href={`/dashboard/fm/work-orders/${wo.id}`}
+          style={{ flex: 1, fontWeight: 700, fontSize: '0.9rem', color: 'var(--fg)', lineHeight: 1.35, textDecoration: 'none' }}
+          onClick={(e) => e.stopPropagation()}
+        >
           {wo.title}
-        </p>
+        </Link>
         <FmBadge variant={priorityVariant(wo.priority)}>{wo.priority}</FmBadge>
       </div>
 
@@ -343,7 +348,23 @@ function WoCard({
 
       {/* Footer */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginTop: 'auto', paddingTop: '0.375rem' }}>
-        <StatusPopover wo={wo} isManager={isManager} onUpdate={onStatusUpdate} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <StatusPopover wo={wo} isManager={isManager} onUpdate={onStatusUpdate} />
+          <Link
+            href={`/dashboard/fm/work-orders/${wo.id}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+              fontSize: '0.72rem', fontWeight: 600, color: 'var(--primary)',
+              textDecoration: 'none', padding: '0.2rem 0.5rem',
+              borderRadius: 6, border: '1px solid var(--primary)',
+              background: 'var(--primary-c)',
+            }}
+          >
+            <ExternalLink size={10} />
+            View
+          </Link>
+        </div>
 
         {wo.due_date && (
           <div style={{

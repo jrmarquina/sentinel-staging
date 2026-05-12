@@ -60,6 +60,44 @@ const WORKER_TRANSITIONS: Record<string, string[]> = {
   IN_PROGRESS: ['COMPLETED'],
 }
 
+function canReadWO(cap: string | null, role: string): boolean {
+  if (cap) return ['org_admin', 'org_manager', 'org_viewer', 'contributor', 'worker'].includes(cap)
+  return ['admin', 'supervisor', 'inspector', 'vendor', 'viewer'].includes(role)
+}
+
+// ── GET ────────────────────────────────────────────────────────────────────
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getSession()
+    if (!session) return err('Unauthorized', 401)
+    if (!canReadWO(session.capability, session.role)) return err('Forbidden', 403)
+
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('fm_work_orders')
+      .select(`
+        *,
+        fm_properties(id, name, code),
+        assigned_to:profiles!fm_work_orders_assigned_to_id_fkey(id, full_name),
+        submitted_by:profiles!fm_work_orders_submitted_by_id_fkey(id, full_name),
+        engaged_by:profiles!fm_work_orders_engaged_by_id_fkey(id, full_name),
+        resolved_by:profiles!fm_work_orders_resolved_by_id_fkey(id, full_name),
+        fm_inspections(id, fm_properties(id, name))
+      `)
+      .eq('id', params.id)
+      .eq('org_id', session.orgId)
+      .is('deleted_at', null)
+      .single()
+
+    if (error || !data) return err('Work order not found', 404)
+    return NextResponse.json(data)
+  } catch (e) { return caught(e) }
+}
+
 // ── Capability helpers ─────────────────────────────────────────────────────
 
 function isFmManager(cap: string | null, role: string): boolean {
