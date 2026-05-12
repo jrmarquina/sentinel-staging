@@ -43,13 +43,12 @@ export default async function FmTeamPage() {
       .select(`
         user_id,
         role,
-        capability,
         created_at,
         role_definition:org_role_definitions(id, name, slug, capability_level),
         department:org_departments(id, name, slug)
       `)
       .eq('org_id', session.orgId)
-      .not('capability', 'is', null)
+      .not('role_definition_id', 'is', null)
       .order('created_at', { ascending: true }),
 
     supabase
@@ -90,7 +89,6 @@ export default async function FmTeamPage() {
   type RoleRow = {
     user_id: string
     role: string
-    capability: string
     created_at: string
     role_definition: { id: string; name: string; slug: string; capability_level: string } | null
     department: { id: string; name: string; slug: string } | null
@@ -104,7 +102,8 @@ export default async function FmTeamPage() {
       avatar_url:      profile?.avatar_url ?? null,
       email:           emailMap.get(r.user_id) ?? null,
       role:            r.role,
-      capability:      r.capability,
+      // capability comes from the role_definition join, not a direct column
+      capability:      r.role_definition?.capability_level ?? '',
       role_definition: r.role_definition ?? null,
       joined_at:       r.created_at,
       is_me:           r.user_id === session.userId,
