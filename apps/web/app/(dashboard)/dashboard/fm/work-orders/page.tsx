@@ -633,8 +633,17 @@ export default function FMWorkOrdersPage() {
   const focusId = searchParams.get('focus')
 
   // FM session / capability
-  const [fmLevel,   setFmLevel]   = useState<FmAccessLevel>(null)
+  const [fmLevel,    setFmLevel]    = useState<FmAccessLevel>(null)
   const [levelReady, setLevelReady] = useState(false)
+  const [isMobile,   setIsMobile]   = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)')
+    setIsMobile(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   // Data
   const [workOrders,  setWorkOrders]  = useState<FmWorkOrder[]>([])
@@ -856,7 +865,13 @@ export default function FMWorkOrdersPage() {
       </div>
 
       {/* Filter pills */}
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+      <div style={{
+        display: 'flex', gap: '0.5rem',
+        flexWrap: isMobile ? 'nowrap' : 'wrap',
+        overflowX: isMobile ? 'auto' : 'visible',
+        paddingBottom: isMobile ? '0.25rem' : 0,
+        scrollbarWidth: 'none',
+      }}>
         {visibleTabs.map((tab) => {
           const active       = activeTab === tab.value
           const count        = tabCount(tab.value)
@@ -884,6 +899,7 @@ export default function FMWorkOrdersPage() {
                 color: active ? activeColor : inactiveColor,
                 cursor: 'pointer', transition: 'all 0.15s ease',
                 display: 'flex', alignItems: 'center', gap: '0.35rem',
+                flexShrink: 0,
               }}
             >
               {tab.label}
@@ -914,7 +930,7 @@ export default function FMWorkOrdersPage() {
               : t('wo.fm.empty')}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.875rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.875rem' }}>
           {filtered.map((wo) => (
             <WoCard
               key={wo.id}

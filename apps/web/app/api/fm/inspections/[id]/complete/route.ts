@@ -17,7 +17,7 @@ function isFmManager(cap: string | null, role: string): boolean {
   return ['admin', 'supervisor'].includes(role)
 }
 function canRunInspection(cap: string | null, role: string): boolean {
-  if (cap) return ['org_admin', 'fm_manager'].includes(cap)
+  if (cap) return ['org_admin', 'fm_manager', 'fm_contributor'].includes(cap)
   return ['admin', 'supervisor', 'inspector'].includes(role)
 }
 

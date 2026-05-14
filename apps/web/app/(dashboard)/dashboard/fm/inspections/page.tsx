@@ -63,6 +63,15 @@ export default function FMInspectionsPage() {
   const [form, setForm]               = useState<StartForm>(EMPTY_FORM)
   const [saving, setSaving]           = useState(false)
   const [formError, setFormError]     = useState<string | null>(null)
+  const [isMobile, setIsMobile]       = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)')
+    setIsMobile(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   const load = useCallback(() => {
     setLoading(true)
@@ -160,7 +169,12 @@ export default function FMInspectionsPage() {
             {inspections.length} {t('insp.fm.title').toLowerCase()}
           </p>
         </div>
-        <FmButton icon={<Plus size={15} />} onClick={() => setShowModal(true)} size="sm">
+        <FmButton
+          icon={<Plus size={15} />}
+          onClick={() => setShowModal(true)}
+          size="sm"
+          style={isMobile ? { width: '100%', justifyContent: 'center' } : undefined}
+        >
           {t('insp.fm.start')}
         </FmButton>
       </div>
@@ -184,7 +198,13 @@ export default function FMInspectionsPage() {
       </div>
 
       {/* Filter pills */}
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+      <div style={{
+        display: 'flex', gap: '0.5rem',
+        flexWrap: isMobile ? 'nowrap' : 'wrap',
+        overflowX: isMobile ? 'auto' : 'visible',
+        paddingBottom: isMobile ? '0.25rem' : 0,
+        scrollbarWidth: 'none',
+      }}>
         {filterTabs.map((tab) => {
           const active = activeTab === tab.value
           const count  = tabCount(tab.value)
@@ -200,6 +220,7 @@ export default function FMInspectionsPage() {
                 color: active ? 'var(--primary)' : 'var(--muted)',
                 cursor: 'pointer', transition: 'all 0.15s ease',
                 display: 'flex', alignItems: 'center', gap: '0.35rem',
+                flexShrink: 0,
               }}
             >
               {tab.label}
@@ -237,7 +258,63 @@ export default function FMInspectionsPage() {
               <ClipboardCheck size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
               {t('insp.fm.empty')}
             </div>
+          ) : isMobile ? (
+            /* ── Mobile card list ── */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {filtered.map((insp, idx) => {
+                const isRunnable = insp.status === 'DRAFT' || insp.status === 'IN_PROGRESS'
+                const href = isRunnable
+                  ? `/dashboard/fm/inspections/${insp.id}/run`
+                  : `/dashboard/fm/inspections/${insp.id}`
+                return (
+                  <div
+                    key={insp.id}
+                    onClick={() => router.push(href)}
+                    style={{
+                      padding: '0.875rem 1rem',
+                      borderTop: idx === 0 ? 'none' : '1px solid var(--border)',
+                      cursor: 'pointer',
+                      display: 'flex', flexDirection: 'column', gap: '0.4rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontWeight: 700, color: 'var(--fg)', margin: 0, fontSize: '0.875rem', lineHeight: 1.3 }}>
+                          {insp.fm_properties?.name ?? '—'}
+                        </p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '0.1rem 0 0' }}>
+                          {insp.fm_templates?.name ?? '—'}
+                        </p>
+                      </div>
+                      <FmBadge variant={statusVariant(insp.status)}>
+                        {insp.status.replace(/_/g, ' ')}
+                      </FmBadge>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span style={{
+                          fontSize: '0.8rem', fontWeight: 700,
+                          color: insp.score == null ? 'var(--muted)' :
+                            insp.score >= 80 ? 'var(--teal)' :
+                            insp.score >= 60 ? 'var(--amber)' : 'var(--red)',
+                        }}>
+                          {insp.score != null ? `${insp.score}%` : '—'}
+                        </span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', color: 'var(--muted)' }}>
+                          <Calendar size={11} />
+                          {new Date(insp.scheduled_for ?? insp.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>
+                        {isRunnable ? t('insp.fm.continue') : t('insp.fm.view')} <ChevronRight size={13} />
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           ) : (
+            /* ── Desktop table ── */
             <div style={{ overflowX: 'auto' }}>
               <table className="fm-table">
                 <thead>
