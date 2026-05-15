@@ -42,6 +42,18 @@ interface FloorPlan {
   url: string
 }
 
+interface ShowIf {
+  field:  string
+  answer: string
+}
+
+interface TemplateFieldDef {
+  id:       string
+  label:    string
+  type:     string
+  show_if?: ShowIf
+}
+
 interface FmInspection {
   id: string
   status: string
@@ -50,6 +62,7 @@ interface FmInspection {
   fm_checklist_item_responses?: ChecklistItem[]
   // alias used by the API
   fm_inspection_items?: ChecklistItem[]
+  template?: { json_schema?: { fields?: TemplateFieldDef[] } } | null
 }
 
 interface TeamMember {
@@ -82,6 +95,13 @@ const SEVERITY_CONFIG: { value: Severity; label: string; color: string; bg: stri
   { value: 'LOW',    label: 'Low',    color: 'var(--amber)', bg: 'var(--amber-c)' },
   { value: 'MEDIUM', label: 'Medium', color: 'var(--red)',   bg: 'var(--red-c)' },
   { value: 'HIGH',   label: 'High',   color: '#fff',         bg: 'var(--red)' },
+]
+
+// Stoplight: maps to severity values (LOW / MEDIUM / HIGH)
+const STOPLIGHT_CONFIG: { value: Severity; emoji: string; label: string; subLabel: string; color: string; bg: string; border: string }[] = [
+  { value: 'LOW',    emoji: '🟢', label: 'Can wait',                  subLabel: 'Low urgency',                color: '#166534', bg: '#dcfce7', border: '#86efac' },
+  { value: 'MEDIUM', emoji: '🟡', label: 'Schedule within 7 days',    subLabel: 'Moderate urgency',           color: '#854d0e', bg: '#fefce8', border: '#fde047' },
+  { value: 'HIGH',   emoji: '🔴', label: 'Immediate — notify manager', subLabel: 'High urgency',              color: '#991b1b', bg: '#fef2f2', border: '#fca5a5' },
 ]
 
 // ── Image compression ─────────────────────────────────────────────────────
@@ -476,14 +496,16 @@ export default function InspectionRunPage() {
   const t = useFmT()
   const id = Array.isArray(params.id) ? params.id[0] : (params.id as string)
 
-  const [items, setItems]         = useState<ChecklistItem[]>([])
-  const [propertyId, setPropertyId] = useState<string | null>(null)
-  const [itemState, setItemState] = useState<Record<string, ItemState>>({})
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [loading, setLoading]     = useState(true)
-  const [saving, setSaving]       = useState(false)
-  const [completing, setCompleting] = useState(false)
-  const [error, setError]         = useState<string | null>(null)
+  const [items, setItems]               = useState<ChecklistItem[]>([])
+  const [propertyId, setPropertyId]     = useState<string | null>(null)
+  const [itemState, setItemState]       = useState<Record<string, ItemState>>({})
+  const [currentItemKey, setCurrentItemKey] = useState<string>('')
+  const [fieldConditions, setFieldConditions] = useState<Record<string, ShowIf | undefined>>({})
+  const [fieldTypes, setFieldTypes]     = useState<Record<string, string>>({})
+  const [loading, setLoading]           = useState(true)
+  const [saving, setSaving]             = useState(false)
+  const [completing, setCompleting]     = useState(false)
+  const [error, setError]               = useState<string | null>(null)
 
   // New state
   const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([])
@@ -522,6 +544,26 @@ export default function InspectionRunPage() {
           }
         }
         setItemState(state)
+
+        // Extract show_if conditions and field types from template schema
+        const templateFields = data.template?.json_schema?.fields ?? []
+        const conditions: Record<string, ShowIf | undefined> = {}
+        const types: Record<string, string> = {}
+        for (const tf of templateFields) {
+          conditions[tf.id] = tf.show_if
+          types[tf.id] = tf.type
+        }
+        setFieldConditions(conditions)
+        setFieldTypes(types)
+
+        // Set initial item to first visible item
+        const initialKey = fetched.find((item) => {
+          const cond = conditions[item.key]
+          if (!cond) return true
+          const parentState = state[cond.field]
+          return parentState?.result?.toUpperCase() === cond.answer
+        })?.key ?? fetched[0]?.key ?? ''
+        setCurrentItemKey(initialKey)
 
         // Load floor plans for property
         if (pid) {
@@ -586,9 +628,33 @@ export default function InspectionRunPage() {
     return () => { if (saveTimeout.current) clearTimeout(saveTimeout.current) }
   }, [itemState, saveDirty])
 
+  // ── Visibility helper ─────────────────────────────────────────────────
+  function isItemVisible(key: string, state?: Record<string, ItemState>): boolean {
+    const cond = fieldConditions[key]
+    if (!cond) return true
+    const s = state ?? itemState
+    return s[cond.field]?.result?.toUpperCase() === cond.answer
+  }
+
   // ── Item state helpers ─────────────────────────────────────────────────
   function updateItem(key: string, patch: Partial<ItemState>) {
-    setItemState((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }))
+    setItemState((prev) => {
+      const next = { ...prev, [key]: { ...prev[key], ...patch } }
+      // Auto-clear hidden children when a parent's result changes
+      if ('result' in patch) {
+        for (const item of items) {
+          const cond = fieldConditions[item.key]
+          if (cond?.field === key) {
+            const visible = next[key]?.result?.toUpperCase() === cond.answer
+            if (!visible) {
+              next[item.key] = { ...next[item.key], result: null, severity: null }
+              dirty.current.add(item.key)
+            }
+          }
+        }
+      }
+      return next
+    })
     dirty.current.add(key)
   }
 
@@ -603,14 +669,14 @@ export default function InspectionRunPage() {
       const compressed = await compressImage(file)
       const form = new FormData()
       form.append('file', compressed)
-      form.append('item_key', currentKey)
+      form.append('item_key', currentItemKey)
 
       const res = await fetch(`/api/fm/inspections/${id}/photo`, { method: 'POST', body: form })
       if (!res.ok) throw new Error('Upload failed')
       const photo = await res.json() as EvidencePhoto
 
-      const current = itemState[currentKey]
-      updateItem(currentKey, { evidence: [...(current?.evidence ?? []), photo] })
+      const current = itemState[currentItemKey]
+      updateItem(currentItemKey, { evidence: [...(current?.evidence ?? []), photo] })
     } catch {
       // silently ignore — could show a toast here
     } finally {
@@ -626,11 +692,24 @@ export default function InspectionRunPage() {
   // ── Navigation ─────────────────────────────────────────────────────────
   async function navigate(delta: number) {
     await saveDirty()
-    setCurrentIndex((i) => Math.max(0, Math.min(items.length - 1, i + delta)))
+    const visibleKeys = items.filter((item) => isItemVisible(item.key)).map((i) => i.key)
+    const idx = visibleKeys.indexOf(currentItemKey)
+    const nextIdx = Math.max(0, Math.min(visibleKeys.length - 1, idx + delta))
+    setCurrentItemKey(visibleKeys[nextIdx] ?? currentItemKey)
   }
 
   async function handleComplete() {
     await saveDirty()
+    // Mark all hidden items as NA so they don't skew the score
+    const hiddenKeys = items.filter((item) => !isItemVisible(item.key)).map((i) => i.key)
+    if (hiddenKeys.length > 0) {
+      const naItems = hiddenKeys.map((key) => ({ key, result: 'na', severity: null, notes: null }))
+      await fetch(`/api/fm/inspections/${id}/items`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: naItems }),
+      })
+    }
     setCompleting(true)
     try {
       const res = await fetch(`/api/fm/inspections/${id}/complete`, { method: 'POST' })
@@ -665,13 +744,18 @@ export default function InspectionRunPage() {
     )
   }
 
-  const currentItem = items[currentIndex]
-  const currentKey  = currentItem.key
-  const currentId   = currentItem.id
-  const state       = itemState[currentKey] ?? { result: null, severity: null, notes: null, evidence: [], pin: null }
-  const isLast      = currentIndex === items.length - 1
-  const progress    = ((currentIndex + 1) / items.length) * 100
-  const hasWO       = woCreated.has(currentId)
+  const visibleItems  = items.filter((item) => isItemVisible(item.key))
+  const visibleIndex  = visibleItems.findIndex((i) => i.key === currentItemKey)
+  const safeIndex     = visibleIndex >= 0 ? visibleIndex : 0
+  const currentItem   = visibleItems[safeIndex] ?? items[0]
+  const currentKey    = currentItem?.key ?? ''
+  const currentId     = currentItem?.id ?? ''
+  const state         = itemState[currentKey] ?? { result: null, severity: null, notes: null, evidence: [], pin: null }
+  const isLast        = safeIndex === visibleItems.length - 1
+  const progress      = visibleItems.length > 0 ? ((safeIndex + 1) / visibleItems.length) * 100 : 0
+  const hasWO         = woCreated.has(currentId)
+  const currentType   = fieldTypes[currentKey] ?? 'PASS_FAIL'
+  const isStoplight   = currentType === 'STOPLIGHT'
 
   return (
     <>
@@ -726,7 +810,7 @@ export default function InspectionRunPage() {
               </span>
             )}
             <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--muted)' }}>
-              {currentIndex + 1} <span style={{ fontWeight: 400 }}>{t('insp.run.of')}</span> {items.length}
+              {safeIndex + 1} <span style={{ fontWeight: 400 }}>{t('insp.run.of')}</span> {visibleItems.length}
             </span>
           </div>
 
@@ -755,7 +839,7 @@ export default function InspectionRunPage() {
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
-                  {t('insp.run.item')} {currentIndex + 1}
+                  {t('insp.run.item')} {safeIndex + 1}
                 </p>
                 <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--fg)', lineHeight: 1.3, margin: 0 }}>
                   {currentItem.label}
@@ -784,37 +868,70 @@ export default function InspectionRunPage() {
               )}
             </div>
 
-            {/* PASS / FAIL / NA buttons */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
-              {RESULT_CONFIG.map((btn) => {
-                const isActive = state.result === btn.value
-                return (
-                  <button
-                    key={btn.value}
-                    onClick={() => updateItem(currentKey, {
-                      result: btn.value,
-                      ...(btn.value !== 'FAIL' ? { severity: null } : {}),
-                    })}
-                    style={{
-                      padding: '1rem 0.5rem',
-                      borderRadius: 14,
-                      border: `2px solid ${isActive ? btn.activeBg : 'var(--border)'}`,
-                      background: isActive ? btn.activeBg : 'var(--card-b)',
-                      color: isActive ? btn.activeColor : 'var(--fg)',
-                      fontSize: '1rem', fontWeight: 800,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      touchAction: 'manipulation',
-                    }}
-                  >
-                    {btn.label}
-                  </button>
-                )
-              })}
-            </div>
+            {/* STOPLIGHT urgency buttons */}
+            {isStoplight ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                {STOPLIGHT_CONFIG.map((btn) => {
+                  const isActive = state.severity === btn.value
+                  return (
+                    <button
+                      key={btn.value}
+                      onClick={() => updateItem(currentKey, {
+                        result: 'FAIL',
+                        severity: btn.value,
+                      })}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.875rem',
+                        padding: '0.875rem 1rem', borderRadius: 14,
+                        border: `2px solid ${isActive ? btn.border : 'var(--border)'}`,
+                        background: isActive ? btn.bg : 'var(--card-b)',
+                        color: isActive ? btn.color : 'var(--fg)',
+                        cursor: 'pointer', transition: 'all 0.15s ease',
+                        touchAction: 'manipulation', textAlign: 'left',
+                      }}
+                    >
+                      <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>{btn.emoji}</span>
+                      <div>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 800 }}>{btn.label}</div>
+                        <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>{btn.subLabel}</div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              /* PASS / FAIL / NA buttons */
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                {RESULT_CONFIG.map((btn) => {
+                  const isActive = state.result === btn.value
+                  return (
+                    <button
+                      key={btn.value}
+                      onClick={() => updateItem(currentKey, {
+                        result: btn.value,
+                        ...(btn.value !== 'FAIL' ? { severity: null } : {}),
+                      })}
+                      style={{
+                        padding: '1rem 0.5rem',
+                        borderRadius: 14,
+                        border: `2px solid ${isActive ? btn.activeBg : 'var(--border)'}`,
+                        background: isActive ? btn.activeBg : 'var(--card-b)',
+                        color: isActive ? btn.activeColor : 'var(--fg)',
+                        fontSize: '1rem', fontWeight: 800,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        touchAction: 'manipulation',
+                      }}
+                    >
+                      {btn.label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
 
-            {/* Severity (on FAIL) */}
-            {state.result === 'FAIL' && (
+            {/* Severity (on FAIL, non-stoplight only) */}
+            {!isStoplight && state.result === 'FAIL' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                 <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('insp.run.severity')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
@@ -841,8 +958,8 @@ export default function InspectionRunPage() {
               </div>
             )}
 
-            {/* Notes (on FAIL) */}
-            {state.result === 'FAIL' && (
+            {/* Notes — always on STOPLIGHT, on FAIL otherwise */}
+            {(isStoplight || state.result === 'FAIL') && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('insp.run.notes')}</p>
                 <textarea
@@ -958,14 +1075,14 @@ export default function InspectionRunPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem' }}>
             <button
               onClick={() => navigate(-1)}
-              disabled={currentIndex === 0}
+              disabled={safeIndex === 0}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
                 padding: '0.9rem',
                 background: 'var(--card-b)', border: '1px solid var(--border)',
                 borderRadius: 14, color: 'var(--fg)', fontSize: '0.95rem', fontWeight: 700,
-                cursor: currentIndex === 0 ? 'not-allowed' : 'pointer',
-                opacity: currentIndex === 0 ? 0.4 : 1,
+                cursor: safeIndex === 0 ? 'not-allowed' : 'pointer',
+                opacity: safeIndex === 0 ? 0.4 : 1,
                 transition: 'opacity 0.15s ease', touchAction: 'manipulation',
               }}
             >

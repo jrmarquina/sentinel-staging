@@ -20,6 +20,7 @@ export const es: Record<TranslationKey, string> = {
   'nav.fmProperties': 'Centros',
   'nav.fmAssets':     'Activos',
   'nav.fmInspections':'Inspecciones',
+  'nav.fmFCA':        'Evaluación de Facilidad',
   'nav.fmWorkOrders': 'Órdenes de Trabajo',
   'nav.fmTemplates':  'Plantillas',
   'nav.fmSchedules':  'Programación',

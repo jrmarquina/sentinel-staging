@@ -2,15 +2,21 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Plus, Trash2, Loader2, ArrowLeft, GripVertical, Save } from 'lucide-react'
+import { Plus, Trash2, Loader2, ArrowLeft, GripVertical, Save, GitBranch, X } from 'lucide-react'
 import { useFmT } from '@/lib/locale'
 
-type FieldType = 'YES_NO' | 'PASS_FAIL' | 'TEXT' | 'NUMBER'
+type FieldType = 'YES_NO' | 'PASS_FAIL' | 'TEXT' | 'NUMBER' | 'STOPLIGHT'
+
+interface ShowIf {
+  field:  string  // id of the parent field
+  answer: string  // e.g. 'YES' | 'NO' | 'PASS' | 'FAIL'
+}
 
 interface TemplateField {
-  id: string
-  label: string
-  type: FieldType
+  id:       string
+  label:    string
+  type:     FieldType
+  show_if?: ShowIf
 }
 
 interface FmTemplate {
@@ -21,10 +27,11 @@ interface FmTemplate {
 }
 
 const FIELD_TYPES: { value: FieldType; label: string }[] = [
-  { value: 'YES_NO', label: 'Yes / No' },
+  { value: 'YES_NO',    label: 'Yes / No' },
   { value: 'PASS_FAIL', label: 'Pass / Fail' },
-  { value: 'TEXT', label: 'Text' },
-  { value: 'NUMBER', label: 'Number' },
+  { value: 'TEXT',      label: 'Text' },
+  { value: 'NUMBER',    label: 'Number' },
+  { value: 'STOPLIGHT', label: 'Urgency (🟢🟡🔴)' },
 ]
 
 function generateId(): string {
@@ -42,10 +49,11 @@ function parseSchema(schema: unknown): TemplateField[] {
     'fields' in schema &&
     Array.isArray((schema as { fields: unknown }).fields)
   ) {
-    return ((schema as { fields: unknown[] }).fields as TemplateField[]).map((f) => ({
-      id: f.id ?? generateId(),
-      label: f.label ?? '',
-      type: (f.type ?? 'PASS_FAIL') as FieldType,
+    return ((schema as { fields: unknown[] }).fields as Record<string, unknown>[]).map((f) => ({
+      id:      String(f.id ?? generateId()),
+      label:   String(f.label ?? ''),
+      type:    ((f.type ?? 'PASS_FAIL') as FieldType),
+      show_if: f.show_if as ShowIf | undefined,
     }))
   }
   return []
@@ -92,7 +100,11 @@ export default function TemplateBuilderPage() {
   }
 
   function removeField(id: string) {
-    setFields((prev) => prev.filter((f) => f.id !== id))
+    // Also clear show_if references to the removed field
+    setFields((prev) => prev
+      .filter((f) => f.id !== id)
+      .map((f) => f.show_if?.field === id ? { ...f, show_if: undefined } : f)
+    )
   }
 
   async function handleSave() {
@@ -107,7 +119,12 @@ export default function TemplateBuilderPage() {
       name: name.trim(),
       description: description.trim() || null,
       json_schema: {
-        fields: fields.map((f) => ({ id: f.id, label: f.label.trim(), type: f.type })),
+        fields: fields.map((f) => ({
+          id:    f.id,
+          label: f.label.trim(),
+          type:  f.type,
+          ...(f.show_if ? { show_if: f.show_if } : {}),
+        })),
       },
     }
 
@@ -245,7 +262,11 @@ export default function TemplateBuilderPage() {
               {fields.map((field, idx) => (
                 <div
                   key={field.id}
-                  className="flex items-start gap-2 p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
+                  className={`flex items-start gap-2 p-3 border rounded-lg ${
+                    field.show_if
+                      ? 'border-blue-300 dark:border-blue-700 border-l-4 border-l-blue-500'
+                      : 'border-slate-200 dark:border-slate-700'
+                  }`}
                 >
                   <div className="mt-2 text-slate-300 cursor-grab shrink-0">
                     <GripVertical size={16} />
@@ -263,13 +284,98 @@ export default function TemplateBuilderPage() {
                     />
                     <select
                       value={field.type}
-                      onChange={(e) => updateField(field.id, { type: e.target.value as FieldType })}
+                      onChange={(e) => {
+                        const newType = e.target.value as FieldType
+                        const patch: Partial<TemplateField> = { type: newType }
+                        // If changing away from branching type, remove children's show_if pointing here
+                        if (newType !== 'YES_NO' && newType !== 'PASS_FAIL') {
+                          setFields((prev) => prev.map((f) =>
+                            f.show_if?.field === field.id ? { ...f, show_if: undefined } : f
+                          ))
+                        }
+                        updateField(field.id, patch)
+                      }}
                       className="w-full px-2.5 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       {FIELD_TYPES.map((ft) => (
                         <option key={ft.value} value={ft.value}>{ft.label}</option>
                       ))}
                     </select>
+
+                    {/* ── Conditional logic ── */}
+                    {(() => {
+                      const eligible = fields.slice(0, idx).filter(
+                        (f) => f.type === 'YES_NO' || f.type === 'PASS_FAIL'
+                      )
+                      if (eligible.length === 0) return null
+
+                      const cond        = field.show_if
+                      const parentField = cond ? fields.find((f) => f.id === cond.field) : null
+                      const answers     = parentField?.type === 'YES_NO' ? ['YES', 'NO'] : ['PASS', 'FAIL']
+
+                      if (!cond) {
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => updateField(field.id, {
+                              show_if: {
+                                field:  eligible[0].id,
+                                answer: eligible[0].type === 'YES_NO' ? 'YES' : 'PASS',
+                              },
+                            })}
+                            className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 transition-colors"
+                          >
+                            <GitBranch size={11} /> Add condition
+                          </button>
+                        )
+                      }
+
+                      return (
+                        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                          <GitBranch size={11} className="text-blue-500 shrink-0" />
+                          <span className="text-xs text-slate-400">Show if</span>
+                          <select
+                            value={cond.field}
+                            onChange={(e) => {
+                              const parent = fields.find((f) => f.id === e.target.value)
+                              updateField(field.id, {
+                                show_if: {
+                                  field:  e.target.value,
+                                  answer: parent?.type === 'YES_NO' ? 'YES' : 'PASS',
+                                },
+                              })
+                            }}
+                            className="text-xs px-1.5 py-0.5 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200"
+                          >
+                            {eligible.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.label || `Field ${fields.indexOf(p) + 1}`}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="text-xs text-slate-400">=</span>
+                          <select
+                            value={cond.answer}
+                            onChange={(e) => updateField(field.id, {
+                              show_if: { ...cond, answer: e.target.value },
+                            })}
+                            className="text-xs px-1.5 py-0.5 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200"
+                          >
+                            {answers.map((a) => (
+                              <option key={a} value={a}>{a}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => updateField(field.id, { show_if: undefined })}
+                            className="text-slate-400 hover:text-red-500 transition-colors"
+                            title="Remove condition"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      )
+                    })()}
                   </div>
 
                   <button
