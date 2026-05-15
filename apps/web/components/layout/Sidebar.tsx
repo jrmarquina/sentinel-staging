@@ -22,6 +22,7 @@ import {
   CalendarClock,
   ChartBar,
   ArrowLeftRight,
+  FileSearch,
 } from 'lucide-react'
 import { useT } from '@/lib/locale'
 import { useDesignTheme } from '@/lib/design-theme'
@@ -83,6 +84,7 @@ const FM_SECTIONS: NavSection[] = [
     items: [
       { labelKey: 'nav.fmWorkOrders',  href: '/dashboard/fm/work-orders',  icon: ClipboardList },
       { labelKey: 'nav.fmInspections', href: '/dashboard/fm/inspections',  icon: ClipboardCheck },
+      { labelKey: 'nav.fmFCA',         href: '/dashboard/fm/fca',          icon: FileSearch },
       { labelKey: 'nav.fmProperties',  href: '/dashboard/fm/properties',   icon: Building2 },
       { labelKey: 'nav.fmAssets',      href: '/dashboard/fm/assets',       icon: Wrench },
     ],

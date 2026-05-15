@@ -18,6 +18,7 @@ export const en = {
   'nav.fmProperties': 'Properties',
   'nav.fmAssets':     'Assets',
   'nav.fmInspections':'Inspections',
+  'nav.fmFCA':        'Facility Assessment',
   'nav.fmWorkOrders': 'Work Orders',
   'nav.fmTemplates':  'Templates',
   'nav.fmSchedules':  'Schedules',
