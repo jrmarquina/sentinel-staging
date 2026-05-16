@@ -1,16 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { ArrowLeft, MapPin, Loader2, AlertTriangle, Plus, ClipboardCheck, Wrench, Info, Camera, X, Navigation, Maximize2, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, MapPin, Loader2, AlertTriangle, Plus, ClipboardCheck, Wrench, Info, Camera, X, Navigation, Maximize2, Pencil, Trash2, LayoutTemplate } from 'lucide-react'
 import { FmCard, FmBadge, FmButton, FmModal, FmModalFooter, statusVariant } from '@/components/fm'
 import PropertyGallery from '@/components/fm/PropertyGallery'
 import { useFmT, useLocale } from '@/lib/locale'
 import { isPlusCodeLike, parsePlusCode } from '@/lib/plus-code'
-import { useIsAdmin } from '@/hooks/useRole'
+import { useIsAdmin, useCanManage } from '@/hooks/useRole'
 
 // ── MapView (SSR-disabled) ────────────────────────────────────────────────
 
@@ -54,7 +54,18 @@ interface IntegrityData {
   gaps: Array<{ type: string; message: string; severity: 'CRITICAL' | 'WARNING'; tab: string }>
 }
 
-type SubTab = 'overview' | 'assets' | 'inspections' | 'work-orders' | 'gallery'
+type SubTab = 'overview' | 'assets' | 'inspections' | 'work-orders' | 'gallery' | 'floor-plans'
+
+interface FloorPlan {
+  id: string
+  name: string
+  floor_id?: string
+  floor_name: string
+  floor_level: number | null
+  is_default: boolean
+  url: string
+  file_key: string
+}
 
 // ── Gradient helper ────────────────────────────────────────────────────────
 
@@ -353,7 +364,8 @@ export default function FMPropertyDetailPage() {
   const params   = useParams()
   const router   = useRouter()
   const id       = Array.isArray(params.id) ? params.id[0] : (params.id as string)
-  const isAdmin  = useIsAdmin()
+  const isAdmin     = useIsAdmin()
+  const canManage   = useCanManage()
 
   const [property, setProperty]     = useState<FmProperty | null>(null)
   const [workOrders, setWorkOrders] = useState<FmWorkOrderSummary[]>([])
@@ -366,6 +378,16 @@ export default function FMPropertyDetailPage() {
   const [deleting, setDeleting]     = useState(false)
   const [integrity, setIntegrity]   = useState<IntegrityData | null>(null)
   const [scoreWidth, setScoreWidth] = useState(0)
+
+  // Floor plans
+  const [floorPlans, setFloorPlans]           = useState<FloorPlan[]>([])
+  const [floorPlansLoaded, setFloorPlansLoaded] = useState(false)
+  const [floorPlansLoading, setFloorPlansLoading] = useState(false)
+  const [fpUploadName, setFpUploadName]       = useState('')
+  const [fpUploadLevel, setFpUploadLevel]     = useState('')
+  const [fpUploading, setFpUploading]         = useState(false)
+  const [fpError, setFpError]                 = useState<string | null>(null)
+  const fpFileRef = useRef<HTMLInputElement>(null)
 
   // Cover image upload
   const [coverUploading, setCoverUploading]     = useState(false)
@@ -457,6 +479,58 @@ export default function FMPropertyDetailPage() {
     }
   }
 
+  async function loadFloorPlans() {
+    setFloorPlansLoading(true)
+    try {
+      const r = await fetch(`/api/fm/properties/${id}/floor-plans`)
+      if (r.ok) setFloorPlans(await r.json() as FloorPlan[])
+    } finally {
+      setFloorPlansLoading(false)
+      setFloorPlansLoaded(true)
+    }
+  }
+
+  async function handleFloorPlanUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !fpUploadName.trim()) return
+    setFpError(null)
+    setFpUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('floor_name', fpUploadName.trim())
+      if (fpUploadLevel.trim()) fd.append('floor_level', fpUploadLevel.trim())
+      const r = await fetch(`/api/fm/properties/${id}/floor-plans`, { method: 'POST', body: fd })
+      if (!r.ok) {
+        const b = await r.json() as { error?: string }
+        throw new Error(b.error ?? t('error.generic'))
+      }
+      const plan = await r.json() as FloorPlan
+      setFloorPlans(prev => [...prev, plan])
+      setFpUploadName('')
+      setFpUploadLevel('')
+    } catch (err: unknown) {
+      setFpError(err instanceof Error ? err.message : t('error.generic'))
+    } finally {
+      setFpUploading(false)
+      if (fpFileRef.current) fpFileRef.current.value = ''
+    }
+  }
+
+  async function handleFloorPlanDelete(planId: string) {
+    setFpError(null)
+    try {
+      const r = await fetch(`/api/fm/properties/${id}/floor-plans?planId=${planId}`, { method: 'DELETE' })
+      if (!r.ok) {
+        const b = await r.json() as { error?: string }
+        throw new Error(b.error ?? t('error.generic'))
+      }
+      setFloorPlans(prev => prev.filter(p => p.id !== planId))
+    } catch (err: unknown) {
+      setFpError(err instanceof Error ? err.message : t('error.generic'))
+    }
+  }
+
   // Load integrity data separately
   useEffect(() => {
     fetch(`/api/fm/properties/${id}/integrity`)
@@ -472,6 +546,14 @@ export default function FMPropertyDetailPage() {
       return () => clearTimeout(timer)
     }
   }, [integrity])
+
+  // Lazy-load floor plans when the tab is first activated
+  useEffect(() => {
+    if (activeTab === 'floor-plans' && !floorPlansLoaded) {
+      loadFloorPlans()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
 
   if (loading) {
     return <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem 0' }}><Loader2 size={26} style={{ animation: 'spin 1s linear infinite', color: 'var(--muted)' }} /></div>
@@ -494,11 +576,12 @@ export default function FMPropertyDetailPage() {
   const attachments = property.fm_attachments ?? []
 
   const TABS: { value: SubTab; label: string; count: number }[] = [
-    { value: 'overview',     label: t('prop.detail.tab.overview'), count: 0 },
-    { value: 'assets',       label: t('prop.detail.tab.assets'),   count: assets.length },
-    { value: 'inspections',  label: t('prop.detail.tab.insp'),     count: inspections.length },
-    { value: 'work-orders',  label: t('prop.detail.tab.wo'),       count: workOrders.length },
-    { value: 'gallery',      label: t('prop.detail.tab.gallery'),  count: attachments.length },
+    { value: 'overview',     label: t('prop.detail.tab.overview'),    count: 0 },
+    { value: 'assets',       label: t('prop.detail.tab.assets'),      count: assets.length },
+    { value: 'inspections',  label: t('prop.detail.tab.insp'),        count: inspections.length },
+    { value: 'work-orders',  label: t('prop.detail.tab.wo'),          count: workOrders.length },
+    { value: 'gallery',      label: t('prop.detail.tab.gallery'),     count: attachments.length },
+    { value: 'floor-plans',  label: 'Floor Plans',                    count: floorPlansLoaded ? floorPlans.length : 0 },
   ]
 
   const propVariant = statusVariant(property.status)
@@ -834,6 +917,148 @@ export default function FMPropertyDetailPage() {
               <FmCard style={{ padding: '1.25rem' }}>
                 <PropertyGallery propertyId={id as string} onChange={load} />
               </FmCard>
+            )}
+
+            {/* Floor Plans tab */}
+            {activeTab === 'floor-plans' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+                {/* Upload form */}
+                {canManage && (
+                  <FmCard style={{ padding: '1.25rem' }}>
+                    <p style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', margin: '0 0 0.875rem' }}>
+                      Upload Floor Plan
+                    </p>
+                    {fpError && (
+                      <div style={{ background: 'var(--red-c)', border: '1px solid var(--red)', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: 'var(--red)', marginBottom: '0.75rem' }}>
+                        {fpError}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                      <div style={{ flex: '1 1 160px', minWidth: 140 }}>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
+                          Floor Name <span style={{ color: 'var(--red)' }}>*</span>
+                        </label>
+                        <input
+                          className="fm-input"
+                          type="text"
+                          placeholder="e.g. Ground Floor"
+                          value={fpUploadName}
+                          onChange={(e) => setFpUploadName(e.target.value)}
+                          disabled={fpUploading}
+                        />
+                      </div>
+                      <div style={{ flex: '0 1 100px', minWidth: 80 }}>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>
+                          Level #
+                        </label>
+                        <input
+                          className="fm-input"
+                          type="number"
+                          placeholder="0"
+                          value={fpUploadLevel}
+                          onChange={(e) => setFpUploadLevel(e.target.value)}
+                          disabled={fpUploading}
+                        />
+                      </div>
+                      <div>
+                        <label style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                          padding: '0.45rem 0.875rem',
+                          background: fpUploadName.trim() ? 'var(--primary)' : 'var(--card-b)',
+                          color: fpUploadName.trim() ? '#fff' : 'var(--muted)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 8, fontSize: '0.8rem', fontWeight: 600,
+                          cursor: fpUploading || !fpUploadName.trim() ? 'not-allowed' : 'pointer',
+                          transition: 'background 0.15s, color 0.15s',
+                          opacity: fpUploadName.trim() ? 1 : 0.6,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {fpUploading
+                            ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Uploading…</>
+                            : <><Camera size={13} /> Choose Image</>}
+                          <input
+                            ref={fpFileRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            style={{ display: 'none' }}
+                            disabled={fpUploading || !fpUploadName.trim()}
+                            onChange={handleFloorPlanUpload}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: '0.68rem', color: 'var(--muted)', margin: '0.5rem 0 0' }}>
+                      JPEG, PNG or WebP · max 20 MB. Multiple plans per floor are supported.
+                    </p>
+                  </FmCard>
+                )}
+
+                {/* Existing floor plans */}
+                {floorPlansLoading ? (
+                  <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--muted)' }}>
+                    <Loader2 size={22} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 0.5rem', display: 'block' }} />
+                  </div>
+                ) : floorPlans.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--muted)', fontSize: '0.875rem' }}>
+                    <LayoutTemplate size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
+                    No floor plans uploaded yet. Use the form above to add one.
+                  </div>
+                ) : (
+                  (() => {
+                    // Group by floor_name
+                    const groups = floorPlans.reduce<Record<string, FloorPlan[]>>((acc, plan) => {
+                      const key = plan.floor_name
+                      if (!acc[key]) acc[key] = []
+                      acc[key].push(plan)
+                      return acc
+                    }, {})
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {Object.entries(groups)
+                          .sort(([, a], [, b]) => (a[0].floor_level ?? 0) - (b[0].floor_level ?? 0))
+                          .map(([floorName, plans]) => (
+                            <FmCard key={floorName} style={{ padding: '1rem' }}>
+                              <p style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', margin: '0 0 0.75rem' }}>
+                                {floorName}
+                                {plans[0].floor_level != null && (
+                                  <span style={{ marginLeft: '0.4rem', fontWeight: 400 }}>— Level {plans[0].floor_level}</span>
+                                )}
+                              </p>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                {plans.map((plan) => (
+                                  <div key={plan.id} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--card-b)' }}>
+                                    <a href={plan.url} target="_blank" rel="noopener noreferrer">
+                                      <img
+                                        src={plan.url}
+                                        alt={plan.name}
+                                        style={{ width: 200, height: 140, objectFit: 'cover', display: 'block' }}
+                                      />
+                                    </a>
+                                    <div style={{ padding: '0.4rem 0.6rem', fontSize: '0.7rem', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
+                                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{plan.name}</span>
+                                      {canManage && (
+                                        <button
+                                          onClick={() => handleFloorPlanDelete(plan.id)}
+                                          title="Delete floor plan"
+                                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'inline-flex', padding: 0, flexShrink: 0, transition: 'color 0.15s' }}
+                                          onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444' }}
+                                          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)' }}
+                                        >
+                                          <Trash2 size={13} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </FmCard>
+                          ))}
+                      </div>
+                    )
+                  })()
+                )}
+              </div>
             )}
           </div>
         </div>
