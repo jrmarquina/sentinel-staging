@@ -44,6 +44,7 @@ export async function POST(
     type ChecklistItem = {
       id: string; key: string; label: string
       rating: number | null; notes: string | null
+      evidence: unknown | null
     }
     const items = (fca.fm_checklist_item_responses ?? []) as ChecklistItem[]
     const deficient = items.filter(
@@ -79,6 +80,7 @@ export async function POST(
         label:         `${item.label} — FCA rating: ${item.rating} (${ratingLabel})`,
         org_id:        session.orgId,
         notes:         item.notes ?? null,
+        evidence:      item.evidence ?? null,
       }
     })
 

@@ -4,11 +4,18 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Loader2, AlertTriangle, ArrowLeft, Save, CheckCircle2,
-  ChevronLeft, ClipboardCheck, Zap, BookOpen,
+  ChevronLeft, ClipboardCheck, Zap, BookOpen, Camera, X,
 } from 'lucide-react'
 import { FmButton } from '@/components/fm'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+interface EvidencePhoto {
+  id:       string
+  url:      string
+  file_key: string
+  name?:    string
+}
 
 interface TemplateField {
   id:       string
@@ -18,13 +25,14 @@ interface TemplateField {
 }
 
 interface ItemResponse {
-  id:       string
-  key:      string
-  label:    string
-  result:   string | null
-  severity: string | null
-  notes:    string | null
-  rating:   number | null
+  id:            string
+  key:           string
+  label:         string
+  result:        string | null
+  severity:      string | null
+  notes:         string | null
+  rating:        number | null
+  evidence:      EvidencePhoto[] | null
 }
 
 interface PropertyData {
@@ -50,6 +58,7 @@ interface ResponseDraft {
   severity: string | null
   notes:    string | null
   rating:   number | null
+  evidence: EvidencePhoto[]
 }
 
 interface FcaComponent {
@@ -100,6 +109,32 @@ const URGENCY_OPTIONS = [
   { value: 'MEDIUM', label: 'Medium', sublabel: 'Schedule soon',    bg: '#fefce8', border: '#fde047', color: '#854d0e' },
   { value: 'HIGH',   label: 'High',   sublabel: 'Immediate action', bg: '#fef2f2', border: '#fca5a5', color: '#991b1b' },
 ]
+
+// ── Image compression ─────────────────────────────────────────────────────────
+
+async function compressImage(file: File, maxBytes = 1.5 * 1024 * 1024): Promise<File> {
+  if (file.size <= maxBytes) return file
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const canvas = document.createElement('canvas')
+      let { width, height } = img
+      const scale = Math.sqrt(maxBytes / file.size)
+      width  = Math.round(width  * scale)
+      height = Math.round(height * scale)
+      canvas.width  = width
+      canvas.height = height
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+      canvas.toBlob(
+        (blob) => resolve(blob ? new File([blob], file.name, { type: 'image/jpeg' }) : file),
+        'image/jpeg', 0.85,
+      )
+    }
+    img.src = url
+  })
+}
 
 // ── Rating guide ─────────────────────────────────────────────────────────────
 
@@ -362,10 +397,16 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
 
         const init: Record<string, ResponseDraft> = {}
         for (const item of data.fm_inspection_items ?? []) {
-          init[item.key] = { result: item.result, severity: item.severity, notes: item.notes, rating: item.rating }
+          init[item.key] = {
+            result:   item.result,
+            severity: item.severity,
+            notes:    item.notes,
+            rating:   item.rating,
+            evidence: Array.isArray(item.evidence) ? item.evidence : [],
+          }
         }
         for (const f of fields) {
-          if (!init[f.id]) init[f.id] = { result: null, severity: null, notes: null, rating: null }
+          if (!init[f.id]) init[f.id] = { result: null, severity: null, notes: null, rating: null, evidence: [] }
         }
 
         // Pre-fill Section A from property profile
@@ -395,7 +436,14 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
     setSaveState('saving')
     const items = keys.map(key => {
       const r = responsesRef.current[key]
-      return { key, result: r?.result ?? null, severity: r?.severity ?? null, notes: r?.notes ?? null, rating: r?.rating ?? null }
+      return {
+        key,
+        result:   r?.result ?? null,
+        severity: r?.severity ?? null,
+        notes:    r?.notes ?? null,
+        rating:   r?.rating ?? null,
+        evidence: r?.evidence?.length ? r.evidence : null,
+      }
     })
     try {
       const res = await fetch(`/api/fm/inspections/${params.id}/items`, {
@@ -438,6 +486,29 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
 
   function setNotes(fieldId: string, notes: string) {
     setResponses(prev => ({ ...prev, [fieldId]: { ...prev[fieldId], notes: notes || null } }))
+    markDirty(fieldId)
+  }
+
+  async function addPhoto(fieldId: string, file: File) {
+    const compressed = await compressImage(file)
+    const form = new FormData()
+    form.append('file', compressed)
+    form.append('item_key', fieldId)
+    const res = await fetch(`/api/fm/inspections/${params.id}/photo`, { method: 'POST', body: form })
+    if (!res.ok) return
+    const photo = await res.json() as EvidencePhoto
+    setResponses(prev => ({
+      ...prev,
+      [fieldId]: { ...prev[fieldId], evidence: [...(prev[fieldId]?.evidence ?? []), photo] },
+    }))
+    markDirty(fieldId)
+  }
+
+  function removePhoto(fieldId: string, photoId: string) {
+    setResponses(prev => ({
+      ...prev,
+      [fieldId]: { ...prev[fieldId], evidence: (prev[fieldId]?.evidence ?? []).filter(p => p.id !== photoId) },
+    }))
     markDirty(fieldId)
   }
 
@@ -748,6 +819,9 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
                         if (comp.eField) setNotes(comp.eField.id, '')
                       }
                     }}
+                    evidence={responses[comp.cField.id]?.evidence ?? []}
+                    onAddPhoto={file => addPhoto(comp.cField.id, file)}
+                    onRemovePhoto={photoId => removePhoto(comp.cField.id, photoId)}
                     descValue={comp.dField ? (responses[comp.dField.id]?.notes ?? '') : ''}
                     onDescChange={v => comp.dField && setNotes(comp.dField.id, v)}
                     urgency={comp.uField ? (responses[comp.uField.id]?.severity ?? null) : null}
@@ -893,26 +967,40 @@ function InfoField({
 
 function Rating5Card({
   comp, sectionId, index, rating, onRating,
+  evidence, onAddPhoto, onRemovePhoto,
   descValue, onDescChange, urgency, onUrgency,
   costValue, onCostChange, disabled,
 }: {
-  comp:          FcaComponent
-  sectionId:     string
-  index:         number
-  rating:        number | null
-  onRating:      (v: number | null) => void
-  descValue:     string
-  onDescChange:  (v: string) => void
-  urgency:       string | null
-  onUrgency:     (v: string | null) => void
-  costValue:     string
-  onCostChange:  (v: string) => void
-  disabled:      boolean
+  comp:           FcaComponent
+  sectionId:      string
+  index:          number
+  rating:         number | null
+  onRating:       (v: number | null) => void
+  evidence:       EvidencePhoto[]
+  onAddPhoto:     (file: File) => Promise<void>
+  onRemovePhoto:  (photoId: string) => void
+  descValue:      string
+  onDescChange:   (v: string) => void
+  urgency:        string | null
+  onUrgency:      (v: string | null) => void
+  costValue:      string
+  onCostChange:   (v: string) => void
+  disabled:       boolean
 }) {
-  const [guideOpen, setGuideOpen] = useState(false)
+  const [guideOpen, setGuideOpen]     = useState(false)
+  const [uploading, setUploading]     = useState(false)
+  const fileInputRef                  = useRef<HTMLInputElement>(null)
   const isDeficient = rating !== null && rating <= 2
   const ratingCfg   = RATING_CFG.find(r => r.v === rating)
   const guide       = GUIDE[getGuideKey(comp.compKey)]
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setUploading(true)
+    try { await onAddPhoto(file) } finally { setUploading(false) }
+  }
 
   return (
     <div style={{
@@ -1056,6 +1144,68 @@ function Rating5Card({
       {/* Deficiency detail — only when rating ≤ 2 */}
       {isDeficient && (
         <div style={{ padding: '1rem 1.25rem', borderTop: `1px solid ${ratingCfg?.border ?? 'var(--border)'}`, background: 'rgba(239,68,68,0.025)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+          {/* Photo evidence */}
+          <div>
+            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--fg)', marginBottom: '0.6rem' }}>
+              Photo evidence
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {evidence.map(photo => (
+                <div key={photo.id} style={{ position: 'relative', flexShrink: 0 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photo.url}
+                    alt={photo.name ?? 'Photo'}
+                    style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 8, display: 'block', border: '1px solid var(--border)', cursor: 'pointer' }}
+                    onClick={() => window.open(photo.url, '_blank')}
+                  />
+                  {!disabled && (
+                    <button
+                      onClick={() => onRemovePhoto(photo.id)}
+                      style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--red)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}
+                      aria-label="Remove photo"
+                    >
+                      <X size={11} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {!disabled && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    style={{ display: 'none' }}
+                    onChange={handleFileChange}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    style={{
+                      width: 76, height: 76, borderRadius: 8, flexShrink: 0,
+                      border: '2px dashed var(--border)',
+                      background: 'var(--card)',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.3rem',
+                      cursor: uploading ? 'not-allowed' : 'pointer',
+                      color: 'var(--muted)', transition: 'all 0.15s',
+                    }}
+                  >
+                    {uploading
+                      ? <Loader2 size={18} className="animate-spin" />
+                      : <Camera size={18} />
+                    }
+                    <span style={{ fontSize: '0.65rem', fontWeight: 600, lineHeight: 1 }}>
+                      {uploading ? 'Uploading…' : evidence.length === 0 ? 'Add photo' : 'Add more'}
+                    </span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
           {comp.dField && (
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--fg)', marginBottom: '0.4rem' }}>
