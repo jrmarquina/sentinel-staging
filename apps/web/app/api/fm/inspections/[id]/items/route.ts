@@ -21,10 +21,12 @@ function canRunInspection(cap: string | null, role: string): boolean {
 const updateItemsSchema = z.object({
   items: z.array(z.object({
     key: z.string(),
-    label: z.string().optional(),   // optional — saveDirty only sends key + result/severity/notes
+    label: z.string().optional(),
     result: z.string().nullable().optional(),
     severity: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
+    // 1-5 condition rating used by FCA assessments; null for pass/fail inspections
+    rating: z.number().int().min(1).max(5).nullable().optional(),
     evidence: z.unknown().optional(),
     pin: z.unknown().optional(),
   })),
@@ -77,12 +79,14 @@ export async function PATCH(
           result:        item.result != null ? item.result.toLowerCase() : null,
           severity:      item.severity ?? null,
           notes:         item.notes ?? null,
+          rating:        item.rating ?? null,
           evidence:      item.evidence ?? null,
           location_data: item.pin ?? null,
-        })
+        } as Record<string, unknown>)
         .eq('id', itemId)
 
       // Auto-create work order on failure (if one doesn't already exist)
+      // FCA items use rating (not result='fail') so the DB trigger handles them safely.
       if (isFail) {
         const { count } = await supabase
           .from('fm_work_orders')
