@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Loader2, AlertTriangle, ArrowLeft, Save, CheckCircle2,
-  ChevronLeft, ClipboardCheck, Zap,
+  ChevronLeft, ClipboardCheck, Zap, BookOpen,
 } from 'lucide-react'
 import { FmButton } from '@/components/fm'
 
@@ -100,6 +100,143 @@ const URGENCY_OPTIONS = [
   { value: 'MEDIUM', label: 'Medium', sublabel: 'Schedule soon',    bg: '#fefce8', border: '#fde047', color: '#854d0e' },
   { value: 'HIGH',   label: 'High',   sublabel: 'Immediate action', bg: '#fef2f2', border: '#fca5a5', color: '#991b1b' },
 ]
+
+// ── Rating guide ─────────────────────────────────────────────────────────────
+
+interface GuideEntry {
+  category: string
+  note?:    string
+  levels:   string[]   // index 0 = rating 1, index 4 = rating 5
+}
+
+const GUIDE: Record<string, GuideEntry> = {
+  'safety-structural': {
+    category: 'Structural & Life Safety',
+    note: 'Ratings 1–2 require immediate action. Never defer structural or egress deficiencies.',
+    levels: [
+      'Structural failure or imminent collapse risk. Stop use immediately. Emergency repair required before reopening.',
+      'Major cracking, spalling, or egress obstruction. Restrict occupancy. Repair within 30 days.',
+      'Visible deficiency (minor cracking, worn hardware) with no immediate safety risk. Schedule within 90 days.',
+      'Minor cosmetic wear or isolated issue. Fully structural. Monitor at next inspection.',
+      'New or like-new. No deficiencies observed. Meets all applicable code.',
+    ],
+  },
+  'safety-equipment': {
+    category: 'Safety Equipment — Playground, Stairs & Exit Paths',
+    note: 'Playground equipment and stair/exit conditions directly affect occupant safety.',
+    levels: [
+      'Unsafe for use. Broken equipment, missing guardrail, or blocked exit. Close area immediately.',
+      'Significant damage, loose hardware, or non-compliant clearances. Restrict use. Repair within 30 days.',
+      'Functional with noticeable wear, fading, or isolated defects. Schedule repair within 90 days.',
+      'Minor surface wear only. Safe and fully functional. Routine maintenance due.',
+      'New or recently inspected. Fully safe. No deficiencies.',
+    ],
+  },
+  'weatherproofing': {
+    category: 'Building Envelope & Weatherproofing',
+    note: 'Rate based on water intrusion risk, not just visible surface condition.',
+    levels: [
+      'Active leaks causing interior damage. Emergency repair required to prevent further deterioration.',
+      'Multiple membrane failures, failed sealants, or high infiltration risk. Repair within 60 days.',
+      'Localized cracks or sealant failure. No active leaks but vulnerable. Schedule repair.',
+      'Minor surface wear, isolated hairline cracks. No moisture intrusion detected.',
+      'Fully intact. No deficiencies. Recently installed or re-sealed.',
+    ],
+  },
+  'mechanical': {
+    category: 'Mechanical / HVAC',
+    note: 'Consider both comfort impact and equipment remaining useful life.',
+    levels: [
+      'System non-functional or poses a safety risk (e.g., refrigerant leak, electrical fault). Emergency service required.',
+      'Significantly degraded performance. Equipment near end of life or major components failing. Repair within 30 days.',
+      'Operational with noticeable issues (reduced capacity, noisy operation, controls erratic). Schedule service.',
+      'Functional with normal wear. Routine service or filter replacement due.',
+      'Fully operational. Recently serviced or installed. Meets design capacity.',
+    ],
+  },
+  'plumbing': {
+    category: 'Plumbing',
+    note: 'Backflow or cross-connection risks must be treated as Critical regardless of visible damage.',
+    levels: [
+      'Active leaks, sewage backup, backflow risk, or water contamination. Stop use. Emergency repair.',
+      'Significant leaks, persistent clogs, or major pressure loss. Repair within 30 days.',
+      'Functional with slow drains, minor corrosion, dripping fixtures, or aging water heater.',
+      'Functional with minor wear. Fixtures operational. Routine maintenance due.',
+      'All systems fully functional. No leaks, adequate pressure, code-compliant fixtures.',
+    ],
+  },
+  'electrical': {
+    category: 'Electrical Systems',
+    note: 'Exposed conductors, overloaded panels, or missing GFCI always rate 1 — take offline.',
+    levels: [
+      'Immediate hazard: exposed wiring, overloaded panel, or missing GFCI in wet areas. Take offline immediately.',
+      'Code violations, tripped breakers not resetting, or inadequate service capacity. Repair within 30 days.',
+      'Functional with aging distribution, insufficient lighting levels, or unlabeled panels.',
+      'Functional with minor wear. Panel labels complete. Plan for future upgrade.',
+      'Fully code-compliant. Recently upgraded or installed. Proper GFCI and labeling throughout.',
+    ],
+  },
+  'site': {
+    category: 'Site & Civil Infrastructure',
+    note: 'Consider drainage impact alongside surface condition — pooling water accelerates deterioration.',
+    levels: [
+      'Impassable or dangerous (severe potholes, undermining, collapsed drainage). Close area. Immediate repair.',
+      'Significant cracking, trip hazards, or drainage failure. Repair within 60 days.',
+      'Noticeable wear, surface cracking, or localized damage. Functional. Schedule repair.',
+      'Generally good condition. Minor surface cracks or isolated wear. Seal coat or patch maintenance due.',
+      'New or recently resurfaced. No deficiencies. Drainage functioning as designed.',
+    ],
+  },
+  'interior': {
+    category: 'Interior Finishes',
+    note: 'Water staining on ceilings indicates a leak — rate the stain source, not just the finish.',
+    levels: [
+      'Major damage, mold growth, or safety hazard (falling ACT tiles, severe trip hazard). Repair immediately.',
+      'Widespread damage, staining, or surface failure. Replace or remediate within 60–90 days.',
+      'Noticeable wear, isolated damage, or staining. Functional. Schedule repair.',
+      'Minor cosmetic wear. Surfaces intact and cleanable. Touch-up maintenance due.',
+      'New or recently renovated. No deficiencies.',
+    ],
+  },
+  'accessibility': {
+    category: 'ADA / Accessibility',
+    note: 'Any condition that blocks or discourages accessible use is at minimum a rating 2.',
+    levels: [
+      'Accessible route completely blocked or non-existent. Immediate remediation required by law.',
+      'Significant non-compliance (slope, clear-width, reach-range, hardware). Correct within 60 days.',
+      'Route functional but with notable defects (surface gaps, worn detectable warning strips).',
+      'Compliant with minor surface wear. Maintain to prevent further deterioration.',
+      'Fully ADA-compliant. Recently inspected or upgraded. No barriers.',
+    ],
+  },
+  'special-spaces': {
+    category: 'Special-Use Spaces',
+    note: 'Rate the space as a whole system — equipment, finishes, utilities, and code compliance together.',
+    levels: [
+      'Space unsafe or closed. Major equipment failure or code violation. Immediate repair required.',
+      'Operational with significant deficiencies affecting safety or function. Repair within 30–60 days.',
+      'Functional with noticeable issues (worn equipment, aging finishes, minor utility defects).',
+      'Good condition with minor wear. Routine maintenance or equipment service due.',
+      'Excellent condition. Fully functional, recently maintained, and code-compliant.',
+    ],
+  },
+}
+
+function getGuideKey(compKey: string): string {
+  const prefix = compKey.split('_')[0]
+  // Safety-critical by prefix
+  if (prefix === 'st' || prefix === 'ls') return 'safety-structural'
+  // Safety-critical specific components
+  if (compKey === 'si_06' || compKey === 'in_05') return 'safety-equipment'
+  if (prefix === 'be') return 'weatherproofing'
+  if (prefix === 'hv') return 'mechanical'
+  if (prefix === 'pl') return 'plumbing'
+  if (prefix === 'el') return 'electrical'
+  if (prefix === 'in') return 'interior'
+  if (prefix === 'ad') return 'accessibility'
+  if (prefix === 'sp') return 'special-spaces'
+  return 'site' // si_ default
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -772,8 +909,10 @@ function Rating5Card({
   onCostChange:  (v: string) => void
   disabled:      boolean
 }) {
+  const [guideOpen, setGuideOpen] = useState(false)
   const isDeficient = rating !== null && rating <= 2
   const ratingCfg   = RATING_CFG.find(r => r.v === rating)
+  const guide       = GUIDE[getGuideKey(comp.compKey)]
 
   return (
     <div style={{
@@ -799,7 +938,82 @@ function Rating5Card({
           <p style={{ flex: 1, margin: 0, fontSize: '0.9rem', fontWeight: 500, color: 'var(--fg)', lineHeight: 1.5 }}>
             {comp.cField.label}
           </p>
+          {/* Rating scale guide toggle */}
+          <button
+            onClick={() => setGuideOpen(o => !o)}
+            title={guideOpen ? 'Hide rating guide' : 'Show rating guide'}
+            style={{
+              flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.3rem',
+              padding: '0.3rem 0.6rem', borderRadius: 6,
+              background: guideOpen ? 'rgba(var(--primary-rgb,99,102,241),0.1)' : 'none',
+              border: `1px solid ${guideOpen ? 'var(--primary)' : 'var(--border)'}`,
+              color: guideOpen ? 'var(--primary)' : 'var(--muted)',
+              cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600,
+              transition: 'all 0.15s',
+            }}
+          >
+            <BookOpen size={12} />
+            Scale
+          </button>
         </div>
+
+        {/* Inline rating guide — expands per card, context-aware */}
+        {guideOpen && (
+          <div style={{
+            margin: '0.875rem 0 0',
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+            borderRadius: 8, overflow: 'hidden',
+          }}>
+            {/* Guide header */}
+            <div style={{
+              padding: '0.6rem 0.875rem',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem',
+              background: 'rgba(var(--primary-rgb,99,102,241),0.05)',
+            }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
+                {guide.category}
+              </span>
+              {guide.note && (
+                <span style={{ fontSize: '0.7rem', color: 'var(--muted)', fontStyle: 'italic', lineHeight: 1.35, textAlign: 'right' }}>
+                  {guide.note}
+                </span>
+              )}
+            </div>
+            {/* One row per rating level */}
+            {RATING_CFG.map((cfg, i) => (
+              <div
+                key={cfg.v}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+                  padding: '0.55rem 0.875rem',
+                  borderBottom: i < RATING_CFG.length - 1 ? '1px solid var(--border)' : 'none',
+                  background: rating === cfg.v ? cfg.bg : 'none',
+                  transition: 'background 0.15s',
+                }}
+              >
+                <span style={{
+                  flexShrink: 0, width: 22, height: 22, borderRadius: 5,
+                  background: cfg.bg, border: `1.5px solid ${cfg.border}`,
+                  color: cfg.fg, fontSize: '0.75rem', fontWeight: 900,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginTop: '0.1rem',
+                }}>
+                  {cfg.v}
+                </span>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: cfg.fg, textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: '0.4rem' }}>
+                    {cfg.label} —
+                  </span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--fg)', lineHeight: 1.5 }}>
+                    {guide.levels[i]}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* 1–5 + N/A rating buttons */}
         <div style={{ display: 'flex', gap: '0.45rem', marginTop: '1rem', flexWrap: 'wrap' }}>
