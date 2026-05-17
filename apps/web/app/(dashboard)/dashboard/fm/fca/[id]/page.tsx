@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Loader2, AlertTriangle, ArrowLeft, Save, CheckCircle2,
-  ChevronLeft, ClipboardCheck, Zap, BookOpen, Camera, X,
+  ChevronLeft, ClipboardCheck, Zap, BookOpen, Camera, X, MapPin,
 } from 'lucide-react'
 import { FmButton } from '@/components/fm'
 
@@ -15,6 +15,21 @@ interface EvidencePhoto {
   url:      string
   file_key: string
   name?:    string
+}
+
+interface LocationPin {
+  floor_plan_id:  string
+  floor_plan_url: string
+  x: number  // 0–1 fraction of image width
+  y: number  // 0–1 fraction of image height
+}
+
+interface FloorPlan {
+  id:          string
+  name:        string
+  floor_name:  string
+  floor_level: number | null
+  url:         string
 }
 
 interface TemplateField {
@@ -33,6 +48,7 @@ interface ItemResponse {
   notes:         string | null
   rating:        number | null
   evidence:      EvidencePhoto[] | null
+  location_data: LocationPin | null
 }
 
 interface PropertyData {
@@ -48,6 +64,7 @@ interface PropertyData {
 interface FmInspection {
   id:                   string
   status:               string
+  property_id:          string
   fm_properties:        PropertyData | null
   template:             { json_schema: { fields: TemplateField[] } } | null
   fm_inspection_items:  ItemResponse[]
@@ -59,6 +76,7 @@ interface ResponseDraft {
   notes:    string | null
   rating:   number | null
   evidence: EvidencePhoto[]
+  pin:      LocationPin | null
 }
 
 interface FcaComponent {
@@ -377,6 +395,7 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
   const [saveState, setSaveState]             = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [sidebarOpen, setSidebarOpen]         = useState(true)
   const [generating, setGenerating]           = useState(false)
+  const [floorPlans, setFloorPlans]           = useState<FloorPlan[]>([])
 
   const dirtyRef     = useRef<Set<string>>(new Set())
   const timerRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -403,10 +422,19 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
             notes:    item.notes,
             rating:   item.rating,
             evidence: Array.isArray(item.evidence) ? item.evidence : [],
+            pin:      item.location_data ?? null,
           }
         }
         for (const f of fields) {
-          if (!init[f.id]) init[f.id] = { result: null, severity: null, notes: null, rating: null, evidence: [] }
+          if (!init[f.id]) init[f.id] = { result: null, severity: null, notes: null, rating: null, evidence: [], pin: null }
+        }
+
+        // Load floor plans for this property (non-blocking)
+        if (data.property_id) {
+          fetch(`/api/fm/properties/${data.property_id}/floor-plans`)
+            .then(r => r.ok ? r.json() as Promise<FloorPlan[]> : Promise.resolve([]))
+            .then(fps => setFloorPlans(fps))
+            .catch(() => { /* floor plans are optional */ })
         }
 
         // Pre-fill Section A from property profile
@@ -443,6 +471,7 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
         notes:    r?.notes ?? null,
         rating:   r?.rating ?? null,
         evidence: r?.evidence?.length ? r.evidence : null,
+        pin:      r?.pin ?? null,
       }
     })
     try {
@@ -509,6 +538,11 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
       ...prev,
       [fieldId]: { ...prev[fieldId], evidence: (prev[fieldId]?.evidence ?? []).filter(p => p.id !== photoId) },
     }))
+    markDirty(fieldId)
+  }
+
+  function setPin(fieldId: string, pin: LocationPin | null) {
+    setResponses(prev => ({ ...prev, [fieldId]: { ...prev[fieldId], pin } }))
     markDirty(fieldId)
   }
 
@@ -822,6 +856,9 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
                     evidence={responses[comp.cField.id]?.evidence ?? []}
                     onAddPhoto={file => addPhoto(comp.cField.id, file)}
                     onRemovePhoto={photoId => removePhoto(comp.cField.id, photoId)}
+                    pin={responses[comp.cField.id]?.pin ?? null}
+                    onSetPin={p => setPin(comp.cField.id, p)}
+                    floorPlans={floorPlans}
                     descValue={comp.dField ? (responses[comp.dField.id]?.notes ?? '') : ''}
                     onDescChange={v => comp.dField && setNotes(comp.dField.id, v)}
                     urgency={comp.uField ? (responses[comp.uField.id]?.severity ?? null) : null}
@@ -968,6 +1005,7 @@ function InfoField({
 function Rating5Card({
   comp, sectionId, index, rating, onRating,
   evidence, onAddPhoto, onRemovePhoto,
+  pin, onSetPin, floorPlans,
   descValue, onDescChange, urgency, onUrgency,
   costValue, onCostChange, disabled,
 }: {
@@ -979,6 +1017,9 @@ function Rating5Card({
   evidence:       EvidencePhoto[]
   onAddPhoto:     (file: File) => Promise<void>
   onRemovePhoto:  (photoId: string) => void
+  pin:            LocationPin | null
+  onSetPin:       (p: LocationPin | null) => void
+  floorPlans:     FloorPlan[]
   descValue:      string
   onDescChange:   (v: string) => void
   urgency:        string | null
@@ -987,12 +1028,24 @@ function Rating5Card({
   onCostChange:   (v: string) => void
   disabled:       boolean
 }) {
-  const [guideOpen, setGuideOpen]     = useState(false)
-  const [uploading, setUploading]     = useState(false)
-  const fileInputRef                  = useRef<HTMLInputElement>(null)
+  const [guideOpen, setGuideOpen]           = useState(false)
+  const [uploading, setUploading]           = useState(false)
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
+  const fileInputRef                        = useRef<HTMLInputElement>(null)
   const isDeficient = rating !== null && rating <= 2
   const ratingCfg   = RATING_CFG.find(r => r.v === rating)
   const guide       = GUIDE[getGuideKey(comp.compKey)]
+
+  // Auto-select floor plan: prefer the one pinned, fall back to first
+  const activePlan = floorPlans.find(fp => fp.id === (selectedPlanId ?? pin?.floor_plan_id)) ?? floorPlans[0] ?? null
+
+  function handlePlanClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (disabled || !activePlan) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+    const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
+    onSetPin({ floor_plan_id: activePlan.id, floor_plan_url: activePlan.url, x, y })
+  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -1205,6 +1258,99 @@ function Rating5Card({
               )}
             </div>
           </div>
+
+          {/* Floor plan pin */}
+          {floorPlans.length > 0 && (
+            <div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--fg)', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <MapPin size={14} style={{ color: pin ? '#dc2626' : 'var(--muted)' }} />
+                Location on floor plan
+                {pin && !disabled && (
+                  <button
+                    onClick={() => onSetPin(null)}
+                    style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500 }}
+                    title="Clear pin"
+                  >
+                    Clear pin
+                  </button>
+                )}
+              </div>
+
+              {/* Floor selector (if multiple) */}
+              {floorPlans.length > 1 && (
+                <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.6rem', flexWrap: 'wrap' }}>
+                  {floorPlans.map(fp => {
+                    const isSel = fp.id === (activePlan?.id)
+                    return (
+                      <button
+                        key={fp.id}
+                        onClick={() => setSelectedPlanId(fp.id)}
+                        style={{
+                          padding: '0.25rem 0.6rem', fontSize: '0.72rem', fontWeight: 600,
+                          borderRadius: 6, border: `1.5px solid ${isSel ? 'var(--primary)' : 'var(--border)'}`,
+                          background: isSel ? 'rgba(var(--primary-rgb,99,102,241),0.1)' : 'var(--card)',
+                          color: isSel ? 'var(--primary)' : 'var(--muted)', cursor: 'pointer', transition: 'all 0.12s',
+                        }}
+                      >
+                        {fp.floor_name}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Tap-to-pin canvas */}
+              {activePlan && (
+                <div
+                  onClick={handlePlanClick}
+                  title={disabled ? undefined : 'Tap to place pin'}
+                  style={{
+                    position: 'relative', maxWidth: 420, borderRadius: 8,
+                    overflow: 'hidden', border: '1px solid var(--border)',
+                    cursor: disabled ? 'default' : 'crosshair',
+                    userSelect: 'none',
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={activePlan.url}
+                    alt={activePlan.floor_name}
+                    draggable={false}
+                    style={{ width: '100%', display: 'block' }}
+                  />
+                  {/* Tap instruction overlay when no pin */}
+                  {!pin && !disabled && (
+                    <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: '0.7rem', fontWeight: 600, padding: '0.25rem 0.6rem', borderRadius: 20, whiteSpace: 'nowrap', pointerEvents: 'none', backdropFilter: 'blur(4px)' }}>
+                      Tap to mark location
+                    </div>
+                  )}
+                  {/* Pin marker */}
+                  {pin && pin.floor_plan_id === activePlan.id && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: `${pin.x * 100}%`,
+                        top: `${pin.y * 100}%`,
+                        transform: 'translate(-50%, -100%)',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <svg width="28" height="36" viewBox="0 0 28 36" fill="none">
+                        <path d="M14 0C6.27 0 0 6.27 0 14c0 9.75 14 22 14 22S28 23.75 28 14C28 6.27 21.73 0 14 0Z" fill="#dc2626" />
+                        <circle cx="14" cy="14" r="6" fill="white" />
+                      </svg>
+                    </div>
+                  )}
+                  {/* Pin on a different floor plan */}
+                  {pin && pin.floor_plan_id !== activePlan.id && (
+                    <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: '0.7rem', fontWeight: 600, padding: '0.25rem 0.6rem', borderRadius: 20, whiteSpace: 'nowrap', pointerEvents: 'none', backdropFilter: 'blur(4px)' }}>
+                      Pin is on another floor — tap to move it here
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {comp.dField && (
             <div>
