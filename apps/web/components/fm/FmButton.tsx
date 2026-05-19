@@ -3,7 +3,7 @@
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type BtnVariant = 'primary' | 'secondary' | 'danger' | 'ghost'
+type BtnVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'success'
 type BtnSize    = 'sm' | 'md' | 'lg'
 
 interface FmButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

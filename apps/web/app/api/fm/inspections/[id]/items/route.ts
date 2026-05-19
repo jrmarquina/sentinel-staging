@@ -57,14 +57,20 @@ export async function PATCH(
     if (!inspection) return err('Inspection not found', 404)
 
     // Fetch existing items
-    const { data: existingItems } = await supabase
+    const { data: existingItems, error: fetchError } = await supabase
       .from('fm_checklist_item_responses')
       .select('id, key')
       .eq('inspection_id', params.id)
 
+    if (fetchError) {
+      console.error('Failed to fetch checklist items:', fetchError)
+      return err('Failed to load inspection items', 500)
+    }
+
     const itemMap = new Map((existingItems ?? []).map(i => [i.key, i.id]))
 
-    // Upsert each item
+    // Update each item
+    const failedKeys: string[] = []
     for (const item of parsed.data.items) {
       const itemId = itemMap.get(item.key)
       if (!itemId) continue
@@ -73,7 +79,7 @@ export async function PATCH(
 
       // DB constraint requires lowercase result ('pass', 'fail', 'yes', 'no')
       // but the run page UI sends uppercase. Normalise before saving.
-      await supabase
+      const { error: updateError } = await supabase
         .from('fm_checklist_item_responses')
         .update({
           result:        item.result != null ? item.result.toLowerCase() : null,
@@ -84,6 +90,12 @@ export async function PATCH(
           location_data: item.pin ?? null,
         } as Record<string, unknown>)
         .eq('id', itemId)
+
+      if (updateError) {
+        console.error(`Failed to update item ${item.key}:`, updateError)
+        failedKeys.push(item.key)
+        continue
+      }
 
       // Auto-create work order on failure (if one doesn't already exist)
       // FCA items use rating (not result='fail') so the DB trigger handles them safely.
@@ -123,6 +135,10 @@ export async function PATCH(
         .from('fm_inspections')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', params.id)
+    }
+
+    if (failedKeys.length > 0) {
+      return NextResponse.json({ error: 'Some items failed to save', failedKeys }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })

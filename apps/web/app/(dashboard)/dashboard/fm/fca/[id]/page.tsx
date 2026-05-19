@@ -392,7 +392,7 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
   const [activeSection, setActiveSection]     = useState('0')
   const [loading, setLoading]                 = useState(true)
   const [error, setError]                     = useState<string | null>(null)
-  const [saveState, setSaveState]             = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [saveState, setSaveState]             = useState<'dirty' | 'saving' | 'clean' | 'error'>('clean')
   const [sidebarOpen, setSidebarOpen]         = useState(true)
   const [generating, setGenerating]           = useState(false)
   const [floorPlans, setFloorPlans]           = useState<FloorPlan[]>([])
@@ -443,6 +443,7 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
           init[key] = { ...init[key], notes: val }
           dirtyRef.current.add(key)
         }
+        if (Object.keys(prefill).length > 0) setSaveState('dirty')
 
         setResponses(init)
         setInsp(data)
@@ -458,7 +459,10 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
   // ── Auto-save ─────────────────────────────────────────────────────────────
 
   const flush = useCallback(async () => {
-    if (dirtyRef.current.size === 0) return
+    if (dirtyRef.current.size === 0) {
+      setSaveState('clean')
+      return
+    }
     const keys = Array.from(dirtyRef.current)
     dirtyRef.current.clear()
     setSaveState('saving')
@@ -480,16 +484,21 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items }),
       })
-      setSaveState(res.ok ? 'saved' : 'error')
-      setTimeout(() => setSaveState('idle'), 2500)
+      if (res.ok) {
+        setSaveState('clean')
+      } else {
+        dirtyRef.current = new Set(keys)
+        setSaveState('error')
+      }
     } catch {
+      dirtyRef.current = new Set(keys)
       setSaveState('error')
-      setTimeout(() => setSaveState('idle'), 3000)
     }
   }, [params.id])
 
   function markDirty(key: string) {
     dirtyRef.current.add(key)
+    setSaveState('dirty')
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(flush, 1500)
   }
@@ -649,14 +658,20 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-          <span style={{
-            fontSize: '0.78rem', fontWeight: 500, opacity: saveState === 'idle' ? 0 : 1, transition: 'opacity 0.3s',
-            color: saveState === 'saving' ? 'var(--muted)' : saveState === 'saved' ? 'var(--teal)' : saveState === 'error' ? 'var(--red)' : 'var(--muted)',
-          }}>
-            {saveState === 'saving' ? '↑ Saving…' : saveState === 'saved' ? '✓ Saved' : saveState === 'error' ? '✕ Save failed' : ''}
-          </span>
-
-          <FmButton size="sm" variant="secondary" icon={<Save size={14} />} onClick={flush}>Save</FmButton>
+          <FmButton
+            size="sm"
+            variant={saveState === 'clean' ? 'success' : saveState === 'error' ? 'danger' : 'secondary'}
+            icon={
+              saveState === 'saving'  ? <Loader2 size={14} className="animate-spin" /> :
+              saveState === 'clean'   ? <CheckCircle2 size={14} /> :
+              saveState === 'error'   ? <AlertTriangle size={14} /> :
+              <Save size={14} />
+            }
+            onClick={flush}
+            disabled={saveState === 'saving'}
+          >
+            {saveState === 'saving' ? 'Saving…' : saveState === 'clean' ? 'Saved' : saveState === 'error' ? 'Save failed' : 'Save'}
+          </FmButton>
 
           {hasDeficiencies && !isCompleted && (
             <FmButton
