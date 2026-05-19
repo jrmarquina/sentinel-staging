@@ -10,14 +10,14 @@ export async function GET() {
   try {
     const supabase = createClient()
 
-    // DB ping — check RPC or a minimal table query
+    // DB ping — anon user sees 0 rows due to RLS, but a successful empty
+    // response confirms PostgREST and the database are reachable.
     const { error: dbError } = await supabase
       .from('organizations')
       .select('id')
       .limit(1)
-      .single()
 
-    const dbOk = !dbError || dbError.code === 'PGRST116' // no rows = still healthy
+    const dbOk = !dbError
 
     // Storage ping — list buckets
     const { error: storageError } = await supabase.storage.listBuckets()
