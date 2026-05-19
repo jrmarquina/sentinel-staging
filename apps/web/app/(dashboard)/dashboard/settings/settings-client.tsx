@@ -2,9 +2,10 @@
 
 import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Edit2, KeyRound, Trash2, X, Eye, EyeOff, Shield, ChevronDown, History, HardDrive, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
+import { Plus, Edit2, KeyRound, Trash2, X, Eye, EyeOff, Shield, ChevronDown, History, HardDrive, AlertTriangle, CheckCircle2, Loader2, Maximize2 } from 'lucide-react'
 import { format, parseISO, isToday, isYesterday, formatDistanceToNow } from 'date-fns'
 import type { BackupFile } from '@/app/api/admin/backups/route'
+import { SystemHealthOverlay } from '@/components/settings/SystemHealthOverlay'
 import { createUser, updateUser, resetUserPassword, deleteUser } from './actions'
 import { DevThemeCustomiser } from '@/components/settings/DevThemeCustomiser'
 
@@ -404,10 +405,11 @@ function formatBytes(bytes: number): string {
 }
 
 function BackupStatusSection() {
-  const [open,    setOpen]    = useState(false)
-  const [files,   setFiles]   = useState<BackupFile[] | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState<string | null>(null)
+  const [open,      setOpen]      = useState(false)
+  const [overlay,   setOverlay]   = useState(false)
+  const [files,     setFiles]     = useState<BackupFile[] | null>(null)
+  const [loading,   setLoading]   = useState(false)
+  const [error,     setError]     = useState<string | null>(null)
 
   useEffect(() => {
     if (!open || files !== null) return
@@ -436,11 +438,11 @@ function BackupStatusSection() {
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
       {/* Header */}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
-      >
-        <div className="flex items-center gap-2">
+      <div className="flex items-center border-b border-transparent">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex-1 flex items-center gap-2 px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left"
+        >
           <HardDrive size={15} className="text-slate-400" />
           <span className="text-sm font-bold text-slate-900 dark:text-white">Backups &amp; System Health</span>
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${healthColor}`} title={healthLabel} />
@@ -449,9 +451,19 @@ function BackupStatusSection() {
               Last backup {formatDistanceToNow(lastDate, { addSuffix: true })}
             </span>
           )}
-        </div>
-        <ChevronDown size={15} className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+          <ChevronDown size={15} className={`text-slate-400 transition-transform ml-auto ${open ? 'rotate-180' : ''}`} />
+        </button>
+        <button
+          onClick={() => setOverlay(true)}
+          title="Open full-screen system health"
+          className="px-4 py-4 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors border-l border-slate-100 dark:border-slate-800 flex-shrink-0"
+        >
+          <Maximize2 size={14} />
+        </button>
+      </div>
+
+      {/* Full-screen overlay */}
+      {overlay && <SystemHealthOverlay onClose={() => setOverlay(false)} />}
 
       {open && (
         <div className="border-t border-slate-100 dark:border-slate-800">
