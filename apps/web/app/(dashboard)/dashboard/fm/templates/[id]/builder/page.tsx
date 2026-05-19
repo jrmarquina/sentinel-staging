@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Plus, Trash2, Loader2, ArrowLeft, GripVertical, Save, GitBranch, X } from 'lucide-react'
 import { useFmT } from '@/lib/locale'
 
-type FieldType = 'YES_NO' | 'PASS_FAIL' | 'TEXT' | 'NUMBER' | 'STOPLIGHT'
+type FieldType = 'YES_NO' | 'PASS_FAIL' | 'TEXT' | 'NUMBER' | 'STOPLIGHT' | 'RATING_5'
 
 interface ShowIf {
   field:  string  // id of the parent field
@@ -32,6 +32,7 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: 'TEXT',      label: 'Text' },
   { value: 'NUMBER',    label: 'Number' },
   { value: 'STOPLIGHT', label: 'Urgency (🟢🟡🔴)' },
+  { value: 'RATING_5',  label: 'Condition Rating (1–5)' },
 ]
 
 function generateId(): string {

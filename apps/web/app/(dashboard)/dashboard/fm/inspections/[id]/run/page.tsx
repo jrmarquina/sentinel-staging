@@ -104,6 +104,15 @@ const STOPLIGHT_CONFIG: { value: Severity; emoji: string; label: string; subLabe
   { value: 'HIGH',   emoji: '🔴', label: 'Immediate — notify manager', subLabel: 'High urgency',              color: '#991b1b', bg: '#fef2f2', border: '#fca5a5' },
 ]
 
+// Rating 1–5: result stored as '1'–'5'
+const RATING5_CONFIG: { value: string; label: string; subLabel: string; color: string; bg: string; border: string }[] = [
+  { value: '1', label: '1 — Poor',      subLabel: 'Immediate attention needed', color: '#991b1b', bg: '#fef2f2', border: '#fca5a5' },
+  { value: '2', label: '2 — Below avg', subLabel: 'Significant deficiencies',   color: '#9a3412', bg: '#fff7ed', border: '#fdba74' },
+  { value: '3', label: '3 — Fair',      subLabel: 'Some issues present',        color: '#854d0e', bg: '#fefce8', border: '#fde047' },
+  { value: '4', label: '4 — Good',      subLabel: 'Minor wear only',            color: '#166534', bg: '#f0fdf4', border: '#86efac' },
+  { value: '5', label: '5 — Excellent', subLabel: 'No issues observed',         color: '#14532d', bg: '#dcfce7', border: '#4ade80' },
+]
+
 // ── Image compression ─────────────────────────────────────────────────────
 
 async function compressImage(file: File, maxBytes = 1.5 * 1024 * 1024): Promise<File> {
@@ -756,6 +765,7 @@ export default function InspectionRunPage() {
   const hasWO         = woCreated.has(currentId)
   const currentType   = fieldTypes[currentKey] ?? 'PASS_FAIL'
   const isStoplight   = currentType === 'STOPLIGHT'
+  const isRating5     = currentType === 'RATING_5'
 
   return (
     <>
@@ -899,6 +909,31 @@ export default function InspectionRunPage() {
                   )
                 })}
               </div>
+            ) : isRating5 ? (
+              /* Condition Rating 1–5 */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {RATING5_CONFIG.map((btn) => {
+                  const isActive = state.result === btn.value
+                  return (
+                    <button
+                      key={btn.value}
+                      onClick={() => updateItem(currentKey, { result: btn.value, severity: null })}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '0.75rem 1rem', borderRadius: 12,
+                        border: `2px solid ${isActive ? btn.border : 'var(--border)'}`,
+                        background: isActive ? btn.bg : 'var(--card-b)',
+                        color: isActive ? btn.color : 'var(--fg)',
+                        cursor: 'pointer', transition: 'all 0.15s ease',
+                        touchAction: 'manipulation', textAlign: 'left',
+                      }}
+                    >
+                      <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{btn.label}</span>
+                      <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>{btn.subLabel}</span>
+                    </button>
+                  )
+                })}
+              </div>
             ) : (
               /* PASS / FAIL / NA buttons */
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
@@ -930,8 +965,8 @@ export default function InspectionRunPage() {
               </div>
             )}
 
-            {/* Severity (on FAIL, non-stoplight only) */}
-            {!isStoplight && state.result === 'FAIL' && (
+            {/* Severity (on FAIL, non-stoplight, non-rating5 only) */}
+            {!isStoplight && !isRating5 && state.result === 'FAIL' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                 <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('insp.run.severity')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
@@ -958,8 +993,8 @@ export default function InspectionRunPage() {
               </div>
             )}
 
-            {/* Notes — always on STOPLIGHT, on FAIL otherwise */}
-            {(isStoplight || state.result === 'FAIL') && (
+            {/* Notes — always on STOPLIGHT/RATING_5, on FAIL otherwise */}
+            {(isStoplight || isRating5 || state.result === 'FAIL') && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('insp.run.notes')}</p>
                 <textarea
