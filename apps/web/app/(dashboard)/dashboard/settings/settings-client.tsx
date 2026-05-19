@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Edit2, KeyRound, Trash2, X, Eye, EyeOff, Shield, ChevronDown, History } from 'lucide-react'
-import { format, parseISO, isToday, isYesterday } from 'date-fns'
+import { Plus, Edit2, KeyRound, Trash2, X, Eye, EyeOff, Shield, ChevronDown, History, HardDrive, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
+import { format, parseISO, isToday, isYesterday, formatDistanceToNow } from 'date-fns'
+import type { BackupFile } from '@/app/api/admin/backups/route'
 import { createUser, updateUser, resetUserPassword, deleteUser } from './actions'
 import { DevThemeCustomiser } from '@/components/settings/DevThemeCustomiser'
 
@@ -395,6 +396,165 @@ function AuditLogSection({ entries }: { entries: AuditEntry[] }) {
   )
 }
 
+// ── Backup status section ──────────────────────────────────────────────────
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function BackupStatusSection() {
+  const [open,    setOpen]    = useState(false)
+  const [files,   setFiles]   = useState<BackupFile[] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open || files !== null) return
+    setLoading(true)
+    fetch('/api/admin/backups')
+      .then((r) => r.json())
+      .then((d) => { setFiles(d.files ?? []); setError(d.error ?? null) })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [open, files])
+
+  const lastFile   = files?.[0] ?? null
+  const lastDate   = lastFile ? parseISO(lastFile.date) : null
+  const ageHours   = lastDate ? (Date.now() - lastDate.getTime()) / 3_600_000 : null
+  const healthColor =
+    ageHours === null  ? 'bg-slate-300 dark:bg-slate-600' :
+    ageHours < 25      ? 'bg-emerald-500' :
+    ageHours < 49      ? 'bg-amber-500' :
+                         'bg-red-500'
+  const healthLabel =
+    ageHours === null  ? 'Unknown' :
+    ageHours < 25      ? 'Healthy' :
+    ageHours < 49      ? 'Delayed' :
+                         'Overdue'
+
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <HardDrive size={15} className="text-slate-400" />
+          <span className="text-sm font-bold text-slate-900 dark:text-white">Backups &amp; System Health</span>
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${healthColor}`} title={healthLabel} />
+          {lastDate && (
+            <span className="text-xs text-slate-400">
+              Last backup {formatDistanceToNow(lastDate, { addSuffix: true })}
+            </span>
+          )}
+        </div>
+        <ChevronDown size={15} className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="border-t border-slate-100 dark:border-slate-800">
+
+          {/* Health summary row */}
+          <div className="flex items-center gap-4 px-5 py-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800">
+            <div className={`flex items-center gap-1.5 text-xs font-semibold ${
+              healthColor === 'bg-emerald-500' ? 'text-emerald-600 dark:text-emerald-400' :
+              healthColor === 'bg-amber-500'   ? 'text-amber-600 dark:text-amber-400' :
+              healthColor === 'bg-red-500'     ? 'text-red-600 dark:text-red-400' :
+                                                 'text-slate-500'
+            }`}>
+              {healthColor === 'bg-emerald-500' ? <CheckCircle2 size={13} /> :
+               healthColor === 'bg-red-500'     ? <AlertTriangle size={13} /> :
+                                                   <AlertTriangle size={13} />}
+              {healthLabel}
+            </div>
+            {lastDate && (
+              <span className="text-xs text-slate-400">
+                Last successful backup: {format(lastDate, 'MMM d, yyyy')} at {format(lastDate, 'HH:mm')} UTC
+              </span>
+            )}
+            {files !== null && (
+              <span className="ml-auto text-[10px] text-slate-400">
+                {files.filter(f => f.type === 'daily').length} daily · {files.filter(f => f.type === 'monthly').length} monthly
+              </span>
+            )}
+          </div>
+
+          {/* Loading / error */}
+          {loading && (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400">
+              <Loader2 size={14} className="animate-spin" /> Loading backup list…
+            </div>
+          )}
+          {error && !loading && (
+            <div className="px-5 py-4 text-sm text-red-500">{error}</div>
+          )}
+
+          {/* Backup list */}
+          {!loading && files !== null && files.length === 0 && (
+            <p className="px-5 py-8 text-center text-sm text-slate-400">No backups found in B2.</p>
+          )}
+
+          {!loading && files && files.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800">
+                    <th className="text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-5 py-2">Date &amp; Time</th>
+                    <th className="text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-3 py-2">Environment</th>
+                    <th className="text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-3 py-2">Type</th>
+                    <th className="text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-5 py-2">Size</th>
+                    <th className="text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-5 py-2 hidden md:table-cell">Age</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
+                  {files.map((f) => {
+                    const d = parseISO(f.date)
+                    const dayLabel = isToday(d) ? 'Today' : isYesterday(d) ? 'Yesterday' : format(d, 'MMM d, yyyy')
+                    return (
+                      <tr key={`${f.env}-${f.name}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="px-5 py-2.5">
+                          <p className="font-medium text-slate-700 dark:text-slate-300">{dayLabel}</p>
+                          <p className="text-[10px] text-slate-400">{format(d, 'HH:mm')} UTC</p>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                            f.env === 'prod'
+                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                          }`}>
+                            {f.env === 'prod' ? 'Production' : 'Staging'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                            f.type === 'monthly'
+                              ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300'
+                              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                          }`}>
+                            {f.type === 'monthly' ? 'Monthly' : 'Daily'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-2.5 text-right text-slate-500 dark:text-slate-400 tabular-nums">
+                          {formatBytes(f.size)}
+                        </td>
+                        <td className="px-5 py-2.5 text-right text-slate-400 hidden md:table-cell">
+                          {formatDistanceToNow(d, { addSuffix: true })}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 export function SettingsClient({ members: initialMembers, auditLog = [] }: { members: Member[]; auditLog?: AuditEntry[] }) {
@@ -670,6 +830,9 @@ export function SettingsClient({ members: initialMembers, auditLog = [] }: { mem
 
       {/* Audit log */}
       <AuditLogSection entries={auditLog} />
+
+      {/* Backups & system health */}
+      <BackupStatusSection />
 
       {/* Development view colour customisation — admin only */}
       <DevThemeCustomiser />
