@@ -69,30 +69,47 @@ export async function PATCH(
 
     const itemMap = new Map((existingItems ?? []).map(i => [i.key, i.id]))
 
-    // Update each item
+    // Update each item — insert row if it wasn't pre-created (e.g. template updated after inspection)
     const failedKeys: string[] = []
     for (const item of parsed.data.items) {
       const itemId = itemMap.get(item.key)
-      if (!itemId) continue
 
       const isFail = item.result?.toLowerCase() === 'fail' || item.severity === 'HIGH'
 
-      // DB constraint requires lowercase result ('pass', 'fail', 'yes', 'no')
-      // but the run page UI sends uppercase. Normalise before saving.
-      const { error: updateError } = await supabase
-        .from('fm_checklist_item_responses')
-        .update({
-          result:        item.result != null ? item.result.toLowerCase() : null,
-          severity:      item.severity ?? null,
-          notes:         item.notes ?? null,
-          rating:        item.rating ?? null,
-          evidence:      item.evidence ?? null,
-          location_data: item.pin ?? null,
-        } as Record<string, unknown>)
-        .eq('id', itemId)
+      const payload = {
+        result:        item.result != null ? item.result.toLowerCase() : null,
+        severity:      item.severity ?? null,
+        notes:         item.notes ?? null,
+        rating:        item.rating ?? null,
+        evidence:      item.evidence ?? null,
+        location_data: item.pin ?? null,
+      } as Record<string, unknown>
 
-      if (updateError) {
-        console.error(`Failed to update item ${item.key}:`, updateError)
+      let saveError: unknown = null
+      if (itemId) {
+        // DB constraint requires lowercase result ('pass', 'fail', 'yes', 'no')
+        // but the run page UI sends uppercase. Normalise before saving.
+        const { error } = await supabase
+          .from('fm_checklist_item_responses')
+          .update(payload)
+          .eq('id', itemId)
+        saveError = error
+      } else {
+        // Row missing — template gained this field after inspection was created
+        const { error } = await supabase
+          .from('fm_checklist_item_responses')
+          .insert({
+            ...payload,
+            inspection_id: params.id,
+            key:           item.key,
+            label:         item.label ?? item.key,
+            org_id:        session.orgId,
+          })
+        saveError = error
+      }
+
+      if (saveError) {
+        console.error(`Failed to save item ${item.key}:`, saveError)
         failedKeys.push(item.key)
         continue
       }
