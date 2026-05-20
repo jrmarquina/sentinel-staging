@@ -36,7 +36,7 @@ export async function GET() {
       status: 'ok',
       db: 'ok',
       storage: storageOk ? 'ok' : 'degraded',
-      version: process.env.npm_package_version ?? '0.1.0',
+      version: process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0',
       elapsed,
     })
   } catch (err) {

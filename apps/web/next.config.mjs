@@ -1,4 +1,7 @@
 import withPWA from 'next-pwa'
+import { readFileSync } from 'fs'
+
+const { version: APP_VERSION } = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
 const pwa = withPWA({
   dest: 'public',
@@ -12,6 +15,9 @@ const pwa = withPWA({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: APP_VERSION,
+  },
   staticPageGenerationTimeout: 180,
   experimental: {
     serverActions: {

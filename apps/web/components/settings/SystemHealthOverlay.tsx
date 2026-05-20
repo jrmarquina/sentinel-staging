@@ -8,7 +8,7 @@ import {
   Database, Globe, Activity, Zap, Package, ExternalLink,
   Cpu, MemoryStick, CloudUpload,
 } from 'lucide-react'
-import type { GithubRelease, UptimeMonitor, CloudflareStats, ResendStats } from '@/app/api/admin/system/route'
+import type { GithubRelease, UptimeMonitor, CloudflareStats, ResendStats, ContaboSnapshot } from '@/app/api/admin/system/route'
 import type { BackupFile } from '@/app/api/admin/backups/route'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -18,7 +18,7 @@ interface VpsMetrics {
   error?:   string
   cpu?:     { pct: number }
   ram?:     { pct: number; usedMiB: number; totalMiB: number }
-  disk?:    { pct: number; usedGiB: number; totalGiB: number }
+  disk?:    { pct: number; usedGiB: number; totalGiB: number } | null
   load?:    { load1: number; load5: number; load15: number }
   uptimeSec?: number
 }
@@ -31,6 +31,7 @@ interface SystemData {
   uptime:     { ok: boolean; monitors: UptimeMonitor[]; error?: string }
   cloudflare: { ok: boolean; stats: CloudflareStats | null; error?: string }
   resend:     { ok: boolean; stats: ResendStats | null; error?: string }
+  contabo:    { ok: boolean; snapshots: ContaboSnapshot[]; error?: string }
 }
 
 interface BackupData {
@@ -147,12 +148,19 @@ function VpsTile({ vps }: { vps: VpsMetrics }) {
             sublabel={`${vps.ram?.usedMiB ?? 0} MiB / ${vps.ram?.totalMiB ?? 0} MiB`}
             warn={75} danger={90}
           />
-          <BarGauge
-            label="Disk"
-            pct={vps.disk?.pct ?? 0}
-            sublabel={`${vps.disk?.usedGiB ?? 0} GB / ${vps.disk?.totalGiB ?? 0} GB`}
-            warn={75} danger={90}
-          />
+          {vps.disk ? (
+            <BarGauge
+              label="Disk"
+              pct={vps.disk.pct}
+              sublabel={`${vps.disk.usedGiB} GB / ${vps.disk.totalGiB} GB`}
+              warn={75} danger={90}
+            />
+          ) : (
+            <div className="space-y-1">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">Disk</span>
+              <p className="text-[10px] text-amber-500">Not reported by Netdata</p>
+            </div>
+          )}
           {(vps.uptimeSec ?? 0) > 0 && (
             <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
               <Clock size={10} className="text-slate-400" />
@@ -281,6 +289,39 @@ function BackupsTile({ backups }: { backups: BackupFile[] }) {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function ContaboTile({ contabo }: { contabo: { ok: boolean; snapshots: ContaboSnapshot[]; error?: string } }) {
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+      <TileHeader icon={<HardDrive size={14} />} title="VPS Snapshots" ok={contabo.ok} badge="Contabo" />
+      {!contabo.ok ? (
+        <NotConfigured label="Contabo" />
+      ) : contabo.snapshots.length === 0 ? (
+        <p className="text-xs text-slate-400">No snapshots found in this instance.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {contabo.snapshots.slice(0, 6).map(s => (
+            <div key={s.snapshotId} className="flex items-start gap-2">
+              <CheckCircle2 size={11} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate">{s.name || s.snapshotId}</p>
+                {s.description && (
+                  <p className="text-[10px] text-slate-400 truncate">{s.description}</p>
+                )}
+              </div>
+              <span className="text-[10px] text-slate-400 flex-shrink-0 tabular-nums">
+                {s.createdDate ? format(new Date(s.createdDate), 'MMM d, yyyy') : '—'}
+              </span>
+            </div>
+          ))}
+          {contabo.snapshots.length > 6 && (
+            <p className="text-[10px] text-slate-400 pt-1">+{contabo.snapshots.length - 6} more</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -471,9 +512,10 @@ export function SystemHealthOverlay({ onClose }: { onClose: () => void }) {
               {data && <ResendTile resend={data.resend} />}
             </div>
 
-            {/* Backups + changelog row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Backups row: B2 + Contabo snapshots + changelog */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {backups && <BackupsTile backups={backups.files} />}
+              {data    && <ContaboTile contabo={data.contabo} />}
               {data    && <ChangelogTile changelog={data.changelog} />}
             </div>
 

@@ -22,14 +22,33 @@ async function netdataInfo(): Promise<Record<string, unknown>> {
   return r.json()
 }
 
+// Discover the root disk chart dynamically — Netdata names it disk_space._
+// but the name can vary. Query the chart list once per request to find it.
+async function findDiskChart(): Promise<string | null> {
+  try {
+    const r = await fetch(`${NETDATA}/charts`, { next: { revalidate: 0 } })
+    if (!r.ok) return null
+    const d = await r.json() as { charts?: Record<string, unknown> }
+    const keys = Object.keys(d.charts ?? {})
+    // Prefer the root filesystem chart (disk_space._ or disk_space._root etc.)
+    return keys.find(k => k === 'disk_space._')
+      ?? keys.find(k => k.startsWith('disk_space.'))
+      ?? null
+  } catch {
+    return null
+  }
+}
+
 async function getVpsMetrics() {
   try {
-    const [cpuData, ramData, diskData, loadData, info] = await Promise.all([
+    const diskChart = await findDiskChart()
+
+    const [cpuData, ramData, loadData, info, diskData] = await Promise.all([
       netdataChart('system.cpu'),
       netdataChart('system.ram'),
-      netdataChart('disk_space._'),
       netdataChart('system.load'),
       netdataInfo(),
+      diskChart ? netdataChart(diskChart).catch(() => null) : Promise.resolve(null),
     ])
 
     // CPU: values are percentages, first row is the data point
@@ -45,11 +64,16 @@ async function getVpsMetrics() {
     const ramPct    = ramTotal > 0 ? Math.round((ramUsed / ramTotal) * 100) : 0
 
     // Disk: avail and used in GiB
-    const diskRow   = diskData[0] ?? []
-    const diskAvail = Math.abs(diskRow[1] ?? 0)
-    const diskUsed  = Math.abs(diskRow[2] ?? 0)
-    const diskTotal = diskAvail + diskUsed
-    const diskPct   = diskTotal > 0 ? Math.round((diskUsed / diskTotal) * 100) : 0
+    let diskPct = 0, diskUsedGiB = 0, diskTotalGiB = 0
+    if (diskData) {
+      const diskRow   = diskData[0] ?? []
+      const diskAvail = Math.abs(diskRow[1] ?? 0)
+      const diskUsed  = Math.abs(diskRow[2] ?? 0)
+      const diskTotal = diskAvail + diskUsed
+      diskPct      = diskTotal > 0 ? Math.round((diskUsed / diskTotal) * 100) : 0
+      diskUsedGiB  = Math.round(diskUsed / 1024)
+      diskTotalGiB = Math.round(diskTotal / 1024)
+    }
 
     // Load avg
     const loadRow = loadData[0] ?? []
@@ -66,7 +90,9 @@ async function getVpsMetrics() {
       ok: true,
       cpu:  { pct: Math.round(cpuUsed) },
       ram:  { pct: ramPct, usedMiB: Math.round(ramUsed), totalMiB: Math.round(ramTotal) },
-      disk: { pct: diskPct, usedGiB: Math.round(diskUsed / 1024), totalGiB: Math.round(diskTotal / 1024) },
+      disk: diskData
+        ? { pct: diskPct, usedGiB: diskUsedGiB, totalGiB: diskTotalGiB }
+        : null,
       load: { load1: +load1.toFixed(2), load5: +load5.toFixed(2), load15: +load15.toFixed(2) },
       uptimeSec,
       netdataVersion: (info as { version?: string }).version ?? '',
@@ -192,7 +218,6 @@ async function getCloudflare(): Promise<{ ok: boolean; stats: CloudflareStats | 
   if (!token || !zoneId) return { ok: false, stats: null, error: 'CLOUDFLARE_API_TOKEN or CLOUDFLARE_ZONE_ID not configured' }
 
   try {
-    // Last 7 days via GraphQL analytics API
     const since = new Date(Date.now() - 7 * 86400_000).toISOString().slice(0, 10)
     const until = new Date().toISOString().slice(0, 10)
     const query = `{
@@ -206,10 +231,7 @@ async function getCloudflare(): Promise<{ ok: boolean; stats: CloudflareStats | 
     }`
     const r = await fetch('https://api.cloudflare.com/client/v4/graphql', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
       next: { revalidate: 0 },
     })
@@ -231,13 +253,7 @@ async function getCloudflare(): Promise<{ ok: boolean; stats: CloudflareStats | 
       : 0
     return {
       ok: true,
-      stats: {
-        requests:  totals.requests,
-        bandwidth: totals.bytes,
-        threats:   totals.threats,
-        cachedPct,
-        period:    'last 7 days',
-      },
+      stats: { requests: totals.requests, bandwidth: totals.bytes, threats: totals.threats, cachedPct, period: 'last 7 days' },
     }
   } catch (e) {
     return { ok: false, stats: null, error: e instanceof Error ? e.message : 'Unknown' }
@@ -274,6 +290,76 @@ async function getResend(): Promise<{ ok: boolean; stats: ResendStats | null; er
   }
 }
 
+// ── Contabo VPS backups ────────────────────────────────────────────────────
+
+export interface ContaboSnapshot {
+  snapshotId:   string
+  name:         string
+  description:  string
+  createdDate:  string
+  autoDeleteDate: string | null
+}
+
+async function getContaboToken(): Promise<string> {
+  const r = await fetch(
+    'https://auth.contabo.com/auth/realms/contabo/protocol/openid-connect/token',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id:     process.env.CONTABO_CLIENT_ID!,
+        client_secret: process.env.CONTABO_CLIENT_SECRET!,
+        username:      process.env.CONTABO_USERNAME!,
+        password:      process.env.CONTABO_PASSWORD!,
+        grant_type:    'password',
+      }),
+    }
+  )
+  if (!r.ok) throw new Error(`Contabo auth ${r.status}`)
+  const d = await r.json()
+  return d.access_token as string
+}
+
+async function getContaboBackups(): Promise<{ ok: boolean; snapshots: ContaboSnapshot[]; instanceId?: string; error?: string }> {
+  const clientId     = process.env.CONTABO_CLIENT_ID
+  const clientSecret = process.env.CONTABO_CLIENT_SECRET
+  const username     = process.env.CONTABO_USERNAME
+  const password     = process.env.CONTABO_PASSWORD
+  const instanceId   = process.env.CONTABO_INSTANCE_ID
+
+  if (!clientId || !clientSecret || !username || !password || !instanceId) {
+    return { ok: false, snapshots: [], error: 'Contabo credentials not configured' }
+  }
+
+  try {
+    const token = await getContaboToken()
+    const reqId = crypto.randomUUID()
+    const r = await fetch(
+      `https://api.contabo.com/v1/compute/instances/${instanceId}/snapshots`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-request-id': reqId,
+        },
+      }
+    )
+    if (!r.ok) return { ok: false, snapshots: [], error: `Contabo API ${r.status}` }
+    const d = await r.json()
+    const snapshots: ContaboSnapshot[] = (d.data ?? []).map((s: Record<string, unknown>) => ({
+      snapshotId:    String(s.snapshotId ?? ''),
+      name:          String(s.name ?? ''),
+      description:   String(s.description ?? ''),
+      createdDate:   String(s.createdDate ?? ''),
+      autoDeleteDate: s.autoDeleteDate ? String(s.autoDeleteDate) : null,
+    }))
+    // Sort newest first
+    snapshots.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime())
+    return { ok: true, snapshots, instanceId }
+  } catch (e) {
+    return { ok: false, snapshots: [], error: e instanceof Error ? e.message : 'Unknown' }
+  }
+}
+
 // ── Handler ────────────────────────────────────────────────────────────────
 
 export async function GET() {
@@ -282,25 +368,27 @@ export async function GET() {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     if (session.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const stagingVersion = process.env.npm_package_version ?? '1.1.0'
+    const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'
 
-    const [vps, prodVersion, changelog, uptime, cloudflare, resend] = await Promise.allSettled([
+    const [vps, prodVersion, changelog, uptime, cloudflare, resend, contabo] = await Promise.allSettled([
       getVpsMetrics(),
       getProdVersion(),
       getChangelog(),
       getUptimeRobot(),
       getCloudflare(),
       getResend(),
+      getContaboBackups(),
     ])
 
     return NextResponse.json({
-      stagingVersion,
+      stagingVersion: appVersion,
       vps:        vps.status        === 'fulfilled' ? vps.value        : { ok: false, error: 'fetch failed' },
       prod:       prodVersion.status === 'fulfilled' ? prodVersion.value : { ok: false, version: null },
       changelog:  changelog.status  === 'fulfilled' ? changelog.value  : { ok: false, releases: [] },
       uptime:     uptime.status     === 'fulfilled' ? uptime.value     : { ok: false, monitors: [] },
       cloudflare: cloudflare.status === 'fulfilled' ? cloudflare.value : { ok: false, stats: null },
       resend:     resend.status     === 'fulfilled' ? resend.value     : { ok: false, stats: null },
+      contabo:    contabo.status    === 'fulfilled' ? contabo.value    : { ok: false, snapshots: [] },
     })
   } catch (err) {
     console.error('System status error:', err)
