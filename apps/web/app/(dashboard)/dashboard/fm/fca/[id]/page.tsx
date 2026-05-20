@@ -685,7 +685,7 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
           )}
 
           <a
-            href={`/dashboard/fm/fca/${params.id}/report`}
+            href={`/print/fca/${params.id}`}
             target="_blank" rel="noopener noreferrer"
             style={{ textDecoration: 'none' }}
           >

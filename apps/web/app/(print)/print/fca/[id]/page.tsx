@@ -546,8 +546,12 @@ export default async function FcaReportPage({ params }: { params: { id: string }
       <style>{`
         @media print {
           .no-print { display: none !important; }
-          body { background: #fff !important; }
-          @page { margin: 1.5cm 1.5cm; }
+          body { background: #fff !important; margin: 0 !important; }
+          @page { margin: 1.5cm 1.5cm; size: A4; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          h2 { page-break-after: avoid; }
+          table { page-break-inside: avoid; }
+          img { page-break-inside: avoid; max-width: 100% !important; }
         }
       `}</style>
     </div>
