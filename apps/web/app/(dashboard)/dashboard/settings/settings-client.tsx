@@ -690,6 +690,9 @@ export function SettingsClient({ members: initialMembers, auditLog = [] }: { mem
         </div>
       </div>
 
+      {/* System Health panel */}
+      <BackupStatusSection />
+
       {/* Role summary tiles */}
       <div className="grid grid-cols-5 gap-2">
         {ROLES.map((r) => (
@@ -843,8 +846,7 @@ export function SettingsClient({ members: initialMembers, auditLog = [] }: { mem
       {/* Audit log */}
       <AuditLogSection entries={auditLog} />
 
-      {/* Backups & system health */}
-      <BackupStatusSection />
+      {/* Backups & system health — moved to top */}
 
       {/* Development view colour customisation — admin only */}
       <DevThemeCustomiser />

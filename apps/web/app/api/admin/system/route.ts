@@ -118,6 +118,50 @@ async function getProdVersion() {
   }
 }
 
+// ── GitHub CI/CD ───────────────────────────────────────────────────────────
+
+export interface WorkflowRun {
+  id:         number
+  name:       string
+  workflow:   string
+  branch:     string
+  status:     string   // queued | in_progress | completed
+  conclusion: string | null  // success | failure | cancelled | skipped | null
+  startedAt:  string
+  url:        string
+}
+
+async function getCiRuns(): Promise<{ ok: boolean; runs: WorkflowRun[]; error?: string }> {
+  const token = process.env.GITHUB_TOKEN
+  const repo  = process.env.GITHUB_REPO ?? 'jrmarquina/sentinel-staging'
+  if (!token) return { ok: false, runs: [], error: 'GITHUB_TOKEN not configured' }
+
+  try {
+    const r = await fetch(
+      `https://api.github.com/repos/${repo}/actions/runs?per_page=10`,
+      {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+        next: { revalidate: 0 },
+      }
+    )
+    if (!r.ok) return { ok: false, runs: [], error: `GitHub Actions API ${r.status}` }
+    const d = await r.json()
+    const runs: WorkflowRun[] = (d.workflow_runs ?? []).map((r: Record<string, unknown>) => ({
+      id:         r.id,
+      name:       r.display_title ?? r.name,
+      workflow:   r.name,
+      branch:     r.head_branch,
+      status:     r.status,
+      conclusion: r.conclusion ?? null,
+      startedAt:  r.run_started_at ?? r.created_at,
+      url:        r.html_url,
+    }))
+    return { ok: true, runs }
+  } catch (e) {
+    return { ok: false, runs: [], error: e instanceof Error ? e.message : 'Unknown' }
+  }
+}
+
 // ── GitHub releases ────────────────────────────────────────────────────────
 
 export interface GithubRelease {
@@ -370,9 +414,10 @@ export async function GET() {
 
     const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'
 
-    const [vps, prodVersion, changelog, uptime, cloudflare, resend, contabo] = await Promise.allSettled([
+    const [vps, prodVersion, ci, changelog, uptime, cloudflare, resend, contabo] = await Promise.allSettled([
       getVpsMetrics(),
       getProdVersion(),
+      getCiRuns(),
       getChangelog(),
       getUptimeRobot(),
       getCloudflare(),
@@ -384,6 +429,7 @@ export async function GET() {
       stagingVersion: appVersion,
       vps:        vps.status        === 'fulfilled' ? vps.value        : { ok: false, error: 'fetch failed' },
       prod:       prodVersion.status === 'fulfilled' ? prodVersion.value : { ok: false, version: null },
+      ci:         ci.status         === 'fulfilled' ? ci.value         : { ok: false, runs: [] },
       changelog:  changelog.status  === 'fulfilled' ? changelog.value  : { ok: false, releases: [] },
       uptime:     uptime.status     === 'fulfilled' ? uptime.value     : { ok: false, monitors: [] },
       cloudflare: cloudflare.status === 'fulfilled' ? cloudflare.value : { ok: false, stats: null },

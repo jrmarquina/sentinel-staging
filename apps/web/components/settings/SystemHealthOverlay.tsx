@@ -8,7 +8,7 @@ import {
   Database, Globe, Activity, Zap, Package, ExternalLink,
   Cpu, MemoryStick, CloudUpload,
 } from 'lucide-react'
-import type { GithubRelease, UptimeMonitor, CloudflareStats, ResendStats, ContaboSnapshot } from '@/app/api/admin/system/route'
+import type { GithubRelease, UptimeMonitor, CloudflareStats, ResendStats, ContaboSnapshot, WorkflowRun } from '@/app/api/admin/system/route'
 import type { BackupFile } from '@/app/api/admin/backups/route'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -29,6 +29,7 @@ interface SystemData {
   prod:       { ok: boolean; version: string | null; status?: string }
   changelog:  { ok: boolean; releases: GithubRelease[]; error?: string }
   uptime:     { ok: boolean; monitors: UptimeMonitor[]; error?: string }
+  ci:         { ok: boolean; runs: WorkflowRun[]; error?: string }
   cloudflare: { ok: boolean; stats: CloudflareStats | null; error?: string }
   resend:     { ok: boolean; stats: ResendStats | null; error?: string }
   contabo:    { ok: boolean; snapshots: ContaboSnapshot[]; error?: string }
@@ -293,6 +294,49 @@ function BackupsTile({ backups }: { backups: BackupFile[] }) {
   )
 }
 
+function CiTile({ ci }: { ci: { ok: boolean; runs: WorkflowRun[]; error?: string } }) {
+  const conclusionStyle = (r: WorkflowRun) => {
+    if (r.status === 'in_progress') return { dot: 'bg-blue-400 animate-pulse', text: 'text-blue-600 dark:text-blue-400' }
+    if (r.conclusion === 'success')  return { dot: 'bg-emerald-500',           text: 'text-emerald-600 dark:text-emerald-400' }
+    if (r.conclusion === 'failure')  return { dot: 'bg-red-500',               text: 'text-red-500' }
+    return { dot: 'bg-slate-400', text: 'text-slate-400' }
+  }
+  const label = (r: WorkflowRun) => {
+    if (r.status === 'in_progress') return 'Running'
+    if (r.conclusion === 'success') return 'Passed'
+    if (r.conclusion === 'failure') return 'Failed'
+    return r.conclusion ?? r.status
+  }
+
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+      <TileHeader icon={<Package size={14} />} title="CI / CD" ok={ci.ok} badge="GitHub Actions" />
+      {!ci.ok ? (
+        <NotConfigured label="GitHub" />
+      ) : ci.runs.length === 0 ? (
+        <p className="text-xs text-slate-400">No workflow runs found.</p>
+      ) : (
+        <div className="space-y-2">
+          {ci.runs.slice(0, 6).map(r => {
+            const s = conclusionStyle(r)
+            return (
+              <div key={r.id} className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
+                <span className="text-[11px] text-slate-700 dark:text-slate-300 flex-1 truncate">{r.workflow}</span>
+                <span className="text-[10px] text-slate-400 truncate hidden sm:block">{r.branch}</span>
+                <span className={`text-[10px] font-semibold flex-shrink-0 ${s.text}`}>{label(r)}</span>
+                <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                  <ExternalLink size={9} className="text-slate-300 hover:text-blue-500 transition-colors" />
+                </a>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ContaboTile({ contabo }: { contabo: { ok: boolean; snapshots: ContaboSnapshot[]; error?: string } }) {
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4">
@@ -510,6 +554,7 @@ export function SystemHealthOverlay({ onClose }: { onClose: () => void }) {
               {data && <UptimeTile uptime={data.uptime} />}
               {data && <CloudflareTile cf={data.cloudflare} />}
               {data && <ResendTile resend={data.resend} />}
+              {data && <CiTile ci={data.ci} />}
             </div>
 
             {/* Backups row: B2 + Contabo snapshots + changelog */}
@@ -523,11 +568,6 @@ export function SystemHealthOverlay({ onClose }: { onClose: () => void }) {
             <div>
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Planned integrations</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                <PlaceholderTile
-                  icon={<Package size={13} />}
-                  title="GitHub CI/CD"
-                  description="Workflow run status, deploy history, open PRs"
-                />
                 <PlaceholderTile
                   icon={<Wifi size={13} />}
                   title="Novu Notifications"
