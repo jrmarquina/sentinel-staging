@@ -74,8 +74,6 @@ export async function PATCH(
     for (const item of parsed.data.items) {
       const itemId = itemMap.get(item.key)
 
-      const isFail = item.result?.toLowerCase() === 'fail' || item.severity === 'HIGH'
-
       const payload = {
         result:        item.result != null ? item.result.toLowerCase() : null,
         severity:      item.severity ?? null,
@@ -114,31 +112,7 @@ export async function PATCH(
         continue
       }
 
-      // Auto-create work order on failure (if one doesn't already exist)
-      // FCA items use rating (not result='fail') so the DB trigger handles them safely.
-      if (isFail) {
-        const { count } = await supabase
-          .from('fm_work_orders')
-          .select('id', { count: 'exact', head: true })
-          .eq('checklist_item_id', itemId)
-          .eq('org_id', session.orgId)
-          .then(r => ({ count: r.count ?? 0 }))
-
-        if (count === 0) {
-          const label = item.label ?? item.key
-          await supabase.from('fm_work_orders').insert({
-            title: `${label} - Maintenance Required`,
-            description: item.notes ?? `Automated work order from inspection failure (${label})`,
-            priority: item.severity === 'HIGH' ? 'HIGH' : 'MEDIUM',
-            property_id: inspection.property_id,
-            asset_id: inspection.asset_id ?? null,
-            inspection_id: params.id,
-            checklist_item_id: itemId,
-            status: 'OPEN',
-            org_id: session.orgId,
-          })
-        }
-      }
+      // Work orders are created manually from inspections, not auto-generated here.
     }
 
     // Advance status from DRAFT → IN_PROGRESS

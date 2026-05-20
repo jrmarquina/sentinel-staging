@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Loader2, AlertTriangle, ArrowLeft, Save, CheckCircle2,
-  ChevronLeft, ClipboardCheck, Zap, BookOpen, Camera, X, MapPin,
+  ChevronLeft, ClipboardCheck, Zap, BookOpen, Camera, X, MapPin, FileText,
 } from 'lucide-react'
 import { FmButton } from '@/components/fm'
 
@@ -673,7 +673,7 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
             {saveState === 'saving' ? 'Saving…' : saveState === 'clean' ? 'Saved' : saveState === 'error' ? 'Save failed' : 'Save'}
           </FmButton>
 
-          {hasDeficiencies && !isCompleted && (
+          {hasDeficiencies && (
             <FmButton
               size="sm" variant="secondary"
               icon={generating ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
@@ -683,6 +683,16 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
               {generating ? 'Generating…' : 'Generate Inspection'}
             </FmButton>
           )}
+
+          <a
+            href={`/dashboard/fm/fca/${params.id}/report`}
+            target="_blank" rel="noopener noreferrer"
+            style={{ textDecoration: 'none' }}
+          >
+            <FmButton size="sm" variant="secondary" icon={<FileText size={14} />}>
+              Report
+            </FmButton>
+          </a>
 
           {!isCompleted && (
             <FmButton size="sm" variant="primary" icon={<CheckCircle2 size={14} />} onClick={complete}>
