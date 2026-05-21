@@ -40,6 +40,10 @@ export async function GET(_req: NextRequest) {
     if (!canReadInspection(session.capability, session.role)) return err('Forbidden', 403)
     const supabase = createClient()
 
+    // Exclude FCA assessment inspections — they live in the Facility Assessment
+    // menu only. FCA deficiency follow-ups (000...0002) do appear here.
+    const FCA_ASSESSMENT_TEMPLATE = '20000000-0000-0000-0000-000000000001'
+
     const { data, error } = await supabase
       .from('fm_inspections')
       .select(`
@@ -50,6 +54,7 @@ export async function GET(_req: NextRequest) {
       `)
       .eq('org_id', session.orgId)
       .is('deleted_at', null)
+      .neq('template_id', FCA_ASSESSMENT_TEMPLATE)
       .order('updated_at', { ascending: false })
 
     if (error) return err(error.message)
