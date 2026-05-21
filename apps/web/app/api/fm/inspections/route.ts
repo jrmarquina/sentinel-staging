@@ -33,18 +33,22 @@ const startInspectionSchema = z.object({
   scheduled_for: z.string().optional(),
 })
 
-export async function GET(_req: NextRequest) {
+// FCA assessment template — belongs in the Facility Assessment menu, not the
+// regular inspections list. FCA follow-ups (000...0002) are regular inspections.
+const FCA_ASSESSMENT_TEMPLATE = '20000000-0000-0000-0000-000000000001'
+
+export async function GET(req: NextRequest) {
   try {
     const session = await getSession()
     if (!session) return err('Unauthorized', 401)
     if (!canReadInspection(session.capability, session.role)) return err('Forbidden', 403)
     const supabase = createClient()
 
-    // Exclude FCA assessment inspections — they live in the Facility Assessment
-    // menu only. FCA deficiency follow-ups (000...0002) do appear here.
-    const FCA_ASSESSMENT_TEMPLATE = '20000000-0000-0000-0000-000000000001'
+    // ?type=fca  → return only FCA assessments (used by Facility Assessment menu)
+    // default    → exclude FCA assessments (used by regular Inspections list)
+    const type = new URL(req.url).searchParams.get('type')
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('fm_inspections')
       .select(`
         *,
@@ -54,9 +58,15 @@ export async function GET(_req: NextRequest) {
       `)
       .eq('org_id', session.orgId)
       .is('deleted_at', null)
-      .neq('template_id', FCA_ASSESSMENT_TEMPLATE)
       .order('updated_at', { ascending: false })
 
+    if (type === 'fca') {
+      query = query.eq('template_id', FCA_ASSESSMENT_TEMPLATE)
+    } else {
+      query = query.neq('template_id', FCA_ASSESSMENT_TEMPLATE)
+    }
+
+    const { data, error } = await query
     if (error) return err(error.message)
     return NextResponse.json(data)
   } catch (e) { return caught(e) }

@@ -65,13 +65,10 @@ export default function FCAListPage() {
     setError(null)
     try {
       const [inspRes, propRes] = await Promise.all([
-        fetch('/api/fm/inspections').then(r => r.json() as Promise<FmInspection[]>),
+        fetch('/api/fm/inspections?type=fca').then(r => r.json() as Promise<FmInspection[]>),
         fetch('/api/fm/properties').then(r => r.json() as Promise<FmProperty[]>),
       ])
-      setInspections(
-        (Array.isArray(inspRes) ? inspRes : [])
-          .filter(i => i.template_id === FCA_TEMPLATE_ID)
-      )
+      setInspections(Array.isArray(inspRes) ? inspRes : [])
       setProperties(Array.isArray(propRes) ? propRes : [])
     } catch {
       setError('Failed to load assessments')
