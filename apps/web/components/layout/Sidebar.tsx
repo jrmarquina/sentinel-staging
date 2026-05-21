@@ -101,6 +101,7 @@ const FM_MANAGER_EXTRA: NavSection = {
 
 const ADMIN_FM_EXTRAS: NavSection = {
   items: [
+    { labelKey: 'nav.projects',    href: '/dashboard/projects',     icon: FolderKanban },
     { labelKey: 'nav.fmTemplates', href: '/dashboard/fm/templates', icon: ScrollText },
     { labelKey: 'nav.fmSchedules', href: '/dashboard/fm/schedules', icon: CalendarClock },
     { labelKey: 'nav.fmReports',   href: '/dashboard/fm/reports',   icon: ChartBar },
