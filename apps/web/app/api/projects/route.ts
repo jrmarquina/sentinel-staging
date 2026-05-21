@@ -188,11 +188,17 @@ export async function POST(req: NextRequest) {
 
     const supabase = createClient()
 
+    // Auto-generate a unique code from the name + timestamp
+    const slug = name.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4) || 'PROJ'
+    const code = `${slug}-${Date.now().toString(36).toUpperCase().slice(-4)}`
+
     const insertData: Record<string, unknown> = {
       org_id:           session.orgId,
       name,
+      code,
       module,
       status:           'planning',
+      created_by:       session.userId,
       project_manager:  session.userId,
     }
     if (description)      insertData.description = description
