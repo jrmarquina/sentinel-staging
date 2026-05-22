@@ -760,7 +760,10 @@ export function ProjectsGanttPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!res.ok) throw new Error('Failed to create project')
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(body.error ?? `Failed to create project (HTTP ${res.status})`)
+      }
       setShowAddProject(false)
       await fetchData()
     } catch (e) {
