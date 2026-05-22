@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Download, Trash2, Loader2, AlertTriangle, FileBarChart,
   RefreshCw, BarChart3, Clock, CheckCircle2, AlertCircle, TrendingUp, Building2, Eye,
+  Pencil, Check, X as XIcon,
 } from 'lucide-react'
 import { useFmT } from '@/lib/locale'
 
@@ -126,6 +128,248 @@ function Sparkline({ data }: { data: { date: string; count: number }[] }) {
   )
 }
 
+// ── Portfolio types ────────────────────────────────────────────────────────
+
+interface PropertyScore {
+  property_id: string; property_name: string
+  score: number | null; completed_at: string | null; inspection_id: string
+}
+interface Deficiency {
+  id: string; key: string | null; label: string | null
+  result: string | null; severity: string | null; rating: number | null
+  notes: string | null; cost_estimate: number | null
+  inspection_id: string; property_id: string | null; property_name: string
+  work_order_id: string | null; wo_status: string | null; wo_title: string | null
+}
+interface PortfolioData {
+  kpis: { totalProperties: number; avgPortfolioScore: number; openDeficiencies: number; lifeSafetyCount: number; openWos: number; overdueWos: number }
+  propertiesWithScores: PropertyScore[]
+  lifeSafetyDeficiencies: Deficiency[]
+  session: { capability: string | null; role: string }
+}
+
+function scoreColor(s: number | null) {
+  if (s === null) return 'var(--muted)'
+  return s >= 80 ? '#10b981' : s >= 50 ? '#f59e0b' : '#ef4444'
+}
+function conditionLabel(s: number | null) {
+  if (s === null) return 'N/A'
+  return s >= 80 ? 'GOOD' : s >= 50 ? 'FAIR' : 'POOR'
+}
+function defType(key: string | null): { label: string; color: string } {
+  if (!key) return { label: 'HIGH PRIORITY', color: '#f97316' }
+  if (/^ls_\d+c$/.test(key)) return { label: 'LIFE SAFETY', color: '#dc2626' }
+  if (/^ad_\d+c$/.test(key)) return { label: 'ADA', color: '#d97706' }
+  return { label: 'HIGH PRIORITY', color: '#f97316' }
+}
+function fmtCurrency(v: number | null) {
+  if (v === null || v === undefined) return '—'
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v)
+}
+function isFmAdmin(cap: string | null, role: string) {
+  if (cap) return ['org_admin', 'fm_manager'].includes(cap)
+  return ['admin', 'supervisor'].includes(role)
+}
+function sortDefs(items: Deficiency[]) {
+  const rank = (d: Deficiency) => {
+    const k = d.key ?? ''
+    if (/^ls_\d+c$/.test(k)) return 0
+    if (/^ad_\d+c$/.test(k)) return 1
+    return 2
+  }
+  return [...items].sort((a, b) => rank(a) - rank(b))
+}
+
+function CostCell({ def, canEdit, onSaved }: { def: Deficiency; canEdit: boolean; onSaved: (id: string, v: number | null) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(def.cost_estimate != null ? String(def.cost_estimate) : '')
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    const parsed = val.trim() === '' ? null : parseFloat(val)
+    if (parsed !== null && (isNaN(parsed) || parsed < 0)) { setSaving(false); return }
+    const res = await fetch(`/api/fm/deficiencies/${def.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cost_estimate: parsed }),
+    })
+    if (res.ok) { onSaved(def.id, parsed); setEditing(false) }
+    setSaving(false)
+  }
+
+  if (!canEdit) return <span style={{ fontSize: 12, color: 'var(--muted)' }}>{fmtCurrency(def.cost_estimate)}</span>
+  if (editing) return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <input type="number" min={0} step={100} value={val} onChange={e => setVal(e.target.value)} autoFocus
+        onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
+        style={{ width: 80, fontSize: 12, padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--card-b)', color: 'var(--fg)' }} />
+      <button onClick={save} disabled={saving} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10b981', padding: 0 }}>
+        {saving ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={12} />}
+      </button>
+      <button onClick={() => setEditing(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 0 }}>
+        <XIcon size={12} />
+      </button>
+    </span>
+  )
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+      <span style={{ color: def.cost_estimate != null ? 'var(--fg)' : 'var(--muted)' }}>{fmtCurrency(def.cost_estimate)}</span>
+      <button onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 0 }}>
+        <Pencil size={10} />
+      </button>
+    </span>
+  )
+}
+
+// ── Portfolio section (renders inside AnalyticsPanel) ──────────────────────
+
+function PortfolioSection() {
+  const router = useRouter()
+  const [data, setData] = useState<PortfolioData | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/fm/analytics/portfolio')
+      .then(r => r.ok ? r.json() as Promise<PortfolioData> : Promise.reject())
+      .then(setData)
+      .catch(() => {/* silent — WO analytics still shows */})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleCostSaved = useCallback((id: string, v: number | null) => {
+    setData(prev => prev ? {
+      ...prev,
+      lifeSafetyDeficiencies: prev.lifeSafetyDeficiencies.map(d => d.id === id ? { ...d, cost_estimate: v } : d),
+    } : prev)
+  }, [])
+
+  const handleCreateWo = useCallback(async (def: Deficiency) => {
+    const res = await fetch(`/api/fm/deficiencies/${def.id}/work-order`, { method: 'POST' }).catch(() => null)
+    if (!res?.ok) return
+    const body = await res.json() as { work_order_id: string }
+    router.push(`/dashboard/fm/work-orders/${body.work_order_id}`)
+  }, [router])
+
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 0' }}>
+      <Loader2 size={20} style={{ animation: 'spin 1s linear infinite', color: 'var(--muted)' }} />
+    </div>
+  )
+  if (!data) return null
+
+  const { kpis, propertiesWithScores, lifeSafetyDeficiencies, session: sess } = data
+  const admin = isFmAdmin(sess.capability, sess.role)
+  const sorted = sortDefs(lifeSafetyDeficiencies)
+  const propsSorted = [...propertiesWithScores].sort((a, b) => (a.score ?? 100) - (b.score ?? 100))
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '0.5rem' }}>
+
+      {/* Alert banner */}
+      {kpis.lifeSafetyCount > 0 && (
+        <div style={{ background: '#dc26261a', border: '1px solid #dc2626', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, color: '#dc2626', fontSize: 13, fontWeight: 600 }}>
+          <AlertTriangle size={16} />
+          {kpis.lifeSafetyCount} Life Safety &amp; ADA {kpis.lifeSafetyCount === 1 ? 'Deficiency Requires' : 'Deficiencies Require'} Immediate Attention
+        </div>
+      )}
+
+      {/* Two-column: property condition | life safety panel */}
+      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+
+        {/* Property condition table */}
+        <div style={{ flex: '3 1 340px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '1rem 1.125rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: '0.875rem' }}>
+            <Building2 size={14} style={{ color: 'var(--primary)' }} />
+            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>Property Condition</p>
+          </div>
+          {propsSorted.length === 0 ? (
+            <p style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>No completed inspections yet.</p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  {['Property', 'Score', 'Condition', 'Last Inspection'].map(h => (
+                    <th key={h} style={{ padding: '0.3rem 0.5rem', textAlign: h === 'Property' ? 'left' : 'center', color: 'var(--muted)', fontWeight: 600, fontSize: '0.7rem', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {propsSorted.map(p => (
+                  <tr key={p.property_id} style={{ borderBottom: '1px solid var(--border)' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'var(--card-b)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent' }}>
+                    <td style={{ padding: '0.45rem 0.5rem', color: 'var(--fg)', fontWeight: 600, whiteSpace: 'nowrap' }}>{p.property_name}</td>
+                    <td style={{ padding: '0.45rem 0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ flex: 1, height: 6, background: 'var(--card-b)', borderRadius: 9999, overflow: 'hidden', minWidth: 60 }}>
+                          <div style={{ height: '100%', width: `${p.score ?? 0}%`, background: scoreColor(p.score), borderRadius: 9999 }} />
+                        </div>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: scoreColor(p.score), minWidth: 36, textAlign: 'right' }}>
+                          {p.score != null ? `${p.score}%` : '—'}
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '0.45rem 0.5rem', textAlign: 'center' }}>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: scoreColor(p.score), background: `${scoreColor(p.score)}1a`, padding: '2px 6px', borderRadius: 9999 }}>
+                        {conditionLabel(p.score)}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.45rem 0.5rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
+                      {p.completed_at ? new Date(p.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Life Safety & ADA panel */}
+        <div style={{ flex: '2 1 280px', background: 'var(--card)', border: kpis.lifeSafetyCount > 0 ? '1px solid #dc262640' : '1px solid var(--border)', borderRadius: 12, padding: '1rem 1.125rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: '0.875rem' }}>
+            <AlertTriangle size={14} style={{ color: kpis.lifeSafetyCount > 0 ? '#dc2626' : 'var(--muted)' }} />
+            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--fg)' }}>⚠ Life Safety &amp; ADA Deficiencies</p>
+          </div>
+          {sorted.length === 0 ? (
+            <p style={{ fontSize: '0.78rem', color: 'var(--teal)', fontWeight: 600 }}>✓ No open life safety or ADA deficiencies.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {sorted.map(def => {
+                const { label: typeLabel, color: typeColor } = defType(def.key)
+                return (
+                  <div key={def.id} style={{ padding: '0.625rem 0.75rem', background: 'var(--card-b)', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--muted)', fontWeight: 600 }}>{def.property_name}</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--fg)', fontWeight: 600, lineHeight: 1.3 }}>{def.label ?? '—'}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: typeColor, background: `${typeColor}1a`, padding: '2px 7px', borderRadius: 9999, whiteSpace: 'nowrap' }}>
+                        {typeLabel}
+                      </span>
+                      <CostCell def={def} canEdit={admin} onSaved={handleCostSaved} />
+                      {def.work_order_id ? (
+                        <a href={`/dashboard/fm/work-orders/${def.work_order_id}`}
+                          style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--primary)', textDecoration: 'none', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                          View WO →
+                        </a>
+                      ) : (
+                        <button onClick={() => handleCreateWo(def)}
+                          style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--primary)', background: 'none', border: '1px solid var(--primary)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                          Create WO
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+      </div>
+      <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0.5rem 0' }} />
+    </div>
+  )
+}
+
 // ── Analytics panel ────────────────────────────────────────────────────────
 
 function AnalyticsPanel() {
@@ -171,6 +415,9 @@ function AnalyticsPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+      {/* Portfolio condition + life safety section */}
+      <PortfolioSection />
 
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>

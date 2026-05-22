@@ -106,7 +106,6 @@ const ADMIN_FM_EXTRAS: NavSection = {
     { labelKey: 'nav.fmTemplates', href: '/dashboard/fm/templates', icon: ScrollText },
     { labelKey: 'nav.fmSchedules', href: '/dashboard/fm/schedules', icon: CalendarClock },
     { labelKey: 'nav.fmReports',   href: '/dashboard/fm/reports',   icon: ChartBar },
-    { labelKey: 'nav.fmAnalytics', href: '/dashboard/fm/analytics', icon: TrendingUp },
   ],
 }
 
