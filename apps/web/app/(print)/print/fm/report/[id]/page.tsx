@@ -263,43 +263,63 @@ export default async function FmReportPrintPage({
           </tbody>
         </table>
 
-        {/* Deficiencies across portfolio */}
+        {/* Deficiencies across portfolio — grouped by property */}
         {allDeficiencies.length > 0 && (
           <>
             <div className="page-break" />
             <h2 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0D1B2E', margin: '0 0 0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Open Deficiencies ({allDeficiencies.length})
             </h2>
-            <table style={{ marginBottom: '2rem', fontSize: '0.78rem' }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left' }}>Property</th>
-                  <th style={{ textAlign: 'left' }}>Component</th>
-                  <th style={{ textAlign: 'center' }}>Rating</th>
-                  <th style={{ textAlign: 'left' }}>Notes</th>
-                  <th style={{ textAlign: 'left' }}>Inspection Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allDeficiencies.map((def, idx) => (
-                  <tr key={`${def.id}-${idx}`}>
-                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{def.property.name}</td>
-                    <td>{def.label}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span style={{
-                        display: 'inline-block', padding: '1px 8px', borderRadius: 12,
-                        background: ratingColor(def.rating) + '22',
-                        color: ratingColor(def.rating), fontWeight: 700, fontSize: '0.72rem',
-                      }}>
-                        {def.rating} — {ratingLabel(def.rating)}
-                      </span>
-                    </td>
-                    <td style={{ color: '#475569' }}>{def.notes ?? '—'}</td>
-                    <td style={{ color: '#94a3b8', whiteSpace: 'nowrap' }}>{fmtDate(def.completedAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {Array.from(
+              allDeficiencies.reduce((map, def) => {
+                const pid = def.property.id
+                if (!map.has(pid)) map.set(pid, { property: def.property, items: [] })
+                map.get(pid)!.items.push(def)
+                return map
+              }, new Map<string, { property: Property; items: typeof allDeficiencies }>())
+              .values()
+            ).map(({ property, items }) => (
+              <div key={property.id} style={{ marginBottom: '1.75rem' }}>
+                {/* Property header */}
+                <div style={{ background: '#f1f5f9', padding: '0.4rem 0.75rem', borderRadius: '6px 6px 0 0', borderBottom: '2px solid #0D1B2E', marginBottom: 0 }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.82rem', color: '#0D1B2E' }}>{property.name}</span>
+                  {property.code && <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', color: '#64748b' }}>{property.code}</span>}
+                  <span style={{ marginLeft: '0.75rem', fontSize: '0.72rem', color: '#64748b' }}>{items.length} deficienc{items.length !== 1 ? 'ies' : 'y'}</span>
+                </div>
+                <table style={{ marginBottom: 0, fontSize: '0.78rem' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left' }}>Component</th>
+                      <th style={{ textAlign: 'center' }}>Rating</th>
+                      <th style={{ textAlign: 'left' }}>Notes</th>
+                      <th style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>Inspection Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items
+                      .sort((a, b) => (a.rating ?? 5) - (b.rating ?? 5))
+                      .map((def, idx) => (
+                        <tr key={`${def.id}-${idx}`}>
+                          <td>{def.label}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span style={{
+                              display: 'inline-block', padding: '1px 8px', borderRadius: 12,
+                              background: ratingColor(def.rating) + '22',
+                              color: ratingColor(def.rating), fontWeight: 700, fontSize: '0.72rem',
+                            }}>
+                              {def.rating} — {ratingLabel(def.rating)}
+                            </span>
+                          </td>
+                          <td style={{ color: def.notes ? '#1e293b' : '#94a3b8', fontStyle: def.notes ? 'normal' : 'italic' }}>
+                            {def.notes ?? 'No notes recorded'}
+                          </td>
+                          <td style={{ color: '#94a3b8', whiteSpace: 'nowrap' }}>{fmtDate(def.completedAt)}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
           </>
         )}
 
