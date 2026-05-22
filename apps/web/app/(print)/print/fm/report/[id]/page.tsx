@@ -143,11 +143,11 @@ export default async function FmReportPrintPage({
     // Recalculate each inspection's score from its items (canonical methodology)
     const inspectionScores = rows.map(r => computeScore(r.fm_checklist_item_responses))
 
-    const scoredCount = inspectionScores.filter(s => s !== null).length
-    const avgScore = scoredCount > 0
-      ? Math.round(inspectionScores.reduce((s, v) => s + (v ?? 0), 0) / scoredCount * 10) / 10
+    const scoredValues = inspectionScores.filter((s): s is number => s !== null)
+    const avgScore = scoredValues.length > 0
+      ? Math.round(scoredValues.reduce((s, v) => s + v, 0) / scoredValues.length * 10) / 10
       : null
-    const passing = inspectionScores.filter(s => s !== null && s >= 80).length
+    const passing = scoredValues.filter(s => s >= 80).length
     const passRate = totalInspections > 0 ? Math.round((passing / totalInspections) * 100) : null
 
     // All deficiencies across portfolio
@@ -227,11 +227,11 @@ export default async function FmReportPrintPage({
           <tbody>
             {Array.from(byProperty.values()).map(({ property, inspections: insps }) => {
               const propScores = insps.map(i => computeScore(i.fm_checklist_item_responses))
-              const scoredProp = propScores.filter(s => s !== null)
-              const propAvg = scoredProp.length > 0
-                ? Math.round(scoredProp.reduce((s, v) => s + (v ?? 0), 0) / scoredProp.length * 10) / 10
+              const propScored = propScores.filter((s): s is number => s !== null)
+              const propAvg = propScored.length > 0
+                ? Math.round(propScored.reduce((s, v) => s + v, 0) / propScored.length * 10) / 10
                 : null
-              const propPass = propScores.filter(s => s !== null && s >= 80).length
+              const propPass = propScored.filter(s => s >= 80).length
               const propPassRate = insps.length > 0 ? Math.round((propPass / insps.length) * 100) : null
               const defCount = insps.flatMap((i) =>
                 (i.fm_checklist_item_responses ?? []).filter((r) => r.rating !== null && r.rating <= 2)
