@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   Download, Trash2, Loader2, AlertTriangle, FileBarChart,
-  RefreshCw, BarChart3, Clock, CheckCircle2, AlertCircle, TrendingUp, Building2,
+  RefreshCw, BarChart3, Clock, CheckCircle2, AlertCircle, TrendingUp, Building2, Eye,
 } from 'lucide-react'
 import { useFmT } from '@/lib/locale'
 
@@ -546,13 +546,24 @@ export default function FMReportsPage() {
                   </p>
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '0.25rem' }}>
-                    {report.status === 'READY' && report.signed_url ? (
-                      <a href={report.signed_url} target="_blank" rel="noopener noreferrer"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.375rem 0.75rem', background: 'var(--teal)', color: '#fff', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none' }}>
-                        <Download size={13} />
-                        {t('rep.download')}
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <a
+                        href={`/print/fm/report/${report.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.375rem 0.75rem', background: 'var(--primary)', color: 'var(--primary-fg)', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none' }}
+                      >
+                        <Eye size={13} />
+                        {t('rep.view') || 'View'}
                       </a>
-                    ) : <div />}
+                      {report.status === 'READY' && report.signed_url && (
+                        <a href={report.signed_url} target="_blank" rel="noopener noreferrer"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.375rem 0.75rem', background: 'var(--teal)', color: '#fff', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none' }}>
+                          <Download size={13} />
+                          {t('rep.download')}
+                        </a>
+                      )}
+                    </div>
 
                     {confirmDelete === report.id ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
