@@ -33,17 +33,15 @@ export async function POST(
 
     const { data: items } = await supabase
       .from('fm_checklist_item_responses')
-      .select('id, result, severity')
+      .select('rating')
       .eq('inspection_id', params.id)
 
-    const total = items?.length ?? 0
-    const passes = (items ?? []).filter(i =>
-      i.result?.toLowerCase() === 'pass' ||
-      i.result?.toLowerCase() === 'yes' ||
-      !i.severity || i.severity === 'LOW'
-    ).length
-
-    const score = total > 0 ? (passes / total) * 100 : 100
+    // Score = average of all rated items (1–5 scale) normalised to 0–100.
+    // Unrated items are excluded — only what was actually assessed counts.
+    const rated = (items ?? []).filter(i => i.rating !== null)
+    const score = rated.length > 0
+      ? Math.round((rated.reduce((s, i) => s + (i.rating ?? 0), 0) / rated.length / 5) * 1000) / 10
+      : null
 
     // FM managers complete directly; inspectors go to pending approval
     const nextStatus = isFmManager(session.capability, session.role)
@@ -79,7 +77,7 @@ export async function POST(
         .from('fm_assets')
         .update({
           last_inspection: new Date().toISOString(),
-          condition: score > 80 ? 'GOOD' : score > 50 ? 'FAIR' : 'POOR',
+          condition: (score ?? 0) >= 80 ? 'GOOD' : (score ?? 0) >= 50 ? 'FAIR' : 'POOR',
         })
         .eq('id', inspection.asset_id)
         .eq('org_id', session.orgId)

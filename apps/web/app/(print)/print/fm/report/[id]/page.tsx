@@ -35,6 +35,16 @@ interface Inspection {
   items: ChecklistItem[]
 }
 
+// ── Scoring ────────────────────────────────────────────────────────────────
+
+/** Canonical score: avg of rated items (1–5) normalised to 0–100. */
+function computeScore(items: { rating: number | null }[]): number | null {
+  const rated = items.filter(i => i.rating !== null)
+  if (rated.length === 0) return null
+  const avg = rated.reduce((s, i) => s + (i.rating ?? 0), 0) / rated.length
+  return Math.round((avg / 5) * 1000) / 10   // one decimal, e.g. 55.8
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function ratingColor(r: number | null): string {
@@ -129,14 +139,15 @@ export default async function FmReportPrintPage({
     }
 
     const totalInspections = rows.length
-    const avgScore =
-      rows.filter((r) => r.score !== null).length > 0
-        ? Math.round(
-            rows.reduce((s, r) => s + (r.score ?? 0), 0) /
-              rows.filter((r) => r.score !== null).length
-          )
-        : null
-    const passing = rows.filter((r) => r.score !== null && r.score >= 80).length
+
+    // Recalculate each inspection's score from its items (canonical methodology)
+    const inspectionScores = rows.map(r => computeScore(r.fm_checklist_item_responses))
+
+    const scoredCount = inspectionScores.filter(s => s !== null).length
+    const avgScore = scoredCount > 0
+      ? Math.round(inspectionScores.reduce((s, v) => s + (v ?? 0), 0) / scoredCount * 10) / 10
+      : null
+    const passing = inspectionScores.filter(s => s !== null && s >= 80).length
     const passRate = totalInspections > 0 ? Math.round((passing / totalInspections) * 100) : null
 
     // All deficiencies across portfolio
@@ -215,11 +226,12 @@ export default async function FmReportPrintPage({
           </thead>
           <tbody>
             {Array.from(byProperty.values()).map(({ property, inspections: insps }) => {
-              const scored = insps.filter((i) => i.score !== null)
-              const propAvg = scored.length > 0
-                ? Math.round(scored.reduce((s, i) => s + (i.score ?? 0), 0) / scored.length)
+              const propScores = insps.map(i => computeScore(i.fm_checklist_item_responses))
+              const scoredProp = propScores.filter(s => s !== null)
+              const propAvg = scoredProp.length > 0
+                ? Math.round(scoredProp.reduce((s, v) => s + (v ?? 0), 0) / scoredProp.length * 10) / 10
                 : null
-              const propPass = insps.filter((i) => i.score !== null && i.score >= 80).length
+              const propPass = propScores.filter(s => s !== null && s >= 80).length
               const propPassRate = insps.length > 0 ? Math.round((propPass / insps.length) * 100) : null
               const defCount = insps.flatMap((i) =>
                 (i.fm_checklist_item_responses ?? []).filter((r) => r.rating !== null && r.rating <= 2)
@@ -333,6 +345,7 @@ export default async function FmReportPrintPage({
   const rated = items.filter((i) => i.rating !== null)
   const deficiencies = items.filter((i) => i.rating !== null && i.rating <= 2)
   const passing_items = items.filter((i) => i.rating !== null && i.rating >= 4)
+  const inspScore = computeScore(items)
 
   return (
     <div style={{ fontFamily: 'Georgia, serif', color: '#1e293b', maxWidth: 900, margin: '0 auto', padding: '2rem' }}>
@@ -387,7 +400,7 @@ export default async function FmReportPrintPage({
       {/* Score KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1.75rem' }}>
         {[
-          { label: 'Overall Score', value: inspection.score !== null ? `${Math.round(inspection.score)}%` : '—', color: scoreColor(inspection.score) },
+          { label: 'Overall Score', value: inspScore !== null ? `${inspScore}%` : '—', color: scoreColor(inspScore) },
           { label: 'Items Assessed', value: rated.length },
           { label: 'Deficiencies', value: deficiencies.length, color: deficiencies.length > 0 ? '#ef4444' : '#10b981' },
           { label: 'Good / Excellent', value: passing_items.length, color: '#10b981' },

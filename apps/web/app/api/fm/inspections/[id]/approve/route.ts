@@ -39,12 +39,24 @@ export async function POST(
       return err('Inspection is not pending approval', 400)
     }
 
+    // Recalculate score using canonical methodology: avg(rating) / 5 × 100
+    const { data: items } = await supabase
+      .from('fm_checklist_item_responses')
+      .select('rating')
+      .eq('inspection_id', params.id)
+
+    const rated = (items ?? []).filter(i => i.rating !== null)
+    const score = rated.length > 0
+      ? Math.round((rated.reduce((s, i) => s + (i.rating ?? 0), 0) / rated.length / 5) * 1000) / 10
+      : null
+
     const { data: updated, error } = await supabase
       .from('fm_inspections')
       .update({
         status: 'COMPLETED',
         completed_at: new Date().toISOString(),
         approved_by_id: session.userId,
+        score,
         updated_at: new Date().toISOString(),
       })
       .eq('id', params.id)
