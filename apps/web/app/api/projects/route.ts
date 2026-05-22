@@ -174,14 +174,19 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession()
+    console.log('[POST /api/projects] session:', session ? `role=${session.role} cap=${session.capability} org=${session.orgId}` : 'null')
     if (!session) return err('Unauthorized', 401)
-    if (!canWrite(session.capability, session.role)) return err('Forbidden', 403)
+    if (!canWrite(session.capability, session.role)) {
+      console.log('[POST /api/projects] canWrite FAILED — role:', session.role, 'cap:', session.capability)
+      return err('Forbidden', 403)
+    }
 
     let body: unknown
     try { body = await req.json() }
     catch { return err('Invalid JSON body', 400) }
 
     const parsed = createProjectSchema.safeParse(body)
+    console.log('[POST /api/projects] body parse:', parsed.success ? 'OK' : parsed.error.errors[0].message)
     if (!parsed.success) return err(parsed.error.errors[0].message, 400)
 
     const { name, description, start_date, planned_end_date, module, fm_property_id } = parsed.data
@@ -212,7 +217,11 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return err(error.message)
+    if (error) {
+      console.log('[POST /api/projects] Supabase insert error:', error.message, error.code, error.details)
+      return err(error.message)
+    }
+    console.log('[POST /api/projects] Created project:', project?.id)
     return NextResponse.json(project, { status: 201 })
   } catch (e) { return caught(e) }
 }
