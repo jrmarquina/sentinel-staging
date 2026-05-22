@@ -554,7 +554,7 @@ export default function FMReportsPage() {
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.375rem 0.75rem', background: 'var(--primary)', color: 'var(--primary-fg)', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none' }}
                       >
                         <Eye size={13} />
-                        {t('rep.view') || 'View'}
+                        View
                       </a>
                       {report.status === 'READY' && report.signed_url && (
                         <a href={report.signed_url} target="_blank" rel="noopener noreferrer"
