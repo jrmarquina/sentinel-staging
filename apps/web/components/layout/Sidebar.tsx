@@ -130,8 +130,26 @@ const ADMIN_SHARED: NavSection = {
 function getSections(
   capability: string | null,
   appMode: 'pw' | 'fm',
+  role?: string | null,
 ): NavSection[] {
-  if (!capability) return PW_SECTIONS  // legacy / unset — show PW read-only
+  // Legacy / unset capability — fall back to role-based sections
+  if (!capability) {
+    if (role === 'admin' || role === 'supervisor') {
+      if (appMode === 'fm') {
+        return [
+          ...FM_SECTIONS,
+          ADMIN_FM_EXTRAS,
+          ADMIN_SHARED,
+        ]
+      }
+      return [
+        ...PW_SECTIONS,
+        ADMIN_PW_EXTRAS,
+        ADMIN_SHARED,
+      ]
+    }
+    return PW_SECTIONS
+  }
 
   switch (capability) {
 
@@ -155,6 +173,7 @@ function getSections(
     case 'fm_manager':
       return [
         ...FM_SECTIONS,
+        ADMIN_FM_EXTRAS,
         FM_MANAGER_EXTRA,
       ]
 
@@ -213,12 +232,13 @@ interface SidebarProps {
   orgName?:        string
   userCapability?: string | null
   userDepartment?: string | null
+  userRole?:       string | null
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
 
 export function Sidebar({
-  mobileOpen, onClose, orgName, userCapability,
+  mobileOpen, onClose, orgName, userCapability, userRole,
 }: SidebarProps) {
   const pathname       = usePathname()
   const t              = useT()
@@ -232,8 +252,8 @@ export function Sidebar({
     ? (overrides[theme === 'dark' ? 'dark' : 'light'].logo === 'white' ? '/logo-white.png' : '/logo-black.png')
     : '/logo-white.png'
 
-  const isAdmin = userCapability === 'org_admin'
-  const sections = getSections(userCapability ?? null, appMode)
+  const isAdmin = userCapability === 'org_admin' || ((!userCapability) && userRole === 'admin')
+  const sections = getSections(userCapability ?? null, appMode, userRole ?? null)
 
   return (
     <>

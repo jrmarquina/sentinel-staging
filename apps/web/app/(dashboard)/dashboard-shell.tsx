@@ -48,6 +48,7 @@ export default function DashboardShell({
         orgName={orgName ?? undefined}
         userCapability={userCapability ?? null}
         userDepartment={userDepartment ?? null}
+        userRole={userRole ?? null}
       />
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
