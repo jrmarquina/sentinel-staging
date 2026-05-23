@@ -109,7 +109,7 @@ export async function GET() {
 
       const { data: allItems, error: itemsErr } = await supabase
         .from('fm_checklist_item_responses')
-        .select('id, key, label, result, severity, rating, notes, cost_estimate, inspection_id')
+        .select('id, key, label, result, severity, rating, notes, inspection_id')
         .eq('org_id', orgId)
         .in('inspection_id', batchIds)
 
@@ -173,7 +173,7 @@ export async function GET() {
             severity: item.severity as string | null,
             rating: item.rating as number | null,
             notes: item.notes as string | null,
-            cost_estimate: item.cost_estimate as number | null,
+            cost_estimate: null, // loaded on-demand via PATCH endpoint
             inspection_id: item.inspection_id as string,
             property_id: inspMap[item.inspection_id as string]?.property_id ?? null,
             property_name: inspMap[item.inspection_id as string]?.property_name ?? '—',

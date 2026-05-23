@@ -227,12 +227,16 @@ function PortfolioSection() {
   const router = useRouter()
   const [data, setData] = useState<PortfolioData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/fm/analytics/portfolio')
-      .then(r => r.ok ? r.json() as Promise<PortfolioData> : Promise.reject())
+      .then(async r => {
+        if (!r.ok) { const b = await r.json().catch(() => ({})) as { error?: string }; throw new Error(b.error ?? `HTTP ${r.status}`) }
+        return r.json() as Promise<PortfolioData>
+      })
       .then(setData)
-      .catch(() => {/* silent — WO analytics still shows */})
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load portfolio data'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -253,6 +257,11 @@ function PortfolioSection() {
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 0' }}>
       <Loader2 size={20} style={{ animation: 'spin 1s linear infinite', color: 'var(--muted)' }} />
+    </div>
+  )
+  if (error) return (
+    <div style={{ padding: '1rem', color: 'var(--red)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <AlertTriangle size={14} /> Portfolio data unavailable: {error}
     </div>
   )
   if (!data) return null
