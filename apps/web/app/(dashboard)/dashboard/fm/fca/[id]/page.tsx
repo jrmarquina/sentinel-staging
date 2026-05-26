@@ -40,15 +40,17 @@ interface TemplateField {
 }
 
 interface ItemResponse {
-  id:            string
-  key:           string
-  label:         string
-  result:        string | null
-  severity:      string | null
-  notes:         string | null
-  rating:        number | null
-  evidence:      EvidencePhoto[] | null
-  location_data: LocationPin | null
+  id:                 string
+  key:                string
+  label:              string
+  result:             string | null
+  severity:           string | null
+  notes:              string | null
+  inspector_notes:    string | null
+  recommended_action: string | null
+  rating:             number | null
+  evidence:           EvidencePhoto[] | null
+  location_data:      LocationPin | null
 }
 
 interface PropertyData {
@@ -71,12 +73,14 @@ interface FmInspection {
 }
 
 interface ResponseDraft {
-  result:   string | null
-  severity: string | null
-  notes:    string | null
-  rating:   number | null
-  evidence: EvidencePhoto[]
-  pin:      LocationPin | null
+  result:             string | null
+  severity:           string | null
+  notes:              string | null
+  inspector_notes:    string | null
+  recommended_action: string | null
+  rating:             number | null
+  evidence:           EvidencePhoto[]
+  pin:                LocationPin | null
 }
 
 interface FcaComponent {
@@ -417,16 +421,18 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
         const init: Record<string, ResponseDraft> = {}
         for (const item of data.fm_inspection_items ?? []) {
           init[item.key] = {
-            result:   item.result,
-            severity: item.severity,
-            notes:    item.notes,
-            rating:   item.rating,
-            evidence: Array.isArray(item.evidence) ? item.evidence : [],
-            pin:      item.location_data ?? null,
+            result:             item.result,
+            severity:           item.severity,
+            notes:              item.notes,
+            inspector_notes:    item.inspector_notes ?? null,
+            recommended_action: item.recommended_action ?? null,
+            rating:             item.rating,
+            evidence:           Array.isArray(item.evidence) ? item.evidence : [],
+            pin:                item.location_data ?? null,
           }
         }
         for (const f of fields) {
-          if (!init[f.id]) init[f.id] = { result: null, severity: null, notes: null, rating: null, evidence: [], pin: null }
+          if (!init[f.id]) init[f.id] = { result: null, severity: null, notes: null, inspector_notes: null, recommended_action: null, rating: null, evidence: [], pin: null }
         }
 
         // Load floor plans for this property (non-blocking)
@@ -470,12 +476,14 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
       const r = responsesRef.current[key]
       return {
         key,
-        result:   r?.result ?? null,
-        severity: r?.severity ?? null,
-        notes:    r?.notes ?? null,
-        rating:   r?.rating ?? null,
-        evidence: r?.evidence?.length ? r.evidence : null,
-        pin:      r?.pin ?? null,
+        result:             r?.result ?? null,
+        severity:           r?.severity ?? null,
+        notes:              r?.notes ?? null,
+        inspector_notes:    r?.inspector_notes ?? null,
+        recommended_action: r?.recommended_action ?? null,
+        rating:             r?.rating ?? null,
+        evidence:           r?.evidence?.length ? r.evidence : null,
+        pin:                r?.pin ?? null,
       }
     })
     try {
@@ -524,6 +532,16 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
 
   function setNotes(fieldId: string, notes: string) {
     setResponses(prev => ({ ...prev, [fieldId]: { ...prev[fieldId], notes: notes || null } }))
+    markDirty(fieldId)
+  }
+
+  function setInspectorNotes(fieldId: string, value: string) {
+    setResponses(prev => ({ ...prev, [fieldId]: { ...prev[fieldId], inspector_notes: value || null } }))
+    markDirty(fieldId)
+  }
+
+  function setRecommendedAction(fieldId: string, value: string) {
+    setResponses(prev => ({ ...prev, [fieldId]: { ...prev[fieldId], recommended_action: value || null } }))
     markDirty(fieldId)
   }
 
@@ -890,6 +908,10 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
                     onUrgency={v => comp.uField && setSeverityField(comp.uField.id, v)}
                     costValue={comp.eField ? (responses[comp.eField.id]?.notes ?? '') : ''}
                     onCostChange={v => comp.eField && setNotes(comp.eField.id, v)}
+                    inspectorNotes={responses[comp.cField.id]?.inspector_notes ?? ''}
+                    onInspectorNotes={v => setInspectorNotes(comp.cField.id, v)}
+                    recommendedAction={responses[comp.cField.id]?.recommended_action ?? ''}
+                    onRecommendedAction={v => setRecommendedAction(comp.cField.id, v)}
                     disabled={isCompleted}
                   />
                 ))}
@@ -1032,26 +1054,33 @@ function Rating5Card({
   evidence, onAddPhoto, onRemovePhoto,
   pin, onSetPin, floorPlans,
   descValue, onDescChange, urgency, onUrgency,
-  costValue, onCostChange, disabled,
+  costValue, onCostChange,
+  inspectorNotes, onInspectorNotes,
+  recommendedAction, onRecommendedAction,
+  disabled,
 }: {
-  comp:           FcaComponent
-  sectionId:      string
-  index:          number
-  rating:         number | null
-  onRating:       (v: number | null) => void
-  evidence:       EvidencePhoto[]
-  onAddPhoto:     (file: File) => Promise<void>
-  onRemovePhoto:  (photoId: string) => void
-  pin:            LocationPin | null
-  onSetPin:       (p: LocationPin | null) => void
-  floorPlans:     FloorPlan[]
-  descValue:      string
-  onDescChange:   (v: string) => void
-  urgency:        string | null
-  onUrgency:      (v: string | null) => void
-  costValue:      string
-  onCostChange:   (v: string) => void
-  disabled:       boolean
+  comp:                FcaComponent
+  sectionId:           string
+  index:               number
+  rating:              number | null
+  onRating:            (v: number | null) => void
+  evidence:            EvidencePhoto[]
+  onAddPhoto:          (file: File) => Promise<void>
+  onRemovePhoto:       (photoId: string) => void
+  pin:                 LocationPin | null
+  onSetPin:            (p: LocationPin | null) => void
+  floorPlans:          FloorPlan[]
+  descValue:           string
+  onDescChange:        (v: string) => void
+  urgency:             string | null
+  onUrgency:           (v: string | null) => void
+  costValue:           string
+  onCostChange:        (v: string) => void
+  inspectorNotes:      string
+  onInspectorNotes:    (v: string) => void
+  recommendedAction:   string
+  onRecommendedAction: (v: string) => void
+  disabled:            boolean
 }) {
   const [guideOpen, setGuideOpen]           = useState(false)
   const [uploading, setUploading]           = useState(false)
@@ -1419,6 +1448,39 @@ function Rating5Card({
               />
             </div>
           )}
+
+          {/* ── Structured commentary (RICS-style) ── */}
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Report Commentary
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--fg)', marginBottom: '0.4rem' }}>
+                Inspector Assessment
+              </label>
+              <textarea
+                value={inspectorNotes}
+                onChange={e => onInspectorNotes(e.target.value)}
+                disabled={disabled}
+                rows={3}
+                placeholder="Professional interpretation of observed conditions…"
+                style={{ width: '100%', padding: '0.6rem 0.75rem', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--fg)', fontSize: '0.875rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--fg)', marginBottom: '0.4rem' }}>
+                Recommended Action
+              </label>
+              <textarea
+                value={recommendedAction}
+                onChange={e => onRecommendedAction(e.target.value)}
+                disabled={disabled}
+                rows={2}
+                placeholder="Specific next step and timeline…"
+                style={{ width: '100%', padding: '0.6rem 0.75rem', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--fg)', fontSize: '0.875rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

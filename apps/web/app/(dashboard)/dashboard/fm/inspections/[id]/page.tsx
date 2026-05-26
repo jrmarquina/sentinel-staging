@@ -32,14 +32,17 @@ interface LocationPin {
 }
 
 interface FmInspectionItem {
-  id:            string
-  key:           string
-  label:         string
-  result:        string | null
-  severity:      string | null
-  notes:         string | null
-  evidence:      EvidencePhoto[] | null
-  location_data: LocationPin | null
+  id:                 string
+  key:                string
+  label:              string
+  result:             string | null
+  severity:           string | null
+  notes:              string | null
+  inspector_notes:    string | null
+  recommended_action: string | null
+  rating:             number | null
+  evidence:           EvidencePhoto[] | null
+  location_data:      LocationPin | null
 }
 
 interface FmWorkOrder {
@@ -411,6 +414,12 @@ export default function FMInspectionDetailPage() {
   const [approving, setApproving]   = useState(false)
   const [approveError, setApproveError] = useState<string | null>(null)
   const [viewerItem, setViewerItem] = useState<ViewerItem | null>(null)
+  const [checklistView, setChecklistView] = useState<'table' | 'report'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('fm_checklist_view') as 'table' | 'report') ?? 'table'
+    }
+    return 'table'
+  })
 
   const load = useCallback(() => {
     setLoading(true)
@@ -662,20 +671,44 @@ export default function FMInspectionDetailPage() {
 
         {/* ── Checklist ── */}
         <FmCard style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
             <FmSectionLabel>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <ClipboardCheck size={13} style={{ color: 'var(--primary)' }} />
                 {t('insp.fm.detail.checklist')} ({items.length})
               </span>
             </FmSectionLabel>
+            {/* View toggle */}
+            <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
+              {(['table', 'report'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => {
+                    setChecklistView(v)
+                    localStorage.setItem('fm_checklist_view', v)
+                  }}
+                  style={{
+                    padding: '0.3rem 0.75rem',
+                    fontSize: '0.72rem', fontWeight: 700,
+                    background: checklistView === v ? 'var(--primary)' : 'transparent',
+                    color: checklistView === v ? '#fff' : 'var(--muted)',
+                    border: 'none', cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    textTransform: 'uppercase', letterSpacing: '0.04em',
+                  }}
+                >
+                  {v === 'table' ? 'Form View' : 'Report View'}
+                </button>
+              ))}
+            </div>
           </div>
 
           {items.length === 0 ? (
             <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
               {t('insp.fm.detail.noItems')}
             </div>
-          ) : (
+          ) : checklistView === 'table' ? (
+            /* ── Form View (default table) ── */
             <div style={{ overflowX: 'auto' }}>
               <table className="fm-table">
                 <thead>
@@ -799,6 +832,137 @@ export default function FMInspectionDetailPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+          ) : (
+            /* ── Report View (RICS-style per-element cards) ── */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {items.map((item, idx) => {
+                const hasEvidence = Array.isArray(item.evidence) && item.evidence.length > 0
+                const linkedWOs   = workOrders.filter((w) => w.checklist_item_id === item.id)
+                const ratingNum   = item.rating
+                const ratingLabel = ratingNum === 3 ? '[3] Urgent'
+                  : ratingNum === 2 ? '[2] Attention'
+                  : ratingNum === 1 ? '[1] Satisfactory'
+                  : item.result?.toUpperCase() === 'NA' ? '[NI] Not Inspected'
+                  : item.result?.toUpperCase() === 'PASS' ? 'Pass'
+                  : item.result?.toUpperCase() === 'FAIL' ? 'Fail'
+                  : '—'
+                const ratingColor = ratingNum === 3 ? 'var(--red)'
+                  : ratingNum === 2 ? 'var(--amber)'
+                  : ratingNum === 1 ? 'var(--teal)'
+                  : 'var(--muted)'
+                const ratingBg = ratingNum === 3 ? 'var(--red-c)'
+                  : ratingNum === 2 ? 'var(--amber-c)'
+                  : ratingNum === 1 ? 'var(--teal-c)'
+                  : 'var(--card-b)'
+
+                const hasCommentary = item.notes || item.inspector_notes || item.recommended_action
+
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      padding: '1.25rem 1.5rem',
+                      borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none',
+                    }}
+                  >
+                    {/* Element header row */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem', marginBottom: hasCommentary ? '1rem' : 0 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--fg)', margin: '0 0 0.2rem 0' }}>
+                          {item.label}
+                        </p>
+                        {linkedWOs.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.3rem' }}>
+                            {linkedWOs.map((wo) => (
+                              <Link key={wo.id} href={`/dashboard/fm/work-orders/${wo.id}`} style={{ textDecoration: 'none' }}>
+                                <span style={{
+                                  fontSize: '0.65rem', fontWeight: 700,
+                                  padding: '0.15rem 0.4rem', borderRadius: 4,
+                                  background: 'var(--amber-c)', color: 'var(--amber)',
+                                  border: '1px solid var(--amber)',
+                                  display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                }}>
+                                  <Wrench size={9} /> WO
+                                </span>
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                        {hasEvidence && (
+                          <button
+                            onClick={() => setViewerItem({
+                              label: item.label,
+                              evidence: Array.isArray(item.evidence) ? item.evidence : [],
+                              pin: item.location_data,
+                            })}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                              fontSize: '0.72rem', fontWeight: 700,
+                              color: 'var(--primary)',
+                              background: 'var(--primary-c, rgba(59,130,246,0.1))',
+                              border: '1px solid rgba(59,130,246,0.3)',
+                              padding: '0.2rem 0.5rem', borderRadius: 6,
+                              cursor: 'pointer',
+                            }}
+                            title="View photos"
+                          >
+                            <ImageIcon size={10} />
+                            {(item.evidence as EvidencePhoto[]).length}
+                          </button>
+                        )}
+                        <span style={{
+                          fontSize: '0.75rem', fontWeight: 800,
+                          padding: '0.25rem 0.625rem', borderRadius: 6,
+                          background: ratingBg, color: ratingColor,
+                          border: `1px solid ${ratingColor}`,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {ratingLabel}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Commentary paragraphs */}
+                    {hasCommentary && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {item.notes && (
+                          <div>
+                            <p style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 0.2rem 0' }}>
+                              Field Observation
+                            </p>
+                            <p style={{ fontSize: '0.875rem', color: 'var(--fg)', margin: 0, lineHeight: 1.6 }}>
+                              {item.notes}
+                            </p>
+                          </div>
+                        )}
+                        {item.inspector_notes && (
+                          <div>
+                            <p style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 0.2rem 0' }}>
+                              Inspector Assessment
+                            </p>
+                            <p style={{ fontSize: '0.875rem', color: 'var(--fg)', margin: 0, lineHeight: 1.6 }}>
+                              {item.inspector_notes}
+                            </p>
+                          </div>
+                        )}
+                        {item.recommended_action && (
+                          <div style={{ background: 'var(--card-b)', borderRadius: 8, padding: '0.75rem 1rem', borderLeft: '3px solid var(--primary)' }}>
+                            <p style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 0.2rem 0' }}>
+                              Recommended Action
+                            </p>
+                            <p style={{ fontSize: '0.875rem', color: 'var(--fg)', margin: 0, lineHeight: 1.6 }}>
+                              {item.recommended_action}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </FmCard>

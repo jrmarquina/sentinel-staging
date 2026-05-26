@@ -27,15 +27,17 @@ interface TemplateField {
 }
 
 interface ItemResponse {
-  id:            string
-  key:           string
-  label:         string
-  result:        string | null
-  severity:      string | null
-  notes:         string | null
-  rating:        number | null
-  evidence:      EvidencePhoto[] | null
-  location_data: LocationPin | null
+  id:                 string
+  key:                string
+  label:              string
+  result:             string | null
+  severity:           string | null
+  notes:              string | null
+  inspector_notes:    string | null
+  recommended_action: string | null
+  rating:             number | null
+  evidence:           EvidencePhoto[] | null
+  location_data:      LocationPin | null
 }
 
 interface FmInspection {
@@ -480,6 +482,18 @@ export default async function FcaReportPage({ params }: { params: { id: string }
                           {item?.notes && (
                             <div style={{ fontSize: '0.85rem', color: '#475569', marginTop: '0.35rem' }}>
                               {item.notes}
+                            </div>
+                          )}
+                          {item?.inspector_notes && (
+                            <div style={{ fontSize: '0.85rem', color: '#1e293b', marginTop: '0.5rem' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inspector Assessment — </span>
+                              {item.inspector_notes}
+                            </div>
+                          )}
+                          {item?.recommended_action && (
+                            <div style={{ fontSize: '0.85rem', marginTop: '0.5rem', paddingLeft: '0.75rem', borderLeft: '3px solid #2563eb', color: '#1e293b' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Recommended Action — </span>
+                              {item.recommended_action}
                             </div>
                           )}
                         </div>

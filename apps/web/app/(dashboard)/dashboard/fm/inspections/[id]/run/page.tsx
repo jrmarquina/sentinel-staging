@@ -31,6 +31,9 @@ interface ChecklistItem {
   result: string | null
   severity: string | null
   notes: string | null
+  inspector_notes: string | null
+  recommended_action: string | null
+  rating: number | null
   evidence: EvidencePhoto[] | null
   location_data: LocationPin | null
 }
@@ -76,11 +79,14 @@ type Result   = 'PASS' | 'FAIL' | 'NA'
 type Severity = 'LOW' | 'MEDIUM' | 'HIGH'
 
 interface ItemState {
-  result:    string | null
-  severity:  string | null
-  notes:     string | null
-  evidence:  EvidencePhoto[]
-  pin:       LocationPin | null
+  result:             string | null
+  severity:           string | null
+  notes:              string | null
+  inspector_notes:    string | null
+  recommended_action: string | null
+  rating:             number | null
+  evidence:           EvidencePhoto[]
+  pin:                LocationPin | null
 }
 
 // ── Result / Severity button styles ───────────────────────────────────────
@@ -102,6 +108,14 @@ const STOPLIGHT_CONFIG: { value: Severity; emoji: string; label: string; subLabe
   { value: 'LOW',    emoji: '🟢', label: 'Can wait',                  subLabel: 'Low urgency',                color: '#166534', bg: '#dcfce7', border: '#86efac' },
   { value: 'MEDIUM', emoji: '🟡', label: 'Schedule within 7 days',    subLabel: 'Moderate urgency',           color: '#854d0e', bg: '#fefce8', border: '#fde047' },
   { value: 'HIGH',   emoji: '🔴', label: 'Immediate — notify manager', subLabel: 'High urgency',              color: '#991b1b', bg: '#fef2f2', border: '#fca5a5' },
+]
+
+// Condition rating scale (FCA / RATING_5 fields)
+const RATING_CONFIG: { value: number | null; label: string; subLabel: string; color: string; bg: string; border: string }[] = [
+  { value: 3,    label: '[3] Urgent',       subLabel: 'Immediate action required',    color: '#991b1b', bg: '#fef2f2', border: '#fca5a5' },
+  { value: 2,    label: '[2] Attention',    subLabel: 'Address in next budget cycle', color: '#854d0e', bg: '#fefce8', border: '#fde047' },
+  { value: 1,    label: '[1] Satisfactory', subLabel: 'No repair needed',             color: '#166534', bg: '#dcfce7', border: '#86efac' },
+  { value: null, label: '[NI] Not Inspected', subLabel: 'Access not possible',        color: '#374151', bg: '#f3f4f6', border: '#d1d5db' },
 ]
 
 // ── Image compression ─────────────────────────────────────────────────────
@@ -536,11 +550,14 @@ export default function InspectionRunPage() {
         for (const item of fetched) {
           // DB stores result lowercase ('pass','fail') — normalise to uppercase for the UI
           state[item.key] = {
-            result:   item.result ? item.result.toUpperCase() : null,
-            severity: item.severity,
-            notes:    item.notes,
-            evidence: Array.isArray(item.evidence) ? item.evidence : [],
-            pin:      item.location_data ?? null,
+            result:             item.result ? item.result.toUpperCase() : null,
+            severity:           item.severity,
+            notes:              item.notes,
+            inspector_notes:    (item as ChecklistItem).inspector_notes ?? null,
+            recommended_action: (item as ChecklistItem).recommended_action ?? null,
+            rating:             (item as ChecklistItem).rating ?? null,
+            evidence:           Array.isArray(item.evidence) ? item.evidence : [],
+            pin:                item.location_data ?? null,
           }
         }
         setItemState(state)
@@ -606,7 +623,7 @@ export default function InspectionRunPage() {
     try {
       const updates = keysToSave.map((key) => ({
         key,
-        ...(itemState[key] ?? { result: null, severity: null, notes: null, evidence: [], pin: null }),
+        ...(itemState[key] ?? { result: null, severity: null, notes: null, inspector_notes: null, recommended_action: null, rating: null, evidence: [], pin: null }),
       })).map(({ pin, evidence, ...rest }) => ({
         ...rest,
         evidence: evidence.length ? evidence : null,
@@ -756,6 +773,7 @@ export default function InspectionRunPage() {
   const hasWO         = woCreated.has(currentId)
   const currentType   = fieldTypes[currentKey] ?? 'PASS_FAIL'
   const isStoplight   = currentType === 'STOPLIGHT'
+  const isRating      = currentType === 'RATING_5'
 
   return (
     <>
@@ -868,8 +886,41 @@ export default function InspectionRunPage() {
               )}
             </div>
 
-            {/* STOPLIGHT urgency buttons */}
-            {isStoplight ? (
+            {/* RATING_5 condition rating buttons (FCA) */}
+            {isRating ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                {RATING_CONFIG.map((btn) => {
+                  const isActive = btn.value === null
+                    ? state.result === 'NA' && state.rating === null
+                    : state.rating === btn.value
+                  return (
+                    <button
+                      key={btn.value ?? 'ni'}
+                      onClick={() => updateItem(currentKey, {
+                        rating:  btn.value,
+                        result:  btn.value === null ? 'NA' : String(btn.value),
+                        severity: null,
+                      })}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.875rem',
+                        padding: '0.875rem 1rem', borderRadius: 14,
+                        border: `2px solid ${isActive ? btn.border : 'var(--border)'}`,
+                        background: isActive ? btn.bg : 'var(--card-b)',
+                        color: isActive ? btn.color : 'var(--fg)',
+                        cursor: 'pointer', transition: 'all 0.15s ease',
+                        touchAction: 'manipulation', textAlign: 'left',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 800 }}>{btn.label}</div>
+                        <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>{btn.subLabel}</div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : isStoplight ? (
+              /* STOPLIGHT urgency buttons */
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                 {STOPLIGHT_CONFIG.map((btn) => {
                   const isActive = state.severity === btn.value
@@ -958,18 +1009,55 @@ export default function InspectionRunPage() {
               </div>
             )}
 
-            {/* Notes — always on STOPLIGHT, on FAIL otherwise */}
-            {(isStoplight || state.result === 'FAIL') && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('insp.run.notes')}</p>
-                <textarea
-                  value={state.notes ?? ''}
-                  onChange={(e) => updateItem(currentKey, { notes: e.target.value })}
-                  rows={3}
-                  placeholder={t('insp.run.notesPlaceholder')}
-                  className="fm-input"
-                  style={{ resize: 'vertical', fontSize: '0.9rem', minHeight: 70 }}
-                />
+            {/* Commentary fields — always for RATING_5; on STOPLIGHT or FAIL for other types */}
+            {(isRating || isStoplight || state.result === 'FAIL') && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                {/* Field Observation */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+                    {t('insp.run.notes')}
+                  </p>
+                  <textarea
+                    value={state.notes ?? ''}
+                    onChange={(e) => updateItem(currentKey, { notes: e.target.value })}
+                    rows={3}
+                    placeholder={t('insp.run.notesPlaceholder')}
+                    className="fm-input"
+                    style={{ resize: 'vertical', fontSize: '0.9rem', minHeight: 64 }}
+                  />
+                </div>
+
+                {/* Inspector Assessment */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+                    Inspector Assessment
+                  </p>
+                  <textarea
+                    value={state.inspector_notes ?? ''}
+                    onChange={(e) => updateItem(currentKey, { inspector_notes: e.target.value })}
+                    rows={3}
+                    placeholder="Professional interpretation of observed conditions…"
+                    className="fm-input"
+                    style={{ resize: 'vertical', fontSize: '0.9rem', minHeight: 64 }}
+                  />
+                </div>
+
+                {/* Recommended Action */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+                    Recommended Action
+                  </p>
+                  <textarea
+                    value={state.recommended_action ?? ''}
+                    onChange={(e) => updateItem(currentKey, { recommended_action: e.target.value })}
+                    rows={2}
+                    placeholder="Specific next step and timeline…"
+                    className="fm-input"
+                    style={{ resize: 'vertical', fontSize: '0.9rem', minHeight: 52 }}
+                  />
+                </div>
+
               </div>
             )}
 

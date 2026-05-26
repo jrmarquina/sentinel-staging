@@ -25,6 +25,9 @@ const updateItemsSchema = z.object({
     result: z.string().nullable().optional(),
     severity: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
+    // Structured commentary fields for RICS-style report view
+    inspector_notes:    z.string().nullable().optional(),
+    recommended_action: z.string().nullable().optional(),
     // 1-5 condition rating used by FCA assessments; null for pass/fail inspections
     rating: z.number().int().min(1).max(5).nullable().optional(),
     evidence: z.unknown().optional(),
@@ -75,12 +78,14 @@ export async function PATCH(
       const itemId = itemMap.get(item.key)
 
       const payload = {
-        result:        item.result != null ? item.result.toLowerCase() : null,
-        severity:      item.severity ?? null,
-        notes:         item.notes ?? null,
-        rating:        item.rating ?? null,
-        evidence:      item.evidence ?? null,
-        location_data: item.pin ?? null,
+        result:             item.result != null ? item.result.toLowerCase() : null,
+        severity:           item.severity ?? null,
+        notes:              item.notes ?? null,
+        inspector_notes:    item.inspector_notes ?? null,
+        recommended_action: item.recommended_action ?? null,
+        rating:             item.rating ?? null,
+        evidence:           item.evidence ?? null,
+        location_data:      item.pin ?? null,
       } as Record<string, unknown>
 
       let saveError: unknown = null
