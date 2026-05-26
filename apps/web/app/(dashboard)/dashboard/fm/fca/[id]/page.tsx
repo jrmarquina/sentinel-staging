@@ -400,6 +400,7 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
   const [sidebarOpen, setSidebarOpen]         = useState(true)
   const [generating, setGenerating]           = useState(false)
   const [floorPlans, setFloorPlans]           = useState<FloorPlan[]>([])
+  const [copiedStatus, setCopiedStatus]       = useState(false)
 
   const dirtyRef     = useRef<Set<string>>(new Set())
   const timerRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -587,6 +588,76 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
+  function buildStatusBlock() {
+    const ratingLabel = (v: number | null) => {
+      if (v === 1) return 'Critical'
+      if (v === 2) return 'Poor'
+      if (v === 3) return 'Fair'
+      if (v === 4) return 'Good'
+      if (v === 5) return 'Excellent'
+      return null
+    }
+
+    const propertyName = insp?.fm_properties?.name ?? 'Unknown Property'
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+
+    const needsCommentary:  string[] = []
+    const commentaryDone:   string[] = []
+    const notRated:         string[] = []
+
+    for (const sec of sections) {
+      if (sec.isProfile) continue
+      for (const comp of sec.components) {
+        if (!isVisible(comp.cField, responses)) continue
+        const r   = responses[comp.cField.id]
+        const rating = r?.rating ?? null
+        const hasCommentary = !!(r?.inspector_notes?.trim() || r?.recommended_action?.trim())
+        const line = `${comp.cField.id} · ${comp.cField.label}${rating ? ` — ${ratingLabel(rating)} (${rating})` : ''}`
+
+        if (rating !== null && hasCommentary) {
+          commentaryDone.push(`  ${line} ✓`)
+        } else if (rating !== null) {
+          needsCommentary.push(`  ${line}`)
+        } else {
+          notRated.push(`  ${line}`)
+        }
+      }
+    }
+
+    const lines: string[] = [
+      `INSPECTION: ${propertyName} | ${params.id}`,
+      `DATE: ${today}`,
+      '',
+    ]
+
+    if (needsCommentary.length > 0) {
+      lines.push('RATED — need commentary:')
+      lines.push(...needsCommentary)
+      lines.push('')
+    }
+
+    if (commentaryDone.length > 0) {
+      lines.push('RATED — commentary done:')
+      lines.push(...commentaryDone)
+      lines.push('')
+    }
+
+    if (notRated.length > 0) {
+      lines.push('NOT RATED yet:')
+      lines.push(...notRated)
+    }
+
+    return lines.join('\n').trimEnd()
+  }
+
+  function copyStatusBlock() {
+    const text = buildStatusBlock()
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedStatus(true)
+      setTimeout(() => setCopiedStatus(false), 2500)
+    })
+  }
+
   async function complete() {
     await flush()
     const res = await fetch(`/api/fm/inspections/${params.id}/complete`, { method: 'POST' })
@@ -701,6 +772,16 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
               {generating ? 'Generating…' : 'Generate Inspection'}
             </FmButton>
           )}
+
+          <FmButton
+            size="sm"
+            variant={copiedStatus ? 'success' : 'secondary'}
+            icon={copiedStatus ? <CheckCircle2 size={14} /> : <ClipboardCheck size={14} />}
+            onClick={copyStatusBlock}
+            title="Copy AI status block to clipboard — paste into Claude Project at start of inspection"
+          >
+            {copiedStatus ? 'Copied!' : 'AI Status'}
+          </FmButton>
 
           <a
             href={`/print/fca/${params.id}`}
