@@ -313,11 +313,11 @@ function CiTile({ ci }: { ci: { ok: boolean; runs: WorkflowRun[]; error?: string
       <TileHeader icon={<Package size={14} />} title="CI / CD" ok={ci.ok} badge="GitHub Actions" />
       {!ci.ok ? (
         <NotConfigured label="GitHub" />
-      ) : ci.runs.length === 0 ? (
+      ) : (ci.runs ?? []).length === 0 ? (
         <p className="text-xs text-slate-400">No workflow runs found.</p>
       ) : (
         <div className="space-y-2">
-          {ci.runs.slice(0, 6).map(r => {
+          {(ci.runs ?? []).slice(0, 6).map(r => {
             const s = conclusionStyle(r)
             return (
               <div key={r.id} className="flex items-center gap-2">
@@ -343,11 +343,11 @@ function ContaboTile({ contabo }: { contabo: { ok: boolean; snapshots: ContaboSn
       <TileHeader icon={<HardDrive size={14} />} title="VPS Snapshots" ok={contabo.ok} badge="Contabo" />
       {!contabo.ok ? (
         <NotConfigured label="Contabo" />
-      ) : contabo.snapshots.length === 0 ? (
+      ) : (contabo.snapshots ?? []).length === 0 ? (
         <p className="text-xs text-slate-400">No snapshots found in this instance.</p>
       ) : (
         <div className="space-y-1.5">
-          {contabo.snapshots.slice(0, 6).map(s => (
+          {(contabo.snapshots ?? []).slice(0, 6).map(s => (
             <div key={s.snapshotId} className="flex items-start gap-2">
               <CheckCircle2 size={11} className="text-emerald-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
@@ -559,7 +559,7 @@ export function SystemHealthOverlay({ onClose }: { onClose: () => void }) {
 
             {/* Backups row: B2 + Contabo snapshots + changelog */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {backups && <BackupsTile backups={backups.files} />}
+              {backups?.files && <BackupsTile backups={backups.files} />}
               {data    && <ContaboTile contabo={data.contabo} />}
               {data    && <ChangelogTile changelog={data.changelog} />}
             </div>
