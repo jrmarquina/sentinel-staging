@@ -155,7 +155,7 @@ export default function FMPropertiesPage() {
     setLoading(true)
     fetch('/api/fm/properties')
       .then((r) => {
-        if (!r.ok) throw new Error('Error al cargar las propiedades')
+        if (!r.ok) throw new Error(t('prop.error'))
         return r.json() as Promise<FmProperty[]>
       })
       .then(setProperties)
