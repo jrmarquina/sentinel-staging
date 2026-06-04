@@ -23,9 +23,17 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // Use getSession() (local cookie read) instead of getUser() (network call
+  // to GoTrue on every request). getUser() validated with the auth server on
+  // every single page hit — ~300–600ms per request. getSession() reads the
+  // JWT from the cookie and only makes a network call when the access token
+  // has expired and needs refreshing via the refresh token.
+  // Real security is enforced in each Server Component via getSession() →
+  // auth.getUser() and in every API route via requireRole().
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    data: { session },
+  } = await supabase.auth.getSession()
+  const user = session?.user ?? null
 
   const { pathname } = request.nextUrl
 

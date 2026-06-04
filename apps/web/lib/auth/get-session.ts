@@ -1,4 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
+import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import {
   normalizeFmRole as _normalizeFmRole,
   roleToFmLabel as _roleToFmLabel,
@@ -28,22 +30,102 @@ export interface SessionProfile {
   roleColor: string | null    // hex colour for UI badge
 }
 
+// ── Profile cache (Fix 3) ────────────────────────────────────────────────────
+//
+// The session profile (role, capability, org info) is fetched via the service
+// role client so it can be cached independently of the user's auth cookie.
+// Cache TTL: 60 seconds per user. Invalidate immediately after a role change
+// by calling revalidateTag(`session-${userId}`) from the admin action.
+//
+// Uses the admin client so the cached function has no dependency on the
+// user's rotating access token — only the stable userId matters for caching.
+//
+type RawProfileRow = {
+  org_id: string
+  full_name: string | null
+  avatar_url: string | null
+  department: string | null
+  organizations: { name: string; slug: string } | null
+  user_roles: Array<{
+    role: string
+    org_role_definitions: {
+      slug: string | null
+      capability_level: string | null
+      name: string | null
+      color: string | null
+    } | null
+  }>
+}
+
+function buildProfileFromRow(userId: string, row: RawProfileRow, email?: string): SessionProfile {
+  const ur  = row.user_roles?.[0]
+  const ord = ur?.org_role_definitions ?? null
+  const org = row.organizations
+  return {
+    userId,
+    orgId:      row.org_id,
+    orgName:    org?.name   ?? 'Sentinel',
+    orgSlug:    org?.slug   ?? '',
+    fullName:   row.full_name,
+    avatarUrl:  row.avatar_url,
+    role:       (ur?.role ?? 'viewer') as AppRole,
+    email,
+    department: row.department ?? null,
+    capability: ord?.capability_level ?? null,
+    roleSlug:   ord?.slug       ?? null,
+    roleName:   ord?.name       ?? null,
+    roleColor:  ord?.color      ?? null,
+  }
+}
+
+// unstable_cache: runs at most once per 60 s per userId across all requests.
+// The admin client (service role) needs no user cookie — safe to cache.
+function fetchProfileCached(userId: string, email: string | undefined) {
+  return unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          org_id,
+          full_name,
+          avatar_url,
+          department,
+          organizations!inner ( name, slug ),
+          user_roles (
+            role,
+            org_role_definitions ( slug, capability_level, name, color )
+          )
+        `)
+        .eq('id', userId)
+        .is('deleted_at', null)
+        .single()
+
+      if (error || !data) return null
+      return buildProfileFromRow(userId, data as unknown as RawProfileRow, email)
+    },
+    [`session-profile`, userId],
+    { revalidate: 60, tags: [`session-${userId}`] },
+  )()
+}
+
 /**
  * Server-side session resolver.
  *
- * Returns the authenticated user's full profile in one Supabase RPC call.
- * Use this in Server Components and API routes instead of calling
- * auth.getUser() + profiles + user_roles separately.
+ * Validates the user with GoTrue (auth.getUser), then fetches their profile
+ * from a 60-second unstable_cache backed by the admin client — no per-request
+ * round-trip to PostgREST after the first call within the TTL.
+ *
+ * Wrapped in React cache() so multiple Server Components in the same render
+ * share a single resolution with zero extra network calls.
+ *
+ * To invalidate immediately after a role change:
+ *   import { revalidateTag } from 'next/cache'
+ *   revalidateTag(`session-${userId}`)
  *
  * Returns null when not authenticated.
- *
- * @example
- * ```ts
- * const session = await getSession()
- * if (!session) redirect('/login')
- * ```
  */
-export async function getSession(): Promise<SessionProfile | null> {
+export const getSession = cache(async (): Promise<SessionProfile | null> => {
   const supabase = createClient()
 
   const {
@@ -52,49 +134,14 @@ export async function getSession(): Promise<SessionProfile | null> {
 
   if (!user) return null
 
-  const { data, error } = await supabase.rpc('get_my_profile').single()
-
-  // Happy path: profile row exists
-  if (!error && data) {
-    const row = data as {
-      user_id: string
-      org_id: string
-      org_name: string
-      org_slug: string
-      full_name: string | null
-      avatar_url: string | null
-      role: string
-      department: string | null
-      capability: string | null
-      role_slug: string | null
-      role_name: string | null
-      role_color: string | null
-    }
-
-    return {
-      userId:     row.user_id,
-      orgId:      row.org_id,
-      orgName:    row.org_name,
-      orgSlug:    row.org_slug,
-      fullName:   row.full_name,
-      avatarUrl:  row.avatar_url,
-      role:       row.role as AppRole,
-      email:      user.email,
-      department: row.department ?? null,
-      capability: row.capability ?? null,
-      roleSlug:   row.role_slug ?? null,
-      roleName:   row.role_name ?? null,
-      roleColor:  row.role_color ?? null,
-    }
-  }
+  // Attempt cached profile lookup (admin client, 60 s TTL)
+  const cached = await fetchProfileCached(user.id, user.email)
+  if (cached) return cached
 
   // Fallback: auth user exists but profile not yet provisioned.
-  // Return a minimal session so the layout doesn't redirect to /login
-  // in a loop. The user will see a viewer-level dashboard until an
-  // admin assigns their profile (or the handle_new_user trigger catches up).
   return {
     userId:     user.id,
-    orgId:      '00000000-0000-0000-0000-000000000001', // default org
+    orgId:      '00000000-0000-0000-0000-000000000001',
     orgName:    'Sentinel',
     orgSlug:    'sentinel',
     fullName:   user.user_metadata?.full_name ?? null,
@@ -107,7 +154,7 @@ export async function getSession(): Promise<SessionProfile | null> {
     roleName:   null,
     roleColor:  null,
   }
-}
+})
 
 /**
  * Like getSession() but throws a typed error response when the user
