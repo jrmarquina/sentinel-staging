@@ -1422,12 +1422,102 @@ function FullScreenTimeline({ events, properties, onClose }: { events: Scheduled
   )
 }
 
+// ── Compact Projects View (used inside MaintenanceTimeline) ───────────────
+
+interface CompactProject {
+  id: string
+  name: string
+  status: string
+  planned_end_date?: string | null
+}
+
+function ProjectsCompactView() {
+  const router = useRouter()
+  const t = useFmT()
+  const [projects, setProjects] = useState<CompactProject[]>([])
+  const [loading, setLoading]   = useState(true)
+
+  useEffect(() => {
+    fetch('/api/projects?module=fm')
+      .then((r) => r.ok ? r.json() as Promise<{ projects: CompactProject[] }> : Promise.reject())
+      .then((data) => setProjects(
+        (data.projects ?? []).filter((p) => p.status !== 'completed' && p.status !== 'cancelled')
+      ))
+      .catch(() => setProjects([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', color: 'var(--muted)' }}>
+      <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+    </div>
+  )
+
+  if (projects.length === 0) return (
+    <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+      <p style={{ color: 'var(--muted)', fontSize: '0.8rem', opacity: 0.5 }}>No active projects</p>
+      <Link href="/dashboard/projects/new" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none', marginTop: '0.5rem', display: 'inline-block' }}>
+        Create a project →
+      </Link>
+    </div>
+  )
+
+  const today = new Date()
+
+  const STATUS_BADGE: Record<string, { bg: string; color: string }> = {
+    planning: { bg: '#ede9fe', color: '#7c3aed' },
+    active:   { bg: '#dcfce7', color: '#16a34a' },
+    on_hold:  { bg: '#fef9c3', color: '#854d0e' },
+    draft:    { bg: 'var(--card-b)', color: 'var(--muted)' },
+  }
+
+  return (
+    <div>
+      {projects.map((proj) => {
+        const end = proj.planned_end_date ? new Date(proj.planned_end_date) : null
+        const isOverdue = end && end < today
+        const badge = STATUS_BADGE[proj.status] ?? STATUS_BADGE.draft
+
+        return (
+          <div
+            key={proj.id}
+            onClick={() => router.push(`/dashboard/projects/${proj.id}`)}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.6rem 0', borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.1s' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--card-b)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontWeight: 700, fontSize: '0.78rem', color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {proj.name}
+              </p>
+              {proj.planned_end_date && (
+                <p style={{ fontSize: '0.62rem', color: isOverdue ? 'var(--red)' : 'var(--muted)', margin: '0.15rem 0 0', fontWeight: isOverdue ? 700 : 400 }}>
+                  {isOverdue ? 'Overdue · ' : 'Due '}
+                  {new Date(proj.planned_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </p>
+              )}
+            </div>
+            <span style={{ fontSize: '0.58rem', fontWeight: 800, padding: '2px 7px', borderRadius: 99, background: badge.bg, color: badge.color, flexShrink: 0, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+              {proj.status.replace('_', ' ')}
+            </span>
+          </div>
+        )
+      })}
+      <div style={{ marginTop: '0.75rem', textAlign: 'right' }}>
+        <Link href="/dashboard/projects" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>
+          {t('viewAll')} →
+        </Link>
+      </div>
+    </div>
+  )
+}
+
 // ── Maintenance Timeline widget ────────────────────────────────────────────
 
 function MaintenanceTimeline({ events, properties }: { events: ScheduledEvent[]; properties: PropertyGeo[] }) {
   const t = useFmT()
   const router = useRouter()
-  const [viewMode, setViewMode] = useState<'gantt' | 'calendar'>('calendar')
+  const [viewMode, setViewMode] = useState<'projects' | 'calendar'>('calendar')
   const [isFullScreen, setIsFullScreen] = useState(false)
 
   return (
@@ -1441,7 +1531,7 @@ function MaintenanceTimeline({ events, properties }: { events: ScheduledEvent[];
             </span>
           </FmSectionLabel>
           <div style={{ display: 'flex', background: 'var(--card-b)', borderRadius: 8, padding: 2, border: '1px solid var(--border)' }}>
-            {(['calendar', 'gantt'] as const).map((mode) => (
+            {(['calendar', 'projects'] as const).map((mode) => (
               <button key={mode} onClick={() => setViewMode(mode)} style={{
                 padding: '4px 11px', border: 'none', borderRadius: 6, cursor: 'pointer',
                 fontSize: '0.63rem', fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.06em',
@@ -1449,7 +1539,7 @@ function MaintenanceTimeline({ events, properties }: { events: ScheduledEvent[];
                 color: viewMode === mode ? '#fff' : 'var(--muted)',
                 transition: 'all 0.15s ease',
               }}>
-                {mode === 'calendar' ? t('dash.twoWeeks') : 'Gantt'}
+                {mode === 'calendar' ? t('dash.twoWeeks') : 'Projects'}
               </button>
             ))}
           </div>
@@ -1463,8 +1553,8 @@ function MaintenanceTimeline({ events, properties }: { events: ScheduledEvent[];
         </button>
       </div>
 
-      {viewMode === 'gantt'
-        ? <GanttTimeline events={events} />
+      {viewMode === 'projects'
+        ? <ProjectsCompactView />
         : <TwoMonthCalendar events={events} router={router} />
       }
 
@@ -1479,17 +1569,28 @@ function MaintenanceTimeline({ events, properties }: { events: ScheduledEvent[];
 
 export default function FMDashboardPage() {
   const t = useFmT()
-  const [data, setData]       = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState<string | null>(null)
+  const [data, setData]         = useState<DashboardData | null>(null)
+  const [kpi, setKpi]           = useState<Partial<DashboardData> | null>(null)
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState<string | null>(null)
 
   function load() {
     setLoading(true); setError(null)
-    fetch('/api/fm/analytics/dashboard')
+    // Fire both fetches simultaneously.
+    // KPI response (~100ms) shows the 5 stat cards immediately.
+    // Full response (~400ms) fills in charts, map, and calendar.
+    const kpiFetch  = fetch('/api/fm/analytics/dashboard?view=kpi')
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then((d: Partial<DashboardData>) => setKpi(d))
+      .catch(() => {/* kpi failure is non-fatal; full data will fill in */})
+
+    const fullFetch = fetch('/api/fm/analytics/dashboard')
       .then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<DashboardData> })
-      .then(setData)
+      .then(d => { setData(d); setKpi(null) })      // full data supersedes kpi
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false))
+
+    void kpiFetch; void fullFetch
   }
 
   useEffect(() => { load() }, [])
@@ -1500,19 +1601,23 @@ export default function FMDashboardPage() {
     label: p.name,
   })), [data])
 
-  if (loading) return (
+  // Full-page spinner only when we have neither KPI nor full data yet
+  if (loading && !kpi && !data) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6rem 0' }}>
       <Loader2 size={28} style={{ animation: 'spin 1s linear infinite', color: 'var(--muted)' }} />
     </div>
   )
 
-  if (error || !data) return (
+  if (error && !data) return (
     <div style={{ padding: '4rem 0', textAlign: 'center' }}>
       <AlertTriangle size={32} style={{ color: 'var(--amber)', margin: '0 auto 0.75rem' }} />
       <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>{error ?? t('error.generic')}</p>
       <button onClick={load} style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>{t('retry')}</button>
     </div>
   )
+
+  // Merge: use full data when available, fall back to KPI for stat cards
+  const display = data ?? ({} as DashboardData)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', padding: '0.25rem 0' }}>
@@ -1525,29 +1630,49 @@ export default function FMDashboardPage() {
         </p>
       </div>
 
-      {/* ── Row 1: 5 equal stat cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.875rem' }}>
-        <StatCard icon={<Building2 size={18} />}       label={t('dash.totalSites')}      value={data.properties.total}       sub={`${data.properties.active} ${t('prop.status.ACTIVE').toLowerCase()}`}   accent="primary" href="/dashboard/fm/properties" />
-        <StatCard icon={<ClipboardCheck size={18} />}  label={t('dash.upcomingInsp')}    value={data.upcomingInspections}    sub={t('insp.fm.tab.inProgress')}                                              accent="violet"  active={data.upcomingInspections > 0} href="/dashboard/fm/inspections" />
-        <StatCard icon={<Wrench size={18} />}          label={t('dash.openWO')}          value={data.workOrders.open}        sub={`${data.workOrders.inProgress} ${t('wo.fm.tab.inProgress').toLowerCase()}`} accent="amber"   href="/dashboard/fm/work-orders" />
-        <StatCard icon={<AlertTriangle size={18} />}   label={t('dash.overdueWO')}       value={data.overdueWorkOrders}                                                                                         accent="red"     active={data.overdueWorkOrders > 0} href="/dashboard/fm/work-orders?filter=OVERDUE" />
-        <StatCard icon={<Activity size={18} />}        label={t('dash.complianceRate')}  value={data.complianceRate > 0 ? `${data.complianceRate}%` : '—'} sub={t('ana.insp.avgScore')} accent="teal"    trend={data.complianceRate >= 80 ? '↑' : data.complianceRate > 0 ? '↓' : undefined} href="/dashboard/fm/inspections" />
-      </div>
+      {/* ── Row 1: 5 equal stat cards — rendered as soon as KPI fetch returns ── */}
+      {(() => {
+        const k = data ?? kpi ?? {}
+        const props    = k.properties       ?? { total: 0, active: 0 }
+        const wo       = k.workOrders       ?? { open: 0, inProgress: 0 }
+        const upcoming = k.upcomingInspections ?? 0
+        const overdue  = k.overdueWorkOrders   ?? 0
+        const cr       = k.complianceRate      ?? 0
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.875rem' }}>
+            <StatCard icon={<Building2 size={18} />}       label={t('dash.totalSites')}      value={props.total}    sub={`${props.active} ${t('prop.status.ACTIVE').toLowerCase()}`}   accent="primary" href="/dashboard/fm/properties" />
+            <StatCard icon={<ClipboardCheck size={18} />}  label={t('dash.upcomingInsp')}    value={upcoming}       sub={t('insp.fm.tab.inProgress')}                                    accent="violet"  active={upcoming > 0} href="/dashboard/fm/inspections" />
+            <StatCard icon={<Wrench size={18} />}          label={t('dash.openWO')}          value={wo.open}        sub={`${wo.inProgress} ${t('wo.fm.tab.inProgress').toLowerCase()}`} accent="amber"   href="/dashboard/fm/work-orders" />
+            <StatCard icon={<AlertTriangle size={18} />}   label={t('dash.overdueWO')}       value={overdue}                                                                             accent="red"     active={overdue > 0} href="/dashboard/fm/work-orders?filter=OVERDUE" />
+            <StatCard icon={<Activity size={18} />}        label={t('dash.complianceRate')}  value={cr > 0 ? `${cr}%` : '—'} sub={t('ana.insp.avgScore')} accent="teal" trend={cr >= 80 ? '↑' : cr > 0 ? '↓' : undefined} href="/dashboard/fm/inspections" />
+          </div>
+        )
+      })()}
 
-      {/* ── Charts row: InspectionChart (left 3fr) + RiskAssessmentChart (right 2fr) ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '0.875rem' }}>
-        <InspectionChart data={data.monthlyTrend} />
-        <RiskAssessmentChart data={data.propertyRisk} />
-      </div>
+      {/* ── Charts row — shown when full data arrives, skeleton while loading ── */}
+      {data ? (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '0.875rem' }}>
+            <InspectionChart data={data.monthlyTrend} />
+            <RiskAssessmentChart data={data.propertyRisk} />
+          </div>
+          {data.propertyRisk.length > 0 && <RegionalHealthMatrix data={data.propertyRisk} />}
+        </>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '0.875rem' }}>
+          {[260, 200].map((h, i) => (
+            <div key={i} style={{ height: h, borderRadius: 16, background: 'var(--skeleton, #f1f5f9)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          ))}
+        </div>
+      )}
 
-      {/* ── Regional Health Matrix (full width, only when there's asset risk data) ── */}
-      {data.propertyRisk.length > 0 && <RegionalHealthMatrix data={data.propertyRisk} />}
-
-      {/* ── Rows 2-4: 3-col left column + 2-col right panel ──────────────────
-          The outer grid maintains fixed 0.875rem gap between columns.
-          The left flex column maintains fixed 0.875rem gap between widgets.
-          The right InspectionsPanel stretches to match the left column height.
-         ─────────────────────────────────────────────────────────────────── */}
+      {/* ── Rows 2-4: shown only after full data loads ── */}
+      {!data ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--muted)', fontSize: '0.8rem', padding: '0.5rem 0' }}>
+          <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+          Loading map, calendar and inspections…
+        </div>
+      ) : (
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '0.875rem', alignItems: 'stretch' }}>
 
         {/* Left column: Map → Top Properties → Calendar (fixed gaps)
@@ -1588,6 +1713,7 @@ export default function FMDashboardPage() {
         </div>
 
       </div>
+      )} {/* end !data conditional */}
     </div>
   )
 }

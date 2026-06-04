@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getSession } from '@/lib/auth/get-session'
 import { loginSchema, inviteUserSchema, setPasswordSchema } from '@sentinel/shared'
 import type { AppRole } from '@sentinel/shared'
 
@@ -26,7 +27,15 @@ export async function loginAction(formData: FormData) {
   }
 
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+
+  // Route to FM dashboard for org admins and FM-department users;
+  // PW-only users land on the standard PW dashboard.
+  const session = await getSession()
+  const isFm = session?.capability === 'org_admin'
+    || session?.capability?.startsWith('fm_')
+    || session?.department === 'fm'
+    || session?.department === 'both'
+  redirect(isFm ? '/dashboard/fm' : '/dashboard')
 }
 
 export async function logoutAction() {
@@ -118,7 +127,12 @@ export async function setPasswordAction(formData: FormData) {
 
   if (error) return { error: error.message }
 
-  redirect('/dashboard')
+  const session = await getSession()
+  const isFm = session?.capability === 'org_admin'
+    || session?.capability?.startsWith('fm_')
+    || session?.department === 'fm'
+    || session?.department === 'both'
+  redirect(isFm ? '/dashboard/fm' : '/dashboard')
 }
 
 export async function forgotPasswordAction(formData: FormData) {
