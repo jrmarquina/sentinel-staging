@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { getSession } from '@/lib/auth/get-session'
 import { loginSchema, inviteUserSchema, setPasswordSchema } from '@sentinel/shared'
 import type { AppRole } from '@sentinel/shared'
 
@@ -20,7 +19,7 @@ export async function loginAction(formData: FormData) {
   }
 
   const supabase = createClient()
-  const { error } = await supabase.auth.signInWithPassword(parsed.data)
+  const { data: authData, error } = await supabase.auth.signInWithPassword(parsed.data)
 
   if (error) {
     return { error: 'Invalid email or password' }
@@ -28,14 +27,26 @@ export async function loginAction(formData: FormData) {
 
   revalidatePath('/', 'layout')
 
-  // Route to FM dashboard for org admins and FM-department users;
-  // PW-only users land on the standard PW dashboard.
-  const session = await getSession()
-  const isFm = session?.capability === 'org_admin'
-    || session?.capability?.startsWith('fm_')
-    || session?.department === 'fm'
-    || session?.department === 'both'
-  redirect(isFm ? '/dashboard/fm' : '/dashboard')
+  // Use the admin client to check the user's department — avoids cookie
+  // propagation issues when calling getSession() inside a Server Action.
+  let dest = '/dashboard/fm' // default for all org_admin and FM users
+  try {
+    const admin = createAdminClient()
+    const userId = authData.user?.id
+    if (userId) {
+      const { data } = await admin
+        .from('profiles')
+        .select('department, user_roles(org_role_definitions(capability_level))')
+        .eq('id', userId)
+        .single()
+      const cap  = (data?.user_roles as Array<{ org_role_definitions: { capability_level: string } | null }> | null)
+        ?.[0]?.org_role_definitions?.capability_level ?? ''
+      const dept = (data as { department?: string } | null)?.department ?? ''
+      if (cap.startsWith('pw_') && dept === 'pw') dest = '/dashboard'
+    }
+  } catch { /* on any error, default to FM dashboard */ }
+
+  redirect(dest)
 }
 
 export async function logoutAction() {
@@ -127,12 +138,7 @@ export async function setPasswordAction(formData: FormData) {
 
   if (error) return { error: error.message }
 
-  const session = await getSession()
-  const isFm = session?.capability === 'org_admin'
-    || session?.capability?.startsWith('fm_')
-    || session?.department === 'fm'
-    || session?.department === 'both'
-  redirect(isFm ? '/dashboard/fm' : '/dashboard')
+  redirect('/dashboard/fm')
 }
 
 export async function forgotPasswordAction(formData: FormData) {
