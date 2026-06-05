@@ -25,7 +25,7 @@ echo "==> [3/6] Building Next.js app..."
 # Regenerate apps/web/.env.local so NEXT_PUBLIC_* are baked into the client bundle.
 # Without this, pnpm build would embed undefined for Supabase keys in the JS bundle.
 if [ -f "$ENV_FILE" ]; then
-  grep -E '^(NEXT_PUBLIC_|SUPABASE_SERVICE_ROLE_KEY)' "$ENV_FILE" > "$REPO_DIR/apps/web/.env.local"
+  grep -E '^(NEXT_PUBLIC_|SUPABASE_SERVICE_ROLE_KEY|RESEND_API_KEY|GITHUB_TOKEN|GITHUB_REPO|UPTIMEROBOT_API_KEY|CLOUDFLARE_API_TOKEN|CLOUDFLARE_ZONE_ID|CONTABO_|BACKUP_|B2_|NOVU_|TWILIO_|SLACK_|SUPABASE_INTERNAL_URL)' "$ENV_FILE" > "$REPO_DIR/apps/web/.env.local"
   echo "  Wrote apps/web/.env.local from .env.staging"
 fi
 
