@@ -33,8 +33,9 @@ interface B2ListResponse {
 }
 
 async function b2Authorize(): Promise<B2AuthResponse> {
-  const id  = process.env.B2_ACCOUNT_ID!
-  const key = process.env.B2_APPLICATION_KEY!
+  const id  = process.env.B2_KEY_ID ?? process.env.B2_ACCOUNT_ID   // B2_KEY_ID is the correct name
+  const key = process.env.B2_APPLICATION_KEY
+  if (!id || !key) throw new Error('B2 credentials not configured')
   const creds = Buffer.from(`${id}:${key}`).toString('base64')
 
   const res = await fetch('https://api.backblazeb2.com/b2api/v2/b2_authorize_account', {

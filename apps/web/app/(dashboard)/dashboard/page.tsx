@@ -14,7 +14,7 @@ import type {
 } from './dashboard-dev'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Dashboard — Sentinel Public Works' }
+export const metadata = { title: 'Dashboard — SIMS' }
 
 function delayStatus(endDate: string | null, status: string): 'overdue' | 'at_risk' | 'on_track' | 'closed' {
   if (status === 'completed' || status === 'cancelled') return 'closed'
@@ -32,11 +32,12 @@ export default async function DashboardPage() {
   const session = await getSession()
   if (session) {
     const cap = session.capability
+    if (cap === 'org_admin')                         redirect('/dashboard/fm')
     if (cap === 'fm_manager' || cap === 'fm_viewer') redirect('/dashboard/fm')
     if (cap === 'fm_contributor')                    redirect('/dashboard/fm/inspections')
     if (cap === 'fm_worker')                         redirect('/dashboard/fm/work-orders')
     if (cap === 'pw_worker')                         redirect('/dashboard/work-orders')
-    // org_admin, pw_manager, pw_viewer — stay on this page
+    // pw_manager, pw_viewer — stay on this page (PW dashboard)
   }
 
   const supabase = createClient()
