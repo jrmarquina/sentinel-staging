@@ -22,11 +22,28 @@ echo "==> [2/6] Installing dependencies..."
 pnpm install --frozen-lockfile
 
 echo "==> [3/6] Building Next.js app..."
+
+# Auto-increment build number (format: MAJOR.MINOR.PATCH.BUILD)
+VERSION_FILE="$REPO_DIR/apps/web/version.txt"
+if [ -f "$VERSION_FILE" ]; then
+  CURRENT=$(cat "$VERSION_FILE" | tr -d '[:space:]')
+  BASE="${CURRENT%.*}"           # e.g. 1.1.0
+  BUILD="${CURRENT##*.}"         # e.g. 4
+  NEW_BUILD=$((BUILD + 1))
+  NEW_VERSION="${BASE}.${NEW_BUILD}"
+  echo "$NEW_VERSION" > "$VERSION_FILE"
+  echo "  Version: $CURRENT → $NEW_VERSION"
+else
+  NEW_VERSION="1.1.0.1"
+  echo "$NEW_VERSION" > "$VERSION_FILE"
+fi
+
 # Regenerate apps/web/.env.local so NEXT_PUBLIC_* are baked into the client bundle.
 # Without this, pnpm build would embed undefined for Supabase keys in the JS bundle.
 if [ -f "$ENV_FILE" ]; then
   grep -E '^(NEXT_PUBLIC_|SUPABASE_SERVICE_ROLE_KEY|RESEND_API_KEY|GITHUB_TOKEN|GITHUB_REPO|UPTIMEROBOT_API_KEY|CLOUDFLARE_API_TOKEN|CLOUDFLARE_ZONE_ID|CONTABO_|BACKUP_|B2_|NOVU_|TWILIO_|SLACK_|SUPABASE_INTERNAL_URL)' "$ENV_FILE" > "$REPO_DIR/apps/web/.env.local"
-  echo "  Wrote apps/web/.env.local from .env.staging"
+  echo "NEXT_PUBLIC_APP_VERSION=${NEW_VERSION}" >> "$REPO_DIR/apps/web/.env.local"
+  echo "  Wrote apps/web/.env.local from .env.staging (version: $NEW_VERSION)"
 fi
 
 # Load staging env vars so NEXT_PUBLIC_* are baked in at build time.

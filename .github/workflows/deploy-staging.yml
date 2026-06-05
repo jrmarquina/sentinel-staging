@@ -97,6 +97,20 @@ jobs:
               done
             fi
 
+            # Auto-increment build number before building
+            VERSION_FILE="$REPO_DIR/apps/web/version.txt"
+            if [ -f "$VERSION_FILE" ]; then
+              CURRENT=$(cat "$VERSION_FILE" | tr -d '[:space:]')
+              BASE="${CURRENT%.*}"; BUILD="${CURRENT##*.}"
+              NEW_VERSION="${BASE}.$((BUILD + 1))"
+              echo "$NEW_VERSION" > "$VERSION_FILE"
+            else
+              NEW_VERSION="1.1.0.1"
+              echo "$NEW_VERSION" > "$VERSION_FILE"
+            fi
+            echo "NEXT_PUBLIC_APP_VERSION=${NEW_VERSION}" >> "$REPO_DIR/apps/web/.env.local"
+            echo "Building version $NEW_VERSION"
+
             pnpm --filter web build
 
             # Reload Next.js staging process
