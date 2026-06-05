@@ -8,14 +8,8 @@ import { cookies } from 'next/headers'
 export function createClient() {
   const cookieStore = cookies()
 
-  // Server-side calls use the internal URL (localhost) to bypass Cloudflare
-  // and hit Kong directly — drops per-call latency from ~600ms to ~90ms.
-  // SUPABASE_INTERNAL_URL is never exposed to the browser.
-  const supabaseUrl =
-    process.env.SUPABASE_INTERNAL_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!
-
   return createServerClient(
-    supabaseUrl,
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
