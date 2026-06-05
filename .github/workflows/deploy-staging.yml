@@ -97,17 +97,15 @@ jobs:
               done
             fi
 
-            # Auto-increment build number before building
-            VERSION_FILE="$REPO_DIR/apps/web/version.txt"
-            if [ -f "$VERSION_FILE" ]; then
-              CURRENT=$(cat "$VERSION_FILE" | tr -d '[:space:]')
-              BASE="${CURRENT%.*}"; BUILD="${CURRENT##*.}"
-              NEW_VERSION="${BASE}.$((BUILD + 1))"
-              echo "$NEW_VERSION" > "$VERSION_FILE"
-            else
-              NEW_VERSION="1.1.0.1"
-              echo "$NEW_VERSION" > "$VERSION_FILE"
-            fi
+            # Auto-increment build number before building.
+            # VPS_BUILD_FILE lives outside the repo so git reset --hard doesn't wipe it.
+            REPO_VER_FILE="$REPO_DIR/apps/web/version.txt"
+            VPS_BUILD_FILE="/srv/sentinel/staging/build-number.txt"
+            BASE=$(cat "$REPO_VER_FILE" 2>/dev/null | tr -d '[:space:]' | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || echo "1.1.0")
+            LAST_BUILD=$(cat "$VPS_BUILD_FILE" 2>/dev/null | tr -d '[:space:]' || echo "0")
+            NEW_BUILD=$((LAST_BUILD + 1))
+            NEW_VERSION="${BASE}.${NEW_BUILD}"
+            echo "$NEW_BUILD" > "$VPS_BUILD_FILE"
             echo "NEXT_PUBLIC_APP_VERSION=${NEW_VERSION}" >> "$REPO_DIR/apps/web/.env.local"
             echo "Building version $NEW_VERSION"
 

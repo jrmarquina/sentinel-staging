@@ -24,19 +24,17 @@ pnpm install --frozen-lockfile
 echo "==> [3/6] Building Next.js app..."
 
 # Auto-increment build number (format: MAJOR.MINOR.PATCH.BUILD)
-VERSION_FILE="$REPO_DIR/apps/web/version.txt"
-if [ -f "$VERSION_FILE" ]; then
-  CURRENT=$(cat "$VERSION_FILE" | tr -d '[:space:]')
-  BASE="${CURRENT%.*}"           # e.g. 1.1.0
-  BUILD="${CURRENT##*.}"         # e.g. 4
-  NEW_BUILD=$((BUILD + 1))
-  NEW_VERSION="${BASE}.${NEW_BUILD}"
-  echo "$NEW_VERSION" > "$VERSION_FILE"
-  echo "  Version: $CURRENT → $NEW_VERSION"
-else
-  NEW_VERSION="1.1.0.1"
-  echo "$NEW_VERSION" > "$VERSION_FILE"
-fi
+# Stored OUTSIDE the repo so git reset --hard doesn't wipe it between deploys.
+# The repo's version.txt defines MAJOR.MINOR.PATCH; the VPS counter provides BUILD.
+REPO_VERSION_FILE="$REPO_DIR/apps/web/version.txt"
+VPS_BUILD_FILE="/srv/sentinel/staging/build-number.txt"
+
+BASE=$(cat "$REPO_VERSION_FILE" 2>/dev/null | tr -d '[:space:]' | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || echo "1.1.0")
+LAST_BUILD=$(cat "$VPS_BUILD_FILE" 2>/dev/null | tr -d '[:space:]' || echo "0")
+NEW_BUILD=$((LAST_BUILD + 1))
+NEW_VERSION="${BASE}.${NEW_BUILD}"
+echo "$NEW_BUILD" > "$VPS_BUILD_FILE"
+echo "  Version: ${BASE}.${LAST_BUILD} → $NEW_VERSION"
 
 # Regenerate apps/web/.env.local so NEXT_PUBLIC_* are baked into the client bundle.
 # Without this, pnpm build would embed undefined for Supabase keys in the JS bundle.
