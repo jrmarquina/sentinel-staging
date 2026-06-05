@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { format, parseISO, formatDistanceToNow } from 'date-fns'
 import {
   X, RefreshCw, Server, HardDrive, Shield, Mail, GitBranch,
@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import type { GithubRelease, UptimeMonitor, CloudflareStats, ResendStats, ContaboSnapshot, WorkflowRun } from '@/app/api/admin/system/route'
 import type { BackupFile } from '@/app/api/admin/backups/route'
+import { VERSION_HISTORY } from '@/lib/version-history'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -296,10 +297,10 @@ function BackupsTile({ backups }: { backups: BackupFile[] }) {
 
 function CiTile({ ci }: { ci: { ok: boolean; runs: WorkflowRun[]; error?: string } }) {
   const conclusionStyle = (r: WorkflowRun) => {
-    if (r.status === 'in_progress') return { dot: 'bg-blue-400 animate-pulse', text: 'text-blue-600 dark:text-blue-400' }
-    if (r.conclusion === 'success')  return { dot: 'bg-emerald-500',           text: 'text-emerald-600 dark:text-emerald-400' }
-    if (r.conclusion === 'failure')  return { dot: 'bg-red-500',               text: 'text-red-500' }
-    return { dot: 'bg-slate-400', text: 'text-slate-400' }
+    if (r.status === 'in_progress') return { dot: 'bg-blue-400 animate-pulse', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' }
+    if (r.conclusion === 'success')  return { dot: 'bg-emerald-500',           badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300' }
+    if (r.conclusion === 'failure')  return { dot: 'bg-red-500',               badge: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' }
+    return { dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' }
   }
   const label = (r: WorkflowRun) => {
     if (r.status === 'in_progress') return 'Running'
@@ -308,32 +309,54 @@ function CiTile({ ci }: { ci: { ok: boolean; runs: WorkflowRun[]; error?: string
     return r.conclusion ?? r.status
   }
 
+  // Only show successful deploys for a clean history view
+  const successRuns = (ci.runs ?? []).filter(r => r.conclusion === 'success' || r.status === 'in_progress')
+  const allRuns     = (ci.runs ?? []).slice(0, 10)
+
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4">
-      <TileHeader icon={<Package size={14} />} title="CI / CD" ok={ci.ok} badge="GitHub Actions" />
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 col-span-1 sm:col-span-2">
+      <TileHeader icon={<Package size={14} />} title="CI / CD Deployments" ok={ci.ok} badge="GitHub Actions" />
       {!ci.ok ? (
         <NotConfigured label="GitHub" />
-      ) : (ci.runs ?? []).length === 0 ? (
+      ) : allRuns.length === 0 ? (
         <p className="text-xs text-slate-400">No workflow runs found.</p>
       ) : (
-        <div className="space-y-2">
-          {(ci.runs ?? []).slice(0, 6).map(r => {
-            const s = conclusionStyle(r)
+        <div className="space-y-1.5">
+          {allRuns.map(r => {
+            const s       = conclusionStyle(r)
             const runDate = r.startedAt ? format(parseISO(r.startedAt), 'MMM d · HH:mm') : '—'
             return (
-              <div key={r.id} className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
-                <div className="flex-1 min-w-0">
-                  <span className="text-[11px] text-slate-700 dark:text-slate-300 truncate block">{r.workflow}</span>
-                  <span className="text-[10px] text-slate-400">{runDate} · {r.branch}</span>
+              <div key={r.id} className="grid grid-cols-[8px_1fr_auto] gap-x-2.5 items-start py-1.5 border-b border-slate-50 dark:border-slate-800 last:border-0">
+                <span className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${s.dot}`} />
+                <div className="min-w-0">
+                  {/* Commit message / display title */}
+                  <p className="text-[11px] text-slate-700 dark:text-slate-200 leading-tight line-clamp-1">{r.name}</p>
+                  {/* Meta row */}
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span className="text-[10px] text-slate-400">{runDate}</span>
+                    {r.commitSha && (
+                      <a href={r.url} target="_blank" rel="noopener noreferrer"
+                         className="font-mono text-[10px] text-blue-500 hover:text-blue-600 transition-colors">
+                        {r.commitSha}
+                      </a>
+                    )}
+                    <span className="text-[10px] text-slate-400">{r.branch}</span>
+                  </div>
                 </div>
-                <span className={`text-[10px] font-semibold flex-shrink-0 ${s.text}`}>{label(r)}</span>
-                <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
-                  <ExternalLink size={9} className="text-slate-300 hover:text-blue-500 transition-colors" />
-                </a>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${s.badge}`}>{label(r)}</span>
+                  <a href={r.url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink size={9} className="text-slate-300 hover:text-blue-500 transition-colors" />
+                  </a>
+                </div>
               </div>
             )
           })}
+          {successRuns.length < allRuns.length && (
+            <p className="text-[10px] text-slate-400 pt-1">
+              {allRuns.length - successRuns.length} failed run(s) hidden above
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -369,6 +392,81 @@ function ContaboTile({ contabo }: { contabo: { ok: boolean; snapshots: ContaboSn
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function VersionHistoryTile() {
+  const [openMajors,  setOpenMajors]  = useState<Set<string>>(new Set(['1']))
+  const [openMinors,  setOpenMinors]  = useState<Set<string>>(new Set(['1.1']))
+  const [openPatches, setOpenPatches] = useState<Set<string>>(new Set(['1.1.0']))
+
+  const toggle = (set: Set<string>, key: string, setter: (s: Set<string>) => void) => {
+    const next = new Set(set)
+    next.has(key) ? next.delete(key) : next.add(key)
+    setter(next)
+  }
+
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 col-span-1 sm:col-span-2 lg:col-span-3">
+      <TileHeader icon={<GitBranch size={14} />} title="Version History" badge="MAJOR.MINOR.PATCH.BUILD" />
+      <div className="space-y-1 mt-2 max-h-96 overflow-y-auto pr-1">
+        {VERSION_HISTORY.map(maj => (
+          <div key={maj.major} className="border border-slate-100 dark:border-slate-800 rounded-lg overflow-hidden">
+            {/* Major */}
+            <button onClick={() => toggle(openMajors, maj.major, setOpenMajors)}
+              className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">v{maj.major}.x</span>
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 flex-1 truncate">{maj.summary}</span>
+              <ChevronDown size={11} className={`text-slate-400 flex-shrink-0 transition-transform ${openMajors.has(maj.major) ? 'rotate-180' : ''}`} />
+            </button>
+            {openMajors.has(maj.major) && (
+              <div className="pl-3 border-t border-slate-100 dark:border-slate-800">
+                {maj.minors.map(min => (
+                  <div key={min.minor}>
+                    {/* Minor */}
+                    <button onClick={() => toggle(openMinors, min.minor, setOpenMinors)}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">v{min.minor}</span>
+                      <span className="text-[11px] text-slate-600 dark:text-slate-300 flex-1 truncate">{min.summary}</span>
+                      <ChevronDown size={10} className={`text-slate-400 flex-shrink-0 transition-transform ${openMinors.has(min.minor) ? 'rotate-180' : ''}`} />
+                    </button>
+                    {openMinors.has(min.minor) && (
+                      <div className="pl-3 border-t border-slate-100 dark:border-slate-800">
+                        {min.patches.map(pat => (
+                          <div key={pat.patch}>
+                            {/* Patch */}
+                            <button onClick={() => toggle(openPatches, pat.patch, setOpenPatches)}
+                              className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left">
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">v{pat.patch}</span>
+                              <span className="text-[11px] text-slate-600 dark:text-slate-300 flex-1 truncate">{pat.summary}</span>
+                              <span className="text-[10px] text-slate-400 flex-shrink-0">{pat.builds.length} builds</span>
+                              <ChevronDown size={10} className={`text-slate-400 flex-shrink-0 transition-transform ${openPatches.has(pat.patch) ? 'rotate-180' : ''}`} />
+                            </button>
+                            {openPatches.has(pat.patch) && (
+                              <div className="pl-3 pb-1 border-t border-slate-100 dark:border-slate-800">
+                                {pat.builds.map((b, i) => (
+                                  <div key={i} className="flex items-center gap-2 py-1 border-b border-slate-50 dark:border-slate-800/60 last:border-0">
+                                    <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400 w-16 flex-shrink-0">{b.build}</span>
+                                    {b.commitSha && (
+                                      <span className="font-mono text-[10px] text-blue-500 flex-shrink-0">{b.commitSha}</span>
+                                    )}
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 flex-1">{b.description}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -551,8 +649,8 @@ export function SystemHealthOverlay({ onClose }: { onClose: () => void }) {
         ) : (
           <div className="max-w-7xl mx-auto space-y-6">
 
-            {/* Main grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {/* Main grid — CI tile spans 2 cols */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {data && <VpsTile vps={data.vps} />}
               {data && <UptimeTile uptime={data.uptime} />}
               {data && <CloudflareTile cf={data.cloudflare} />}
@@ -560,11 +658,16 @@ export function SystemHealthOverlay({ onClose }: { onClose: () => void }) {
               {data && <CiTile ci={data.ci} />}
             </div>
 
-            {/* Backups row: B2 + Contabo snapshots + changelog */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Backups row: B2 + Contabo snapshots */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {backups?.files && <BackupsTile backups={backups.files} />}
               {data    && <ContaboTile contabo={data.contabo} />}
-              {data    && <ChangelogTile changelog={data.changelog} />}
+            </div>
+
+            {/* Version history — spans full width */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <VersionHistoryTile />
+              {data && <ChangelogTile changelog={data.changelog} />}
             </div>
 
             {/* Placeholder tiles for future integrations */}

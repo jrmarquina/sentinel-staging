@@ -126,14 +126,15 @@ async function getProdVersion() {
 // ── GitHub CI/CD ───────────────────────────────────────────────────────────
 
 export interface WorkflowRun {
-  id:         number
-  name:       string
-  workflow:   string
-  branch:     string
-  status:     string   // queued | in_progress | completed
-  conclusion: string | null  // success | failure | cancelled | skipped | null
-  startedAt:  string | null
-  url:        string
+  id:           number
+  name:         string       // display_title from GitHub (the commit message / run name)
+  workflow:     string       // workflow file name
+  branch:       string
+  status:       string       // queued | in_progress | completed
+  conclusion:   string | null  // success | failure | cancelled | skipped | null
+  startedAt:    string | null
+  commitSha:    string | null  // short commit hash (7 chars)
+  url:          string
 }
 
 async function getCiRuns(): Promise<{ ok: boolean; runs: WorkflowRun[]; error?: string }> {
@@ -159,6 +160,7 @@ async function getCiRuns(): Promise<{ ok: boolean; runs: WorkflowRun[]; error?: 
       status:     r.status,
       conclusion: r.conclusion ?? null,
       startedAt:  r.run_started_at ?? r.created_at,
+      commitSha:  r.head_sha ? String(r.head_sha).slice(0, 7) : null,
       url:        r.html_url,
     }))
     return { ok: true, runs }
