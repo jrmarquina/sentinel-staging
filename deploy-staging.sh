@@ -43,8 +43,8 @@ if [ -f "$ENV_FILE" ]; then
     | grep -v '^NEXT_PUBLIC_APP_VERSION=' \
     > "$REPO_DIR/apps/web/.env.local"
   echo "NEXT_PUBLIC_APP_VERSION=${NEW_VERSION}" >> "$REPO_DIR/apps/web/.env.local"
-  # Deduplicate — keep last occurrence of each key
-  awk -F= '!seen[$1]++' "$REPO_DIR/apps/web/.env.local" > /tmp/env_dedup && mv /tmp/env_dedup "$REPO_DIR/apps/web/.env.local"
+  # Deduplicate — keep LAST occurrence of each key (so freshly appended version wins)
+  awk -F= '{lines[$1]=$0} END{for(k in lines) print lines[k]}' "$REPO_DIR/apps/web/.env.local" > /tmp/env_dedup && mv /tmp/env_dedup "$REPO_DIR/apps/web/.env.local"
   echo "  Wrote apps/web/.env.local from .env.staging (version: $NEW_VERSION)"
 fi
 
@@ -59,7 +59,7 @@ if [ -f "$ENV_FILE" ]; then
     [[ -n "$key" ]] && export "$key"="$val"
   done < "$ENV_FILE"
 fi
-pnpm --filter web build
+NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter web build
 
 echo "==> [4/6] Ensuring log directory exists..."
 mkdir -p "$LOG_DIR"

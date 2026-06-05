@@ -106,10 +106,13 @@ jobs:
             NEW_BUILD=$((LAST_BUILD + 1))
             NEW_VERSION="${BASE}.${NEW_BUILD}"
             echo "$NEW_BUILD" > "$VPS_BUILD_FILE"
+            # Strip any stale APP_VERSION lines then append fresh one
+            grep -v '^NEXT_PUBLIC_APP_VERSION=' "$REPO_DIR/apps/web/.env.local" > /tmp/env_clean 2>/dev/null || true
+            mv /tmp/env_clean "$REPO_DIR/apps/web/.env.local" 2>/dev/null || true
             echo "NEXT_PUBLIC_APP_VERSION=${NEW_VERSION}" >> "$REPO_DIR/apps/web/.env.local"
             echo "Building version $NEW_VERSION"
 
-            pnpm --filter web build
+            NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter web build
 
             # Reload Next.js staging process
             if pm2 describe sentinel-mpw-staging > /dev/null 2>&1; then
