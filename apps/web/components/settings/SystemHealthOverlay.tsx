@@ -139,14 +139,9 @@ function VpsTile({ vps }: { vps: VpsMetrics }) {
       ) : (
         <div className="space-y-3">
           <BarGauge
-            label="CPU"
+            label={`CPU utilization — ${vps.cpu?.cores ?? 4} cores total`}
             pct={vps.cpu?.pct ?? 0}
-            sublabel={(() => {
-              const cores  = vps.cpu?.cores ?? 4
-              const load   = vps.load?.load1 ?? 0
-              const used   = +((load / cores) * 100).toFixed(0)
-              return `${vps.cpu?.pct ?? 0}% of all ${cores} cores · load ${load} (${used}% per core avg) · 5m: ${vps.load?.load5}`
-            })()}
+            sublabel={`Load avg: ${vps.load?.load1} (1m) · ${vps.load?.load5} (5m) · ${vps.load?.load15} (15m)`}
           />
           <BarGauge
             label="RAM"
@@ -324,11 +319,14 @@ function CiTile({ ci }: { ci: { ok: boolean; runs: WorkflowRun[]; error?: string
         <div className="space-y-2">
           {(ci.runs ?? []).slice(0, 6).map(r => {
             const s = conclusionStyle(r)
+            const runDate = r.startedAt ? format(parseISO(r.startedAt), 'MMM d, HH:mm') : '—'
             return (
               <div key={r.id} className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
-                <span className="text-[11px] text-slate-700 dark:text-slate-300 flex-1 truncate">{r.workflow}</span>
-                <span className="text-[10px] text-slate-400 truncate hidden sm:block">{r.branch}</span>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[11px] text-slate-700 dark:text-slate-300 truncate block">{r.workflow}</span>
+                  <span className="text-[10px] text-slate-400">{runDate} · {r.branch}</span>
+                </div>
                 <span className={`text-[10px] font-semibold flex-shrink-0 ${s.text}`}>{label(r)}</span>
                 <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
                   <ExternalLink size={9} className="text-slate-300 hover:text-blue-500 transition-colors" />
