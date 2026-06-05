@@ -16,7 +16,7 @@ import type { BackupFile } from '@/app/api/admin/backups/route'
 interface VpsMetrics {
   ok:       boolean
   error?:   string
-  cpu?:     { pct: number }
+  cpu?:     { pct: number; cores?: number }
   ram?:     { pct: number; usedMiB: number; totalMiB: number }
   disk?:    { pct: number; usedGiB: number; totalGiB: number } | null
   load?:    { load1: number; load5: number; load15: number }
@@ -141,19 +141,24 @@ function VpsTile({ vps }: { vps: VpsMetrics }) {
           <BarGauge
             label="CPU"
             pct={vps.cpu?.pct ?? 0}
-            sublabel={`Load avg: ${vps.load?.load1} / ${vps.load?.load5} / ${vps.load?.load15}`}
+            sublabel={(() => {
+              const cores  = vps.cpu?.cores ?? 4
+              const load   = vps.load?.load1 ?? 0
+              const used   = +((load / cores) * 100).toFixed(0)
+              return `${vps.cpu?.pct ?? 0}% of all ${cores} cores · load ${load} (${used}% per core avg) · 5m: ${vps.load?.load5}`
+            })()}
           />
           <BarGauge
             label="RAM"
             pct={vps.ram?.pct ?? 0}
-            sublabel={`${vps.ram?.usedMiB ?? 0} MiB / ${vps.ram?.totalMiB ?? 0} MiB`}
+            sublabel={`${((vps.ram?.usedMiB ?? 0) / 1024).toFixed(1)} GB used of ${((vps.ram?.totalMiB ?? 0) / 1024).toFixed(1)} GB total`}
             warn={75} danger={90}
           />
           {vps.disk ? (
             <BarGauge
               label="Disk"
               pct={vps.disk.pct}
-              sublabel={`${vps.disk.usedGiB} GB / ${vps.disk.totalGiB} GB`}
+              sublabel={`${vps.disk.usedGiB} GB used of ${vps.disk.totalGiB} GB total`}
               warn={75} danger={90}
             />
           ) : (

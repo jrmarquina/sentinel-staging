@@ -63,7 +63,7 @@ async function getVpsMetrics() {
     const ramTotal  = ramFree + ramUsed + ramCached + Math.abs(ramRow[4] ?? 0)
     const ramPct    = ramTotal > 0 ? Math.round((ramUsed / ramTotal) * 100) : 0
 
-    // Disk: avail and used in GiB
+    // Disk: Netdata disk_space chart returns values already in GiB — no conversion needed
     let diskPct = 0, diskUsedGiB = 0, diskTotalGiB = 0
     if (diskData) {
       const diskRow   = diskData[0] ?? []
@@ -71,8 +71,8 @@ async function getVpsMetrics() {
       const diskUsed  = Math.abs(diskRow[2] ?? 0)
       const diskTotal = diskAvail + diskUsed
       diskPct      = diskTotal > 0 ? Math.round((diskUsed / diskTotal) * 100) : 0
-      diskUsedGiB  = Math.round(diskUsed / 1024)
-      diskTotalGiB = Math.round(diskTotal / 1024)
+      diskUsedGiB  = Math.round(diskUsed)       // already GiB
+      diskTotalGiB = Math.round(diskTotal)      // already GiB
     }
 
     // Load avg
@@ -81,6 +81,11 @@ async function getVpsMetrics() {
     const load5   = loadRow[2] ?? 0
     const load15  = loadRow[3] ?? 0
 
+    // CPU core count from Netdata info — used for load context in the UI
+    const cores = (info as { cores_total?: number }).cores_total
+      ?? (info as { cpu_cores?: number }).cpu_cores
+      ?? 4  // fallback for this VPS
+
     // Uptime from info
     const uptimeSec = (info.mirrored_hosts_status as { uptime?: number } | undefined)?.uptime
       ?? (info as { uptime_seconds?: number }).uptime_seconds
@@ -88,7 +93,7 @@ async function getVpsMetrics() {
 
     return {
       ok: true,
-      cpu:  { pct: Math.round(cpuUsed) },
+      cpu:  { pct: Math.round(cpuUsed), cores },
       ram:  { pct: ramPct, usedMiB: Math.round(ramUsed), totalMiB: Math.round(ramTotal) },
       disk: diskData
         ? { pct: diskPct, usedGiB: diskUsedGiB, totalGiB: diskTotalGiB }
