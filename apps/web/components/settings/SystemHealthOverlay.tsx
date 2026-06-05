@@ -319,7 +319,7 @@ function CiTile({ ci }: { ci: { ok: boolean; runs: WorkflowRun[]; error?: string
         <div className="space-y-2">
           {(ci.runs ?? []).slice(0, 6).map(r => {
             const s = conclusionStyle(r)
-            const runDate = r.startedAt ? format(parseISO(r.startedAt), 'MMM d, HH:mm') : '—'
+            const runDate = r.startedAt ? format(parseISO(r.startedAt), 'MMM d · HH:mm') : '—'
             return (
               <div key={r.id} className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />

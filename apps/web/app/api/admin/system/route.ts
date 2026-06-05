@@ -132,7 +132,7 @@ export interface WorkflowRun {
   branch:     string
   status:     string   // queued | in_progress | completed
   conclusion: string | null  // success | failure | cancelled | skipped | null
-  startedAt:  string
+  startedAt:  string | null
   url:        string
 }
 

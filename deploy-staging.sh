@@ -29,11 +29,17 @@ if [ -f "$ENV_FILE" ]; then
   echo "  Wrote apps/web/.env.local from .env.staging"
 fi
 
-# Load staging env vars so NEXT_PUBLIC_* are baked in at build time
-set -a
-# shellcheck disable=SC1090
-[ -f "$ENV_FILE" ] && source "$ENV_FILE"
-set +a
+# Load staging env vars so NEXT_PUBLIC_* are baked in at build time.
+# Use line-by-line parsing instead of `source` — avoids bash treating
+# values that contain / $ ! etc. as commands (crashes with "Is a directory").
+if [ -f "$ENV_FILE" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    key="${line%%=*}"
+    val="${line#*=}"
+    [[ -n "$key" ]] && export "$key"="$val"
+  done < "$ENV_FILE"
+fi
 rm -rf apps/web/.next
 pnpm --filter web build
 
