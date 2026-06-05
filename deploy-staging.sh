@@ -57,7 +57,6 @@ if [ -f "$ENV_FILE" ]; then
     [[ -n "$key" ]] && export "$key"="$val"
   done < "$ENV_FILE"
 fi
-rm -rf apps/web/.next
 pnpm --filter web build
 
 echo "==> [4/6] Ensuring log directory exists..."
