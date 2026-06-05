@@ -34,14 +34,20 @@ export async function loginAction(formData: FormData) {
     const admin = createAdminClient()
     const userId = authData.user?.id
     if (userId) {
-      const { data } = await admin
+      // Two separate queries avoids complex nested-join TypeScript inference
+      const { data: profile } = await admin
         .from('profiles')
-        .select('department, user_roles(org_role_definitions(capability_level))')
+        .select('department')
         .eq('id', userId)
         .single()
-      const cap  = (data?.user_roles as Array<{ org_role_definitions: { capability_level: string } | null }> | null)
-        ?.[0]?.org_role_definitions?.capability_level ?? ''
-      const dept = (data as { department?: string } | null)?.department ?? ''
+      const { data: roleRow } = await admin
+        .from('user_roles')
+        .select('org_role_definitions(capability_level)')
+        .eq('user_id', userId)
+        .single()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cap  = (roleRow as any)?.org_role_definitions?.capability_level as string ?? ''
+      const dept = profile?.department ?? ''
       if (cap.startsWith('pw_') && dept === 'pw') dest = '/dashboard'
     }
   } catch { /* on any error, default to FM dashboard */ }
