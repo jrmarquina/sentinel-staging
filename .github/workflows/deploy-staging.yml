@@ -43,7 +43,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 25m   # Next.js build can take 8-12min on this VPS
+          command_timeout: 40m   # Next.js build on shared 4-vCPU VPS can take 25-30min under load
           script: |
             set -e
             REPO_DIR="/srv/sentinel/staging/municipal-public-works"
@@ -118,7 +118,8 @@ jobs:
             echo "NEXT_PUBLIC_APP_VERSION=${NEW_VERSION}" >> "$REPO_DIR/apps/web/.env.local"
             echo "Building version $NEW_VERSION"
 
-            NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter web build
+            # Limit to 2 webpack workers to reduce CPU contention with running services
+            NODE_OPTIONS="--max-old-space-size=3072" NEXT_WEBPACK_WORKER_THREADS=2 pnpm --filter web build
 
             # Reload Next.js staging process
             if pm2 describe sentinel-mpw-staging > /dev/null 2>&1; then
