@@ -1,0 +1,34 @@
+name: Promote to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for this promotion (shown in deploy log)'
+        required: false
+        default: 'Weekly promotion from staging'
+
+# Prevent concurrent production deploys
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false   # never cancel an in-flight prod deploy
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Deploy to VPS (production)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 40m
+          script: |
+            echo "Promotion reason: ${{ github.event.inputs.reason }}"
+            echo "Triggered by: ${{ github.actor }}"
+            bash /srv/sentinel/municipal-public-works/deploy-prod.sh
