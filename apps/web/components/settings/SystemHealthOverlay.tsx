@@ -8,7 +8,7 @@ import {
   Database, Globe, Activity, Zap, Package, ExternalLink,
   Cpu, MemoryStick, CloudUpload,
 } from 'lucide-react'
-import type { GithubRelease, UptimeMonitor, CloudflareStats, ResendStats, ContaboSnapshot, WorkflowRun } from '@/app/api/admin/system/route'
+import type { GithubRelease, UptimeMonitor, CloudflareStats, ResendStats, ContaboBackupSchedule, WorkflowRun } from '@/app/api/admin/system/route'
 import type { BackupFile } from '@/app/api/admin/backups/route'
 import { VERSION_HISTORY } from '@/lib/version-history'
 
@@ -33,7 +33,7 @@ interface SystemData {
   ci:         { ok: boolean; runs: WorkflowRun[]; error?: string }
   cloudflare: { ok: boolean; stats: CloudflareStats | null; error?: string }
   resend:     { ok: boolean; stats: ResendStats | null; error?: string }
-  contabo:    { ok: boolean; snapshots: ContaboSnapshot[]; error?: string }
+  contabo:    { ok: boolean; schedules: ContaboBackupSchedule[]; error?: string }
 }
 
 interface BackupData {
@@ -363,32 +363,44 @@ function CiTile({ ci }: { ci: { ok: boolean; runs: WorkflowRun[]; error?: string
   )
 }
 
-function ContaboTile({ contabo }: { contabo: { ok: boolean; snapshots: ContaboSnapshot[]; error?: string } }) {
+function ContaboTile({ contabo }: { contabo: { ok: boolean; schedules: ContaboBackupSchedule[]; error?: string } }) {
+  const schedule = (contabo.schedules ?? [])[0] ?? null
+  const enabled  = schedule?.status === 'enabled'
+
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4">
-      <TileHeader icon={<HardDrive size={14} />} title="VPS Snapshots" ok={contabo.ok} badge="Contabo" />
+      <TileHeader icon={<HardDrive size={14} />} title="VPS Backups" ok={contabo.ok && enabled} badge="Contabo" />
       {!contabo.ok ? (
         <NotConfigured label="Contabo" />
-      ) : (contabo.snapshots ?? []).length === 0 ? (
-        <p className="text-xs text-slate-400">No snapshots found in this instance.</p>
+      ) : !schedule ? (
+        <p className="text-xs text-slate-400">No backup schedule found.</p>
       ) : (
-        <div className="space-y-1.5">
-          {(contabo.snapshots ?? []).slice(0, 6).map(s => (
-            <div key={s.snapshotId} className="flex items-start gap-2">
-              <CheckCircle2 size={11} className="text-emerald-500 flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate">{s.name || s.snapshotId}</p>
-                {s.description && (
-                  <p className="text-[10px] text-slate-400 truncate">{s.description}</p>
-                )}
-              </div>
-              <span className="text-[10px] text-slate-400 flex-shrink-0 tabular-nums">
-                {s.createdDate ? format(new Date(s.createdDate), 'MMM d, yyyy') : '—'}
-              </span>
+        <div className="space-y-2">
+          {/* Status row */}
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={11} className={enabled ? 'text-emerald-500' : 'text-red-400'} />
+            <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
+              {enabled ? 'Active' : 'Disabled'} — every {schedule.interval} {schedule.intervalUnit}
+            </span>
+          </div>
+
+          {/* Next window */}
+          {schedule.nextEarliestDate && (
+            <div className="text-[10px] text-slate-400 space-y-0.5">
+              <p>
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Next window: </span>
+                {format(new Date(schedule.nextEarliestDate), 'MMM d, h:mm a')}
+                {' – '}
+                {format(new Date(schedule.nextLatestDate), 'h:mm a')}
+              </p>
+              <p>
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Instance: </span>
+                {schedule.instanceName}
+              </p>
+              <p className="text-slate-400 italic">
+                Individual backup files are managed by Contabo — not accessible via API.
+              </p>
             </div>
-          ))}
-          {contabo.snapshots.length > 6 && (
-            <p className="text-[10px] text-slate-400 pt-1">+{contabo.snapshots.length - 6} more</p>
           )}
         </div>
       )}

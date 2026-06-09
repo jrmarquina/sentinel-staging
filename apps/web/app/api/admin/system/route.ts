@@ -343,12 +343,17 @@ async function getResend(): Promise<{ ok: boolean; stats: ResendStats | null; er
 
 // ── Contabo VPS backups ────────────────────────────────────────────────────
 
-export interface ContaboSnapshot {
-  snapshotId:   string
-  name:         string
-  description:  string
-  createdDate:  string
-  autoDeleteDate: string | null
+// Contabo's API exposes the backup schedule, not individual backup files.
+// Files are managed internally by Contabo and not accessible via API.
+export interface ContaboBackupSchedule {
+  backupId:          string
+  status:            string   // 'enabled' | 'disabled'
+  interval:          number
+  intervalUnit:      string   // 'days'
+  createdDate:       string
+  nextEarliestDate:  string
+  nextLatestDate:    string
+  instanceName:      string
 }
 
 async function getContaboToken(): Promise<string> {
@@ -371,43 +376,45 @@ async function getContaboToken(): Promise<string> {
   return d.access_token as string
 }
 
-async function getContaboBackups(): Promise<{ ok: boolean; snapshots: ContaboSnapshot[]; instanceId?: string; error?: string }> {
+async function getContaboBackups(): Promise<{ ok: boolean; schedules: ContaboBackupSchedule[]; error?: string }> {
   const clientId     = process.env.CONTABO_CLIENT_ID
   const clientSecret = process.env.CONTABO_CLIENT_SECRET
   const username     = process.env.CONTABO_USERNAME
   const password     = process.env.CONTABO_PASSWORD
-  const instanceId   = process.env.CONTABO_INSTANCE_ID
 
-  if (!clientId || !clientSecret || !username || !password || !instanceId) {
-    return { ok: false, snapshots: [], error: 'Contabo credentials not configured' }
+  if (!clientId || !clientSecret || !username || !password) {
+    return { ok: false, schedules: [], error: 'Contabo credentials not configured' }
   }
 
   try {
     const token = await getContaboToken()
-    const reqId = crypto.randomUUID()
     const r = await fetch(
-      `https://api.contabo.com/v1/compute/instances/${instanceId}/snapshots`,
+      'https://api.contabo.com/v1/backups',
       {
         headers: {
           Authorization: `Bearer ${token}`,
-          'x-request-id': reqId,
+          'x-request-id': crypto.randomUUID(),
         },
       }
     )
-    if (!r.ok) return { ok: false, snapshots: [], error: `Contabo API ${r.status}` }
+    if (!r.ok) return { ok: false, schedules: [], error: `Contabo API ${r.status}` }
     const d = await r.json()
-    const snapshots: ContaboSnapshot[] = (d.data ?? []).map((s: Record<string, unknown>) => ({
-      snapshotId:    String(s.snapshotId ?? ''),
-      name:          String(s.name ?? ''),
-      description:   String(s.description ?? ''),
-      createdDate:   String(s.createdDate ?? ''),
-      autoDeleteDate: s.autoDeleteDate ? String(s.autoDeleteDate) : null,
-    }))
-    // Sort newest first
-    snapshots.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime())
-    return { ok: true, snapshots, instanceId }
+    const schedules: ContaboBackupSchedule[] = (d.data ?? []).map((s: Record<string, unknown>) => {
+      const inst = s.instance as Record<string, unknown> | undefined
+      return {
+        backupId:         String(s.backupId ?? ''),
+        status:           String(s.status ?? 'unknown'),
+        interval:         Number(s.interval ?? 1),
+        intervalUnit:     String(s.intervalUnit ?? 'days'),
+        createdDate:      String(s.createdDate ?? ''),
+        nextEarliestDate: String(s.nextEarliestDate ?? ''),
+        nextLatestDate:   String(s.nextLatestDate ?? ''),
+        instanceName:     inst ? String(inst.name ?? '') : '',
+      }
+    })
+    return { ok: true, schedules }
   } catch (e) {
-    return { ok: false, snapshots: [], error: e instanceof Error ? e.message : 'Unknown' }
+    return { ok: false, schedules: [], error: e instanceof Error ? e.message : 'Unknown' }
   }
 }
 
@@ -441,7 +448,7 @@ export async function GET() {
       uptime:     uptime.status     === 'fulfilled' ? uptime.value     : { ok: false, monitors: [] },
       cloudflare: cloudflare.status === 'fulfilled' ? cloudflare.value : { ok: false, stats: null },
       resend:     resend.status     === 'fulfilled' ? resend.value     : { ok: false, stats: null },
-      contabo:    contabo.status    === 'fulfilled' ? contabo.value    : { ok: false, snapshots: [] },
+      contabo:    contabo.status    === 'fulfilled' ? contabo.value    : { ok: false, schedules: [] },
     })
   } catch (err) {
     console.error('System status error:', err)
