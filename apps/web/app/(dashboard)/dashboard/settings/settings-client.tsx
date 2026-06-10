@@ -411,15 +411,16 @@ function BackupStatusSection() {
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState<string | null>(null)
 
+  // Fetch on mount so the header dot shows correct status even when collapsed
   useEffect(() => {
-    if (!open || files !== null) return
+    if (files !== null) return
     setLoading(true)
     fetch('/api/admin/backups')
       .then((r) => r.json())
       .then((d) => { setFiles(d.files ?? []); setError(d.error ?? null) })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [open, files])
+  }, [files])
 
   const lastFile   = files?.[0] ?? null
   const lastDate   = lastFile ? parseISO(lastFile.date) : null
