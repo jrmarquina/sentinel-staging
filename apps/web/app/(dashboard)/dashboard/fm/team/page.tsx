@@ -4,7 +4,7 @@ import { getSession } from '@/lib/auth/get-session'
 import { redirect } from 'next/navigation'
 import { FmTeamClient } from './team-client'
 
-export const metadata = { title: 'FM Team — Sentinel' }
+export const metadata = { title: 'FM Team' }
 
 function isFmManager(cap: string | null, role: string): boolean {
   if (cap) return ['org_admin', 'fm_manager'].includes(cap)
