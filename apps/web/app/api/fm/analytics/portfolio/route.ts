@@ -189,7 +189,7 @@ export async function GET() {
 
     const { data: woTrendData, error: woTrendErr } = await supabase
       .from('fm_work_orders')
-      .select('id, status, created_at, completed_at')
+      .select('id, status, created_at, resolved_at')
       .eq('org_id', orgId)
       .is('deleted_at', null)
       .gte('created_at', twelveMonthsAgo)
@@ -207,8 +207,8 @@ export async function GET() {
       const key = d.toLocaleString('en-US', { month: 'short' }).toUpperCase()
       if (!trendMap[key]) continue
       trendMap[key].open++
-      if (wo.status === 'COMPLETED' && wo.completed_at) {
-        const cd = new Date(wo.completed_at as string)
+      if (wo.status === 'COMPLETED' && wo.resolved_at) {
+        const cd = new Date(wo.resolved_at as string)
         const ckey = cd.toLocaleString('en-US', { month: 'short' }).toUpperCase()
         if (trendMap[ckey]) trendMap[ckey].completed++
       }

@@ -61,13 +61,14 @@ export default async function SettingsPage() {
     is_me:      p.id === user.id,
   }))
 
-  // Fetch last 500 audit log entries
+  // Fetch last 100 audit log entries — old_data/new_data JSON blobs are heavy,
+  // and all rows are serialized into the RSC payload (500 rows ≈ 300 KB HTML)
   const { data: auditRows } = await admin
     .from('audit_log')
     .select('id, user_id, action, table_name, record_id, old_data, new_data, created_at')
     .eq('org_id', orgId)
     .order('created_at', { ascending: false })
-    .limit(500)
+    .limit(100)
 
   // Build a name map for audit entries
   const nameMap: Record<string, string> = {}
