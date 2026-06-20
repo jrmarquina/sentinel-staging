@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import {
   Plus, Search, Loader2, AlertTriangle, X,
   ClipboardCheck, ChevronRight, Calendar,
@@ -158,7 +159,161 @@ export default function FMInspectionsPage() {
     }
   }
 
+  // Inspection status → colored left border
+  function inspBorderColor(status: string) {
+    if (status === 'COMPLETED')        return '#10B981'
+    if (status === 'IN_PROGRESS')      return '#3B82F6'
+    if (status === 'PENDING_APPROVAL') return '#F59E0B'
+    if (status === 'SCHEDULED')        return '#6366F1'
+    return '#6B7280'
+  }
+  function inspChipStyle(status: string): React.CSSProperties {
+    if (status === 'COMPLETED')        return { background: '#D1FAE5', color: '#065F46' }
+    if (status === 'IN_PROGRESS')      return { background: '#DBEAFE', color: '#1E40AF' }
+    if (status === 'PENDING_APPROVAL') return { background: '#FEF3C7', color: '#92400E' }
+    if (status === 'SCHEDULED')        return { background: '#EDE9FE', color: '#5B21B6' }
+    return { background: '#F3F4F6', color: '#374151' }
+  }
+  function inspStatusLabel(status: string) {
+    if (status === 'IN_PROGRESS')      return 'In Progress'
+    if (status === 'PENDING_APPROVAL') return 'Pending Approval'
+    if (status === 'COMPLETED')        return 'Completed'
+    if (status === 'SCHEDULED')        return 'Scheduled'
+    return status
+  }
+
   return (
+    <>
+
+    {/* ── Mobile Inspections (Warmth / Command) ── */}
+    <div className="lg:hidden" style={{ margin: '-1rem -1rem 0', padding: '16px 14px' }}>
+
+      {/* Header + new button */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--mob-fg)', margin: 0 }}>Inspections</h1>
+        <button
+          onClick={() => setShowModal(true)}
+          style={{
+            background: 'var(--mob-accent)',
+            color:      '#fff',
+            border:     'none',
+            borderRadius: 10,
+            padding:    '7px 14px',
+            fontSize:   12,
+            fontWeight: 700,
+            cursor:     'pointer',
+          }}
+        >
+          + New
+        </button>
+      </div>
+
+      {/* Search */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--mob-card)', borderRadius: 10, border: '1px solid var(--mob-border)', padding: '8px 12px', marginBottom: 12 }}>
+        <Search size={14} color="var(--mob-muted)" />
+        <input
+          type="text"
+          placeholder="Search inspections…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, color: 'var(--mob-fg)', outline: 'none' }}
+        />
+        {search && (
+          <button onClick={() => setSearch('')} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: 'var(--mob-muted)', display: 'flex' }}>
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
+      {/* Filter pills */}
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none', marginBottom: 12 }}>
+        {filterTabs.map((tab) => {
+          const active = activeTab === tab.value
+          return (
+            <button
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              style={{
+                padding:      '5px 12px',
+                borderRadius: 9999,
+                fontSize:     11,
+                fontWeight:   700,
+                flexShrink:   0,
+                border:       `1px solid ${active ? 'var(--mob-accent)' : 'var(--mob-border)'}`,
+                background:   active ? 'var(--mob-accent)' : 'var(--mob-card)',
+                color:        active ? '#fff' : 'var(--mob-muted)',
+                cursor:       'pointer',
+              }}
+            >
+              {tab.label} <span style={{ opacity: 0.7 }}>{tabCount(tab.value)}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
+          <Loader2 size={24} style={{ animation: 'spin 1s linear infinite', color: 'var(--mob-muted)' }} />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ padding: '3rem 0', textAlign: 'center', color: 'var(--mob-muted)', fontSize: 13 }}>
+          {search ? 'No matches found' : 'No inspections yet'}
+        </div>
+      ) : (
+        filtered.map((insp) => {
+          const isRunnable = insp.status === 'DRAFT' || insp.status === 'IN_PROGRESS'
+          const href = isRunnable
+            ? `/dashboard/fm/inspections/${insp.id}/run`
+            : `/dashboard/fm/inspections/${insp.id}`
+          return (
+            <Link key={insp.id} href={href} style={{ textDecoration: 'none', display: 'block', marginBottom: 8 }}>
+              <div style={{
+                padding:      '12px 12px',
+                background:   'var(--mob-card)',
+                borderRadius: 14,
+                border:       '1px solid var(--mob-border)',
+                borderLeft:   `4px solid ${inspBorderColor(insp.status)}`,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--mob-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {insp.fm_properties?.name ?? '—'}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--mob-muted)', marginTop: 2 }}>
+                      {insp.fm_templates?.name ?? 'No template'}
+                    </div>
+                  </div>
+                  <span style={{
+                    padding: '2px 8px', borderRadius: 20,
+                    fontSize: 9, fontWeight: 700, flexShrink: 0,
+                    ...inspChipStyle(insp.status),
+                  }}>
+                    {inspStatusLabel(insp.status)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 10, color: 'var(--mob-muted)' }}>
+                  {insp.inspector?.full_name && (
+                    <span>👤 {insp.inspector.full_name}</span>
+                  )}
+                  {insp.scheduled_for && (
+                    <span>📅 {new Date(insp.scheduled_for).toLocaleDateString()}</span>
+                  )}
+                  {insp.score != null && (
+                    <span style={{ color: insp.score >= 80 ? '#10B981' : insp.score >= 60 ? '#F59E0B' : '#EF4444', fontWeight: 700 }}>
+                      Score: {insp.score}%
+                    </span>
+                  )}
+                </div>
+              </div>
+            </Link>
+          )
+        })
+      )}
+    </div>
+
+    {/* ── Desktop layout — unchanged ── */}
+    <div className="hidden lg:block">
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
       {/* Header */}
@@ -466,5 +621,7 @@ export default function FMInspectionsPage() {
       </FmModal>
 
     </div>
+    </div> {/* end hidden lg:block desktop wrapper */}
+    </> /* end mobile+desktop fragment */
   )
 }

@@ -599,7 +599,98 @@ export default function FMPropertyDetailPage() {
 
   const dateLocale = locale === 'es' ? 'es-PR' : 'en-US'
 
+  // Google Maps URL: prefer GPS coords, fall back to address
+  const mapsUrl =
+    (property.latitude != null && property.longitude != null)
+      ? `https://maps.google.com/?q=${property.latitude},${property.longitude}`
+      : property.address
+        ? `https://maps.google.com/?q=${encodeURIComponent(property.address)}`
+        : null
+
   return (
+    <>
+
+    {/* ── Mobile property hero (Warmth / Command) ── */}
+    <div className="lg:hidden" style={{ margin: '-1rem -1rem 1rem' }}>
+
+      {/* Hero banner: cover image or gradient */}
+      <div style={{
+        height:   180,
+        position: 'relative',
+        overflow: 'hidden',
+        background: heroBg,
+      }}>
+        {/* Gradient overlay for text legibility */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.1) 55%, transparent 100%)',
+        }} />
+
+        {/* Back button */}
+        <button
+          onClick={() => router.push('/dashboard/fm/properties')}
+          style={{
+            position:     'absolute',
+            top:          12,
+            left:         12,
+            background:   'rgba(0,0,0,0.45)',
+            border:       'none',
+            borderRadius: 8,
+            padding:      '5px 10px',
+            color:        '#fff',
+            fontSize:     13,
+            fontWeight:   600,
+            cursor:       'pointer',
+            display:      'flex',
+            alignItems:   'center',
+            gap:          4,
+          }}
+        >
+          <ArrowLeft size={14} /> Back
+        </button>
+
+        {/* Property name + address */}
+        <div style={{ position: 'absolute', bottom: 14, left: 14, right: 14 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: 0, lineHeight: 1.2 }}>
+            {property.name}
+          </h1>
+          {property.address && (
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.82)', marginTop: 4 }}>
+              {property.address}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Get Directions button */}
+      {mapsUrl && (
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display:        'flex',
+            alignItems:     'center',
+            justifyContent: 'center',
+            gap:            8,
+            margin:         '10px 14px',
+            padding:        '11px',
+            background:     'var(--mob-accent)',
+            color:          '#fff',
+            borderRadius:   12,
+            fontSize:       13,
+            fontWeight:     700,
+            textDecoration: 'none',
+          }}
+        >
+          <Navigation size={16} />
+          Get Directions
+        </a>
+      )}
+    </div>
+
+    {/* ── Desktop layout (back button + full detail) ── */}
+    <div className="hidden lg:block">
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
       {/* Back + title */}
@@ -1229,5 +1320,7 @@ export default function FMPropertyDetailPage() {
         document.body
       )}
     </div>
+    </div> {/* end hidden lg:block desktop wrapper */}
+    </> /* end mobile+desktop fragment */
   )
 }

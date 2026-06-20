@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import {
   Plus, Search, MapPin,
@@ -242,7 +242,129 @@ export default function FMPropertiesPage() {
     return acc
   }, {})
 
+  // Status → colored left border
+  function statusBorderColor(status: string) {
+    if (status === 'ACTIVE')      return '#10B981'
+    if (status === 'MAINTENANCE') return '#F59E0B'
+    return '#EF4444'
+  }
+  function statusChipStyle(status: string): React.CSSProperties {
+    if (status === 'ACTIVE')      return { background: '#D1FAE5', color: '#065F46' }
+    if (status === 'MAINTENANCE') return { background: '#FEF3C7', color: '#92400E' }
+    return { background: '#FEE2E2', color: '#991B1B' }
+  }
+  function statusLabel(status: string) {
+    if (status === 'ACTIVE')      return 'Active'
+    if (status === 'MAINTENANCE') return 'Maintenance'
+    return 'Inactive'
+  }
+
   return (
+    <>
+
+    {/* ── Mobile Properties list (Warmth / Command) ── */}
+    <div className="lg:hidden" style={{ margin: '-1rem -1rem 0', padding: '16px 14px' }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--mob-fg)', margin: 0 }}>Properties</h1>
+        <button
+          onClick={() => setShowModal(true)}
+          style={{
+            background: 'var(--mob-accent)',
+            color:      '#fff',
+            border:     'none',
+            borderRadius: 10,
+            padding:    '7px 14px',
+            fontSize:   12,
+            fontWeight: 700,
+            cursor:     'pointer',
+          }}
+        >
+          + New
+        </button>
+      </div>
+
+      {/* Search */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--mob-card)', borderRadius: 10, border: '1px solid var(--mob-border)', padding: '8px 12px', marginBottom: 12 }}>
+        <Search size={14} color="var(--mob-muted)" />
+        <input
+          type="text"
+          placeholder="Search properties…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, color: 'var(--mob-fg)', outline: 'none' }}
+        />
+        {search && (
+          <button onClick={() => setSearch('')} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: 'var(--mob-muted)', display: 'flex' }}>
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
+      {/* Property rows */}
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
+          <Loader2 size={24} style={{ animation: 'spin 1s linear infinite', color: 'var(--mob-muted)' }} />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ padding: '3rem 0', textAlign: 'center', color: 'var(--mob-muted)', fontSize: 13 }}>
+          {search ? 'No properties match your search' : 'No properties yet'}
+        </div>
+      ) : (
+        filtered.map((prop) => (
+          <Link key={prop.id} href={`/dashboard/fm/properties/${prop.id}`} style={{ textDecoration: 'none', display: 'block', marginBottom: 8 }}>
+            <div style={{
+              display:      'flex',
+              alignItems:   'center',
+              gap:          12,
+              padding:      '12px 12px',
+              background:   'var(--mob-card)',
+              borderRadius: 14,
+              border:       '1px solid var(--mob-border)',
+              borderLeft:   `4px solid ${statusBorderColor(prop.status)}`,
+            }}>
+              {/* Image or gradient icon */}
+              <div style={{
+                width:          46,
+                height:         46,
+                borderRadius:   10,
+                flexShrink:     0,
+                background:     prop.cover_image_url
+                  ? `url(${prop.cover_image_url}) center/cover no-repeat`
+                  : propGradient(prop.id),
+                display:        'flex',
+                alignItems:     'center',
+                justifyContent: 'center',
+              }}>
+                {!prop.cover_image_url && <Building2 size={20} color="rgba(255,255,255,0.6)" />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--mob-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {prop.name}
+                </div>
+                {prop.address && (
+                  <div style={{ fontSize: 11, color: 'var(--mob-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {prop.address}
+                  </div>
+                )}
+                <span style={{
+                  display: 'inline-block', marginTop: 5,
+                  padding: '2px 8px', borderRadius: 20,
+                  fontSize: 9, fontWeight: 700,
+                  ...statusChipStyle(prop.status),
+                }}>
+                  {statusLabel(prop.status)}
+                </span>
+              </div>
+            </div>
+          </Link>
+        ))
+      )}
+    </div>
+
+    {/* ── Desktop layout — unchanged ── */}
+    <div className="hidden lg:block">
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
       {/* Header */}
@@ -415,5 +537,7 @@ export default function FMPropertiesPage() {
       </FmModal>
 
     </div>
+    </div> {/* end hidden lg:block desktop wrapper */}
+    </> /* end mobile+desktop fragment */
   )
 }

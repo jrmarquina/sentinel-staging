@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
+import { MobileBottomNav } from '@/components/mobile/MobileBottomNav'
 import { useDesignTheme } from '@/lib/design-theme'
 import type { AppRole } from '@sentinel/shared'
 
@@ -59,10 +60,12 @@ export default function DashboardShell({
           userAvatar={userAvatar}
           initialRole={userRole}
         />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6" style={{ background: 'var(--bg)' }}>
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 mob-main" style={{ background: 'var(--bg)' }}>
           {children}
         </main>
       </div>
+
+      <MobileBottomNav />
     </div>
   )
 }

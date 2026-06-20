@@ -517,3 +517,34 @@ body {
 .fm-hover-show { opacity: 0; transition: opacity 0.2s; }
 tr:hover .fm-hover-show,
 .fm-card:hover .fm-hover-show { opacity: 1; }
+
+/* ── Mobile Warmth / Command theme ──────────────
+   Only activates below the lg breakpoint (1024px).
+   Desktop layout is completely unaffected.        */
+@media (max-width: 1023px) {
+  :root {
+    --mob-bg:     #F0F4FB;
+    --mob-card:   #FFFFFF;
+    --mob-nav:    #FFFFFF;
+    --mob-border: #E5EAFA;
+    --mob-accent: #2563EB;
+    --mob-muted:  #6B7280;
+    --mob-faint:  #9CA3AF;
+    --mob-fg:     #111827;
+  }
+  html.dark {
+    --mob-bg:     #0A0D14;
+    --mob-card:   #151A24;
+    --mob-nav:    #0A0D14;
+    --mob-border: #1E2436;
+    --mob-accent: #3B82F6;
+    --mob-muted:  #4B5563;
+    --mob-faint:  #374151;
+    --mob-fg:     #F9FAFB;
+  }
+  /* Bottom padding so content clears the 60px bottom nav */
+  .mob-main {
+    background: var(--mob-bg) !important;
+    padding-bottom: 76px !important;
+  }
+}

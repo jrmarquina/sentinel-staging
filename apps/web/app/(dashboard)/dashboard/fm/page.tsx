@@ -1620,6 +1620,129 @@ export default function FMDashboardPage() {
   const display = data ?? ({} as DashboardData)
 
   return (
+    <>
+
+    {/* ── Mobile home (Warmth / Command) — hidden on desktop ── */}
+    <div className="lg:hidden" style={{ margin: '-1rem -1rem 0', padding: '16px 14px' }}>
+      {/* Page title */}
+      <div style={{ marginBottom: 14 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--mob-fg)', margin: 0 }}>
+          Facilities
+        </h1>
+        <p style={{ fontSize: 12, color: 'var(--mob-muted)', marginTop: 2 }}>
+          {t('dash.subtitle')}
+        </p>
+      </div>
+
+      {/* Stats 2×2 */}
+      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--mob-faint)', marginBottom: 8 }}>
+        Today at a glance
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+        {[
+          { dot: '#3B82F6', num: (display.workOrders?.open ?? 0),          label: 'Open work orders' },
+          { dot: '#F59E0B', num: (display.overdueWorkOrders ?? 0),          label: 'Overdue items' },
+          { dot: '#10B981', num: (display.inspections?.inProgress ?? 0),    label: 'In-progress inspections' },
+          { dot: '#6366F1', num: (display.upcomingInspections ?? 0),        label: 'Upcoming inspections' },
+        ].map(({ dot, num, label }) => (
+          <div key={label} style={{
+            background:   'var(--mob-card)',
+            borderRadius: 14,
+            padding:      '12px 12px 10px',
+            border:       '1px solid var(--mob-border)',
+          }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: dot, marginBottom: 6 }} />
+            <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--mob-fg)', lineHeight: 1 }}>{num}</div>
+            <div style={{ fontSize: 11, color: 'var(--mob-muted)', marginTop: 4 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Quick Actions */}
+      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--mob-faint)', marginBottom: 8 }}>
+        Quick actions
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>
+        {[
+          { emoji: '🔧', label: 'Work Orders',  href: '/dashboard/fm/work-orders' },
+          { emoji: '📋', label: 'Inspections',  href: '/dashboard/fm/inspections' },
+          { emoji: '🏢', label: 'Properties',   href: '/dashboard/fm/properties' },
+        ].map(({ emoji, label, href }) => (
+          <a key={href} href={href} style={{ textDecoration: 'none' }}>
+            <div style={{
+              background:     'var(--mob-card)',
+              borderRadius:   14,
+              padding:        '12px 6px',
+              display:        'flex',
+              flexDirection:  'column',
+              alignItems:     'center',
+              gap:            6,
+              border:         '1px solid var(--mob-border)',
+            }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--mob-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                {emoji}
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--mob-fg)', textAlign: 'center', lineHeight: 1.2 }}>
+                {label}
+              </span>
+            </div>
+          </a>
+        ))}
+      </div>
+
+      {/* My schedule */}
+      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--mob-faint)', marginBottom: 8 }}>
+        My schedule
+      </p>
+      {(display.scheduledEvents?.length ?? 0) === 0 ? (
+        <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--mob-muted)', fontSize: 13 }}>
+          No upcoming events
+        </div>
+      ) : (
+        display.scheduledEvents?.slice(0, 4).map((ev) => {
+          const dotColor = ev.isOverdue ? '#EF4444'
+            : ev.type === 'work_order' ? '#F59E0B'
+            : ev.status === 'IN_PROGRESS' ? '#3B82F6'
+            : '#10B981'
+          return (
+            <a key={ev.id} href={
+              ev.type === 'work_order'
+                ? `/dashboard/fm/work-orders/${ev.id}`
+                : `/dashboard/fm/inspections/${ev.id}`
+            } style={{ textDecoration: 'none' }}>
+              <div style={{
+                display:      'flex',
+                alignItems:   'center',
+                gap:          10,
+                padding:      '10px 12px',
+                background:   'var(--mob-card)',
+                borderRadius: 12,
+                marginBottom: 6,
+                border:       '1px solid var(--mob-border)',
+              }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--mob-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {ev.title}
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--mob-muted)', marginTop: 2 }}>
+                    {ev.propertyName} · {ev.type === 'work_order' ? 'Work Order' : 'Inspection'}
+                  </div>
+                </div>
+                {ev.isOverdue && (
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#EF4444', background: '#FEE2E2', borderRadius: 20, padding: '2px 7px', flexShrink: 0 }}>
+                    OVERDUE
+                  </span>
+                )}
+              </div>
+            </a>
+          )
+        })
+      )}
+    </div>
+
+    {/* ── Desktop layout — hidden on mobile ── */}
+    <div className="hidden lg:block">
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', padding: '0.25rem 0' }}>
 
       {/* ── Header ── */}
@@ -1715,5 +1838,7 @@ export default function FMDashboardPage() {
       </div>
       )} {/* end !data conditional */}
     </div>
+    </div> {/* end hidden lg:block desktop wrapper */}
+    </> /* end mobile+desktop fragment */
   )
 }
