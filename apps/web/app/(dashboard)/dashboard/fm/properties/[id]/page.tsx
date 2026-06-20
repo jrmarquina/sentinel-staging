@@ -689,12 +689,11 @@ export default function FMPropertyDetailPage() {
       )}
     </div>
 
-    {/* ── Desktop layout (back button + full detail) ── */}
-    <div className="hidden lg:block">
+    {/* ── Full detail — visible on all screens, back+title hidden on mobile ── */}
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-      {/* Back + title */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.875rem' }}>
+      {/* Back + title — desktop only (mobile hero above replaces this) */}
+      <div className="hidden lg:flex" style={{ alignItems: 'flex-start', gap: '0.875rem' }}>
         <button onClick={() => router.push('/dashboard/fm/properties')}
           style={{ marginTop: 3, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', transition: 'color 0.15s' }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--fg)' }}
@@ -841,10 +840,10 @@ export default function FMPropertyDetailPage() {
           {/* Tabs */}
           <div>
             <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: '1.25rem', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-              <div style={{ display: 'flex' }}>
+              <div style={{ display: 'flex', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as 'touch', msOverflowStyle: 'none' as 'none' }}>
                 {TABS.map((tab) => <Tab key={tab.value} label={tab.label} count={tab.count} active={activeTab === tab.value} onClick={() => setActiveTab(tab.value)} />)}
               </div>
-              <div style={{ paddingBottom: '0.5rem' }}>
+              <div style={{ paddingBottom: '0.5rem', flexShrink: 0 }} className="hidden lg:block">
                 {activeTab === 'assets' && (
                   <FmButton icon={<Plus size={13} />} size="sm" onClick={() => setShowAddAsset(true)}>
                     {t('prop.detail.addAsset')}
@@ -1320,7 +1319,6 @@ export default function FMPropertyDetailPage() {
         document.body
       )}
     </div>
-    </div> {/* end hidden lg:block desktop wrapper */}
     </> /* end mobile+desktop fragment */
   )
 }

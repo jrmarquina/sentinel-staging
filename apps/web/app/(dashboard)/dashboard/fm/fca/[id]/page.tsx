@@ -398,6 +398,7 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
   const [error, setError]                     = useState<string | null>(null)
   const [saveState, setSaveState]             = useState<'dirty' | 'saving' | 'clean' | 'error'>('clean')
   const [sidebarOpen, setSidebarOpen]         = useState(true)
+  const [isMobile, setIsMobile]               = useState(false)
   const [generating, setGenerating]           = useState(false)
   const [floorPlans, setFloorPlans]           = useState<FloorPlan[]>([])
   const [copiedStatus, setCopiedStatus]       = useState(false)
@@ -462,6 +463,16 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
     }
     load()
   }, [params.id])
+
+  // ── Mobile detection ──────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)')
+    setIsMobile(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   // ── Auto-save ─────────────────────────────────────────────────────────────
 
@@ -802,89 +813,137 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Body */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
 
-        {/* Sidebar */}
-        <div style={{
-          width: sidebarOpen ? 230 : 64, flexShrink: 0,
-          background: 'var(--card-b)', borderRight: '1px solid var(--border)',
-          display: 'flex', flexDirection: 'column', overflow: 'hidden',
-          transition: 'width 0.2s ease',
-        }}>
-          <button
-            onClick={() => setSidebarOpen(o => !o)}
-            style={{ padding: '0.75rem', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'flex-end' : 'center', color: 'var(--muted)' }}
-            aria-label="Toggle sidebar"
-          >
-            <ChevronLeft size={16} style={{ transform: sidebarOpen ? 'none' : 'rotate(180deg)', transition: 'transform 0.2s' }} />
-          </button>
-
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem 0' }}>
+        {/* Mobile: horizontal scrollable section picker */}
+        {isMobile && (
+          <div style={{
+            flexShrink: 0, display: 'flex', overflowX: 'auto', gap: '0.375rem',
+            padding: '0.625rem 0.75rem', background: 'var(--card-b)',
+            borderBottom: '1px solid var(--border)',
+            WebkitOverflowScrolling: 'touch' as 'touch',
+          }}>
             {sections.map(sec => {
-              const active  = sec.id === activeSection
-              const scoring = calcSectionScore(sec, responses)
-
-              // Section 0: track YES_NO completion
+              const active   = sec.id === activeSection
+              const scoring  = calcSectionScore(sec, responses)
               const fp0total    = sec.isProfile ? sec.infoFields.filter(f => f.type === 'YES_NO').length : 0
               const fp0answered = sec.isProfile ? sec.infoFields.filter(f => f.type === 'YES_NO' && responses[f.id]?.result != null).length : 0
               const profileDone = sec.isProfile && fp0total > 0 && fp0answered === fp0total
-
               const visibleCount  = sec.components.filter(c => isVisible(c.cField, responses)).length
               const answeredCount = scoring?.answered ?? 0
               const done = !sec.isProfile && visibleCount > 0 && answeredCount === visibleCount
-
               return (
                 <button
                   key={sec.id}
                   onClick={() => setActiveSection(sec.id)}
                   style={{
-                    width: '100%', padding: sidebarOpen ? '0.625rem 1rem' : '0.625rem 0',
-                    display: 'flex', alignItems: 'center', gap: '0.625rem',
-                    background: active ? 'rgba(var(--primary-rgb, 99,102,241), 0.12)' : 'none',
-                    border: 'none', borderLeft: active ? '3px solid var(--primary)' : '3px solid transparent',
-                    cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s',
-                    justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                    flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.4rem',
+                    padding: '0.3rem 0.625rem 0.3rem 0.375rem',
+                    borderRadius: 20, cursor: 'pointer', whiteSpace: 'nowrap',
+                    background: active ? 'var(--primary)' : 'var(--card)',
+                    border: `1px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
+                    color: active ? '#fff' : 'var(--muted)',
+                    fontSize: '0.775rem', fontWeight: active ? 700 : 400,
                   }}
                 >
                   <span style={{
-                    flexShrink: 0, width: 28, height: 28, borderRadius: 6,
-                    background: (done || profileDone) ? 'var(--teal)' : active ? 'var(--primary)' : 'var(--card)',
+                    width: 22, height: 22, borderRadius: 4, flexShrink: 0,
+                    background: (done || profileDone) ? 'var(--teal)' : active ? 'rgba(255,255,255,0.25)' : 'var(--card-b)',
                     color: (done || profileDone || active) ? '#fff' : 'var(--fg)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.75rem', fontWeight: 700, border: '1px solid var(--border)',
+                    fontSize: '0.68rem', fontWeight: 700, border: '1px solid var(--border)',
                   }}>
                     {sec.id}
                   </span>
-
-                  {sidebarOpen && (
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '0.78rem', fontWeight: active ? 600 : 400, color: active ? 'var(--fg)' : 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {sec.label}
-                      </div>
-                      {scoring !== null ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
-                          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: scoreColor(scoring.score), background: scoreBg(scoring.score), padding: '0.1rem 0.35rem', borderRadius: 4 }}>
-                            {scoring.score.toFixed(1)}
-                          </span>
-                          <span style={{ fontSize: '0.67rem', color: 'var(--muted)' }}>
-                            {scoring.answered}/{scoring.visible}
-                          </span>
-                        </div>
-                      ) : sec.isProfile ? (
-                        <div style={{ fontSize: '0.67rem', color: 'var(--muted)', marginTop: '0.15rem' }}>
-                          {fp0answered}/{fp0total} answered
-                        </div>
-                      ) : null}
-                    </div>
-                  )}
+                  {sec.label}
                 </button>
               )
             })}
           </div>
-        </div>
+        )}
+
+        {/* Desktop: Sidebar */}
+        {!isMobile && (
+          <div style={{
+            width: sidebarOpen ? 230 : 64, flexShrink: 0,
+            background: 'var(--card-b)', borderRight: '1px solid var(--border)',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            transition: 'width 0.2s ease',
+          }}>
+            <button
+              onClick={() => setSidebarOpen(o => !o)}
+              style={{ padding: '0.75rem', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'flex-end' : 'center', color: 'var(--muted)' }}
+              aria-label="Toggle sidebar"
+            >
+              <ChevronLeft size={16} style={{ transform: sidebarOpen ? 'none' : 'rotate(180deg)', transition: 'transform 0.2s' }} />
+            </button>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem 0' }}>
+              {sections.map(sec => {
+                const active  = sec.id === activeSection
+                const scoring = calcSectionScore(sec, responses)
+
+                const fp0total    = sec.isProfile ? sec.infoFields.filter(f => f.type === 'YES_NO').length : 0
+                const fp0answered = sec.isProfile ? sec.infoFields.filter(f => f.type === 'YES_NO' && responses[f.id]?.result != null).length : 0
+                const profileDone = sec.isProfile && fp0total > 0 && fp0answered === fp0total
+
+                const visibleCount  = sec.components.filter(c => isVisible(c.cField, responses)).length
+                const answeredCount = scoring?.answered ?? 0
+                const done = !sec.isProfile && visibleCount > 0 && answeredCount === visibleCount
+
+                return (
+                  <button
+                    key={sec.id}
+                    onClick={() => setActiveSection(sec.id)}
+                    style={{
+                      width: '100%', padding: sidebarOpen ? '0.625rem 1rem' : '0.625rem 0',
+                      display: 'flex', alignItems: 'center', gap: '0.625rem',
+                      background: active ? 'rgba(var(--primary-rgb, 99,102,241), 0.12)' : 'none',
+                      border: 'none', borderLeft: active ? '3px solid var(--primary)' : '3px solid transparent',
+                      cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s',
+                      justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                    }}
+                  >
+                    <span style={{
+                      flexShrink: 0, width: 28, height: 28, borderRadius: 6,
+                      background: (done || profileDone) ? 'var(--teal)' : active ? 'var(--primary)' : 'var(--card)',
+                      color: (done || profileDone || active) ? '#fff' : 'var(--fg)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '0.75rem', fontWeight: 700, border: '1px solid var(--border)',
+                    }}>
+                      {sec.id}
+                    </span>
+
+                    {sidebarOpen && (
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.78rem', fontWeight: active ? 600 : 400, color: active ? 'var(--fg)' : 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {sec.label}
+                        </div>
+                        {scoring !== null ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: scoreColor(scoring.score), background: scoreBg(scoring.score), padding: '0.1rem 0.35rem', borderRadius: 4 }}>
+                              {scoring.score.toFixed(1)}
+                            </span>
+                            <span style={{ fontSize: '0.67rem', color: 'var(--muted)' }}>
+                              {scoring.answered}/{scoring.visible}
+                            </span>
+                          </div>
+                        ) : sec.isProfile ? (
+                          <div style={{ fontSize: '0.67rem', color: 'var(--muted)', marginTop: '0.15rem' }}>
+                            {fp0answered}/{fp0total} answered
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Content area */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '1rem' : '1.5rem' }}>
 
           {/* Section heading */}
           <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>

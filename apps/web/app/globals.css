@@ -542,9 +542,9 @@ tr:hover .fm-hover-show,
     --mob-faint:  #374151;
     --mob-fg:     #F9FAFB;
   }
-  /* Bottom padding so content clears the 60px bottom nav */
+  /* Bottom padding: 60px nav + browser chrome + iOS safe area */
   .mob-main {
     background: var(--mob-bg) !important;
-    padding-bottom: 76px !important;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 16px)) !important;
   }
 }
