@@ -1569,6 +1569,7 @@ function MaintenanceTimeline({ events, properties }: { events: ScheduledEvent[];
 
 export default function FMDashboardPage() {
   const t = useFmT()
+  const router = useRouter()
   const [data, setData]         = useState<DashboardData | null>(null)
   const [kpi, setKpi]           = useState<Partial<DashboardData> | null>(null)
   const [loading, setLoading]   = useState(true)
@@ -1623,7 +1624,7 @@ export default function FMDashboardPage() {
     <>
 
     {/* ── Mobile home (Warmth / Command) — hidden on desktop ── */}
-    <div className="lg:hidden" style={{ margin: '-1rem -1rem 0', padding: '16px 14px' }}>
+    <div className="lg:hidden" style={{ margin: '-1rem -1rem 0', padding: '16px 14px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 20px))' }}>
       {/* Page title */}
       <div style={{ marginBottom: 14 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--mob-fg)', margin: 0 }}>
@@ -1690,9 +1691,17 @@ export default function FMDashboardPage() {
         ))}
       </div>
 
+      {/* Calendar */}
+      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--mob-faint)', marginBottom: 8 }}>
+        Calendar
+      </p>
+      <div style={{ background: 'var(--mob-card)', borderRadius: 14, border: '1px solid var(--mob-border)', padding: '14px 12px', marginBottom: 14 }}>
+        <TwoMonthCalendar events={display.scheduledEvents ?? []} router={router} />
+      </div>
+
       {/* My schedule */}
       <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--mob-faint)', marginBottom: 8 }}>
-        My schedule
+        Upcoming
       </p>
       {(display.scheduledEvents?.length ?? 0) === 0 ? (
         <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--mob-muted)', fontSize: 13 }}>

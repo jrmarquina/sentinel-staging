@@ -186,7 +186,7 @@ export default function FMInspectionsPage() {
     <>
 
     {/* ── Mobile Inspections (Warmth / Command) ── */}
-    <div className="lg:hidden" style={{ margin: '-1rem -1rem 0', padding: '16px 14px' }}>
+    <div className="lg:hidden" style={{ margin: '-1rem -1rem 0', padding: '16px 14px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 20px))' }}>
 
       {/* Header + new button */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>

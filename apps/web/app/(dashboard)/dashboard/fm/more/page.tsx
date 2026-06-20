@@ -158,7 +158,7 @@ export default function FMMorePage() {
       </div>
 
       {/* Mobile sections */}
-      <div className="lg:hidden">
+      <div className="lg:hidden" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 20px))' }}>
         {sections.map((section) => (
           <div key={section.heading} style={{ marginTop: 24 }}>
             <p style={{

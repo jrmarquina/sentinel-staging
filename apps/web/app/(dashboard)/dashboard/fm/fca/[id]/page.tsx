@@ -943,7 +943,7 @@ export default function FCAFillPage({ params }: { params: { id: string } }) {
         )}
 
         {/* Content area */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '1rem' : '1.5rem' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '1rem' : '1.5rem', paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom, 20px))' : '1.5rem' }}>
 
           {/* Section heading */}
           <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>

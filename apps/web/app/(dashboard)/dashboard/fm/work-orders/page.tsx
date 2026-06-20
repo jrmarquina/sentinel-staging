@@ -819,7 +819,7 @@ export default function FMWorkOrdersPage() {
   const pendingCount  = workOrders.filter((w) => w.status === 'PENDING_REVIEW').length
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom, 20px))' : undefined }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
