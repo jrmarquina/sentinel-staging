@@ -16,7 +16,7 @@
  *   - All viewers expose download + open-in-new-tab + full-screen.
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, memo } from 'react'
 import {
   Upload, Trash2, X, ZoomIn, ZoomOut, Maximize2, Minimize2,
   Download, ExternalLink, ChevronLeft, ChevronRight,
@@ -288,6 +288,59 @@ export default function PropertyGallery({ propertyId, onChange }: Props) {
   )
 }
 
+// ── PDF Thumbnail ──────────────────────────────────────────────────────────
+
+const PdfThumbnail = memo(function PdfThumbnail({ url }: { url: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [ready, setReady] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    async function render() {
+      try {
+        const pdfjsLib = await import('pdfjs-dist')
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/build/pdf.worker.min.mjs',
+          import.meta.url,
+        ).toString()
+        const pdf = await pdfjsLib.getDocument({ url, withCredentials: false }).promise
+        if (cancelled) return
+        const page = await pdf.getPage(1)
+        if (cancelled || !canvasRef.current) return
+        const canvas = canvasRef.current
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+        const vp = page.getViewport({ scale: 1 })
+        const scale = Math.max(canvas.offsetWidth / vp.width, canvas.offsetHeight / vp.height) || 0.5
+        const scaled = page.getViewport({ scale })
+        canvas.width = scaled.width
+        canvas.height = scaled.height
+        await page.render({ canvasContext: ctx, canvas, viewport: scaled }).promise
+        if (!cancelled) setReady(true)
+      } catch {
+        if (!cancelled) setFailed(true)
+      }
+    }
+    render()
+    return () => { cancelled = true }
+  }, [url])
+
+  if (failed) return null
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        width: '100%', height: '100%',
+        objectFit: 'cover',
+        opacity: ready ? 1 : 0,
+        transition: 'opacity 0.3s ease',
+      }}
+    />
+  )
+})
+
 // ── Tile ───────────────────────────────────────────────────────────────────
 
 function GalleryTile({
@@ -311,11 +364,23 @@ function GalleryTile({
       <div style={{
         aspectRatio: '4 / 3',
         background: showImage ? `url(${item.url}) center/cover no-repeat`
-                              : 'linear-gradient(145deg, #1b263b, #415a77)',
+                              : isPdf(item.type) ? '#1a1a2e' : 'linear-gradient(145deg, #1b263b, #415a77)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#fff',
+        color: '#fff', position: 'relative', overflow: 'hidden',
       }}>
-        {!showImage && fileTypeIcon(item.type, 40)}
+        {showImage && null}
+        {isPdf(item.type) && (
+          <>
+            <PdfThumbnail url={item.url} />
+            <div style={{
+              position: 'absolute', top: 6, right: 6,
+              background: '#e63946', color: '#fff',
+              fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.05em',
+              padding: '2px 5px', borderRadius: 4,
+            }}>PDF</div>
+          </>
+        )}
+        {!showImage && !isPdf(item.type) && fileTypeIcon(item.type, 40)}
       </div>
       <div style={{ padding: '0.5rem 0.625rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
         <div style={{ flex: 1, minWidth: 0 }}>

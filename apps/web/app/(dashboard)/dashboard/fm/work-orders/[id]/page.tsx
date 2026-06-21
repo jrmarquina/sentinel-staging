@@ -371,7 +371,7 @@ export default function FmWorkOrderDetailPage() {
   timeline.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime())
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: 720 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: 720, paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 20px))' }}>
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.875rem' }}>

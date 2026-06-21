@@ -299,7 +299,7 @@ export function ProjectForm({ orgId, userId, members, initial }: ProjectFormProp
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 pb-[calc(80px+env(safe-area-inset-bottom,20px))] lg:pb-0">
         <button type="submit" disabled={saving || !name.trim() || !code.trim()}
           className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
           {saving ? t('common.saving') : isEdit ? t('proj.form.saveBtn') : t('proj.form.createBtn')}
