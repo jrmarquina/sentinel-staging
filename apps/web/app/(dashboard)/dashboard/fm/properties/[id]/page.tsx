@@ -690,7 +690,7 @@ export default function FMPropertyDetailPage() {
     </div>
 
     {/* ── Full detail — visible on all screens, back+title hidden on mobile ── */}
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 20px))' }}>
 
       {/* Back + title — desktop only (mobile hero above replaces this) */}
       <div className="hidden lg:flex" style={{ alignItems: 'flex-start', gap: '0.875rem' }}>
@@ -750,14 +750,14 @@ export default function FMPropertyDetailPage() {
         </div>
       </div>
 
-      {/* Two-column layout */}
-      <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
+      {/* Two-column layout — stacks vertically on mobile */}
+      <div className="flex flex-col gap-5 lg:flex-row lg:gap-6 lg:items-start">
 
         {/* Left column */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-          {/* Hero */}
-          <div style={{ height: 260, borderRadius: 16, overflow: 'hidden', position: 'relative', background: heroBg, flexShrink: 0 }}>
+          {/* Hero — desktop only; mobile hero above already shows this */}
+          <div className="hidden lg:block" style={{ height: 260, borderRadius: 16, overflow: 'hidden', position: 'relative', background: heroBg, flexShrink: 0 }}>
             {/* Dark overlay at bottom */}
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%', background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)', pointerEvents: 'none' }} />
             {/* Property name + address overlay */}
@@ -1153,8 +1153,8 @@ export default function FMPropertyDetailPage() {
           </div>
         </div>
 
-        {/* Right column — Integrity Sidebar */}
-        <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* Right column — Integrity Sidebar; full-width on mobile, 300px fixed on desktop */}
+        <div className="lg:w-[300px] lg:flex-shrink-0" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{
             background: 'var(--card)',
             border: '1px solid var(--primary)30',
