@@ -1577,17 +1577,28 @@ export default function FMDashboardPage() {
 
   function load() {
     setLoading(true); setError(null)
-    // Fire both fetches simultaneously.
-    // KPI response (~100ms) shows the 5 stat cards immediately.
-    // Full response (~400ms) fills in charts, map, and calendar.
-    const kpiFetch  = fetch('/api/fm/analytics/dashboard?view=kpi')
+
+    // Mobile: single ?view=mobile request — KPI stats + calendar events only.
+    // Skips propertiesGeo, recentInspections, monthlyTrend, propertyRisk which
+    // are desktop-only. One fewer round-trip, ~90% smaller response.
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      fetch('/api/fm/analytics/dashboard?view=mobile')
+        .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<DashboardData> })
+        .then(d => setData(d))
+        .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load'))
+        .finally(() => setLoading(false))
+      return
+    }
+
+    // Desktop: two-fetch pattern — KPI shows immediately, full data fills in.
+    const kpiFetch = fetch('/api/fm/analytics/dashboard?view=kpi')
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then((d: Partial<DashboardData>) => setKpi(d))
       .catch(() => {/* kpi failure is non-fatal; full data will fill in */})
 
     const fullFetch = fetch('/api/fm/analytics/dashboard')
-      .then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<DashboardData> })
-      .then(d => { setData(d); setKpi(null) })      // full data supersedes kpi
+      .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<DashboardData> })
+      .then(d => { setData(d); setKpi(null) })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false))
 

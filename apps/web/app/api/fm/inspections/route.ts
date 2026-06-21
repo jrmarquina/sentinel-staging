@@ -68,7 +68,9 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await query
     if (error) return err(error.message)
-    return NextResponse.json(data)
+    return NextResponse.json(data, {
+      headers: { 'Cache-Control': 'private, max-age=20, stale-while-revalidate=60' },
+    })
   } catch (e) { return caught(e) }
 }
 

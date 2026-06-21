@@ -248,7 +248,10 @@ export async function GET(req: NextRequest) {
     // Return rows with a summary header so the frontend knows what scope
     // was applied (useful for debugging role issues during rollout)
     return NextResponse.json(data, {
-      headers: { 'X-FM-Access-Level': accessLevel },
+      headers: {
+        'X-FM-Access-Level': accessLevel,
+        'Cache-Control': 'private, max-age=20, stale-while-revalidate=60',
+      },
     })
 
   } catch (e) { return caught(e) }
