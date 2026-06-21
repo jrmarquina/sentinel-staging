@@ -82,7 +82,7 @@ function officeViewerUrl(fileUrl: string): string {
  * work via pinch / Ctrl+scroll / keyboard.
  */
 function pdfViewerUrl(fileUrl: string): string {
-  return `${fileUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH`
+  return fileUrl
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -300,10 +300,7 @@ const PdfThumbnail = memo(function PdfThumbnail({ url }: { url: string }) {
     async function render() {
       try {
         const pdfjsLib = await import('pdfjs-dist')
-        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-          'pdfjs-dist/build/pdf.worker.min.mjs',
-          import.meta.url,
-        ).toString()
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
         const pdf = await pdfjsLib.getDocument({ url, withCredentials: false }).promise
         if (cancelled) return
         const page = await pdf.getPage(1)
@@ -562,10 +559,10 @@ function AttachmentViewer({
             draggable={false}
           />
         ) : isPdfFile ? (
-          <iframe
+          <embed
             src={pdfViewerUrl(item.url)}
-            title={item.name}
-            style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
+            type="application/pdf"
+            style={{ width: '100%', height: '100%', border: 'none' }}
           />
         ) : isOfficeFile ? (
           <iframe
