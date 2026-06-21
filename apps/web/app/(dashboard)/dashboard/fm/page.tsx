@@ -1641,21 +1641,24 @@ export default function FMDashboardPage() {
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
         {[
-          { dot: '#3B82F6', num: (display.workOrders?.open ?? 0),          label: 'Open work orders' },
-          { dot: '#F59E0B', num: (display.overdueWorkOrders ?? 0),          label: 'Overdue items' },
-          { dot: '#10B981', num: (display.inspections?.inProgress ?? 0),    label: 'In-progress inspections' },
-          { dot: '#6366F1', num: (display.upcomingInspections ?? 0),        label: 'Upcoming inspections' },
-        ].map(({ dot, num, label }) => (
-          <div key={label} style={{
-            background:   'var(--mob-card)',
-            borderRadius: 14,
-            padding:      '12px 12px 10px',
-            border:       '1px solid var(--mob-border)',
-          }}>
-            <div style={{ width: 7, height: 7, borderRadius: '50%', background: dot, marginBottom: 6 }} />
-            <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--mob-fg)', lineHeight: 1 }}>{num}</div>
-            <div style={{ fontSize: 11, color: 'var(--mob-muted)', marginTop: 4 }}>{label}</div>
-          </div>
+          { dot: '#3B82F6', num: (display.workOrders?.open ?? 0),          label: 'Open work orders',         href: '/dashboard/fm/work-orders' },
+          { dot: '#F59E0B', num: (display.overdueWorkOrders ?? 0),          label: 'Overdue items',            href: '/dashboard/fm/work-orders' },
+          { dot: '#10B981', num: (display.inspections?.inProgress ?? 0),    label: 'In-progress inspections',  href: '/dashboard/fm/inspections' },
+          { dot: '#6366F1', num: (display.upcomingInspections ?? 0),        label: 'Upcoming inspections',     href: '/dashboard/fm/inspections' },
+        ].map(({ dot, num, label, href }) => (
+          <a key={label} href={href} style={{ textDecoration: 'none' }}>
+            <div style={{
+              background:   'var(--mob-card)',
+              borderRadius: 14,
+              padding:      '12px 12px 10px',
+              border:       '1px solid var(--mob-border)',
+              cursor:       'pointer',
+            }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: dot, marginBottom: 6 }} />
+              <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--mob-fg)', lineHeight: 1 }}>{num}</div>
+              <div style={{ fontSize: 11, color: 'var(--mob-muted)', marginTop: 4 }}>{label}</div>
+            </div>
+          </a>
         ))}
       </div>
 
