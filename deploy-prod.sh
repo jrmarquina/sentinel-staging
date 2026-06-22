@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 # =============================================================
 # Sentinel Public Works — Production Deploy Script
-# Run from the VPS: bash deploy-prod.sh
-# Triggered via: gh workflow run deploy-prod.yml (Claude Code)
+# Deploys to: sims.sentinelmgpr.com (PM2: sentinel-mpw, port 3001)
+# Triggered via: gh workflow run deploy-prod.yml --repo jrmarquina/sentinel-staging
+#
+# ENVIRONMENT:
+#   Production Supabase: supabase-kong (port 8000), supabase-db
+#   Supabase URL: https://sims.sentinelmgpr.com
+#   Env source: /opt/sentinel/.env (must exist before running)
+#     — if missing, rebuild from /srv/sentinel/supabase/docker/.env
+#     — must contain NEXT_PUBLIC_SUPABASE_URL=https://sims.sentinelmgpr.com
 #
 # VERSION STRATEGY:
 #   Production inherits the same version number as the staging
@@ -38,25 +45,37 @@ echo "  Promoting staging build → production: $NEW_VERSION"
 # Regenerate apps/web/.env.local from the prod env file.
 # Includes all NEXT_PUBLIC_* (baked into client bundle) and server-side
 # admin credentials (Supabase service role, Resend, Cloudflare, B2, etc.).
-if [ -f "$ENV_FILE" ]; then
-  grep -E '^(NEXT_PUBLIC_|SUPABASE_SERVICE_ROLE_KEY|RESEND_API_KEY|GITHUB_TOKEN|GITHUB_REPO|UPTIMEROBOT_API_KEY|CLOUDFLARE_API_TOKEN|CLOUDFLARE_ZONE_ID|CONTABO_|BACKUP_|B2_|NOVU_|TWILIO_|SLACK_|SUPABASE_INTERNAL_URL)' "$ENV_FILE" \
-    | grep -v '^NEXT_PUBLIC_APP_VERSION=' \
-    > "$REPO_DIR/apps/web/.env.local"
-  echo "NEXT_PUBLIC_APP_VERSION=${NEW_VERSION}" >> "$REPO_DIR/apps/web/.env.local"
-  awk -F= '{lines[$1]=$0} END{for(k in lines) print lines[k]}' "$REPO_DIR/apps/web/.env.local" > /tmp/env_dedup && mv /tmp/env_dedup "$REPO_DIR/apps/web/.env.local"
-  echo "  Wrote apps/web/.env.local (version: $NEW_VERSION)"
+# NEXT_PUBLIC_SUPABASE_URL must be https://sims.sentinelmgpr.com in that file.
+if [ ! -f "$ENV_FILE" ]; then
+  echo "ERROR: $ENV_FILE does not exist. Cannot deploy without production credentials."
+  echo "Rebuild it from: /srv/sentinel/supabase/docker/.env"
+  echo "See SYSTEM/Deployment.md for instructions."
+  exit 1
 fi
+
+# Validate the Supabase URL is correct before baking it into the bundle
+SUPABASE_URL_IN_ENV=$(grep '^NEXT_PUBLIC_SUPABASE_URL=' "$ENV_FILE" | cut -d= -f2-)
+if [ "$SUPABASE_URL_IN_ENV" != "https://sims.sentinelmgpr.com" ]; then
+  echo "ERROR: NEXT_PUBLIC_SUPABASE_URL in $ENV_FILE is '$SUPABASE_URL_IN_ENV'"
+  echo "       It must be 'https://sims.sentinelmgpr.com'. Fix the env file and retry."
+  exit 1
+fi
+
+grep -E '^(NEXT_PUBLIC_|SUPABASE_SERVICE_ROLE_KEY|RESEND_API_KEY|GITHUB_TOKEN|GITHUB_REPO|UPTIMEROBOT_API_KEY|CLOUDFLARE_API_TOKEN|CLOUDFLARE_ZONE_ID|CONTABO_|BACKUP_|B2_|NOVU_|TWILIO_|SLACK_|SUPABASE_INTERNAL_URL)' "$ENV_FILE" \
+  | grep -v '^NEXT_PUBLIC_APP_VERSION=' \
+  > "$REPO_DIR/apps/web/.env.local"
+echo "NEXT_PUBLIC_APP_VERSION=${NEW_VERSION}" >> "$REPO_DIR/apps/web/.env.local"
+awk -F= '{lines[$1]=$0} END{for(k in lines) print lines[k]}' "$REPO_DIR/apps/web/.env.local" > /tmp/env_dedup && mv /tmp/env_dedup "$REPO_DIR/apps/web/.env.local"
+echo "  Wrote apps/web/.env.local (SUPABASE_URL: $SUPABASE_URL_IN_ENV, version: $NEW_VERSION)"
 
 # Load prod env vars into shell so build-time env resolution works.
 # Line-by-line parsing avoids bash treating values containing / $ ! as commands.
-if [ -f "$ENV_FILE" ]; then
-  while IFS= read -r line || [ -n "$line" ]; do
-    [[ -z "$line" || "$line" == \#* ]] && continue
-    key="${line%%=*}"
-    val="${line#*=}"
-    [[ -n "$key" ]] && export "$key"="$val"
-  done < "$ENV_FILE"
-fi
+while IFS= read -r line || [ -n "$line" ]; do
+  [[ -z "$line" || "$line" == \#* ]] && continue
+  key="${line%%=*}"
+  val="${line#*=}"
+  [[ -n "$key" ]] && export "$key"="$val"
+done < "$ENV_FILE"
 
 echo "==> [4/6] Applying pending DB migrations to production..."
 
