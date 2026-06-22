@@ -49,6 +49,13 @@ export const VERSION_HISTORY: MajorEntry[] = [
             patch: '1.1.0',
             summary: 'Platform hardening — CI/CD pipeline, System Health, version tracking, SMTP email, calendar engine, FM improvements',
             builds: [
+              { build: '1.1.0.26', commitSha: 'fedce2c', description: 'Mobile: work order/inspection/reports bottom margins; PDF thumbnails via pdfjs-dist; multi-page PDF viewer (embed); project edit form reachable on mobile; force-dynamic on API routes; fix concurrent-build .next corruption' },
+              { build: '1.1.0.25', commitSha: 'a0f8f0a', description: 'Performance: mobile fast-path (?view=mobile) cuts dashboard payload ~90%; COUNT-only queries; Cache-Control headers on all FM API routes; dashboard stat cards tappable' },
+              { build: '1.1.0.24', commitSha: '4382d07', description: 'Mobile FM: bottom nav overlap fixed across all pages; two-month calendar added to FM dashboard; FCA detail stacked layout on mobile; property detail portrait-mode fix' },
+              { build: '1.1.0.23', commitSha: '4e3aff1', description: 'Mobile UI: FM module Warmth/Command layout; iOS photo library selection fix in FCA; property tab strip horizontally scrollable' },
+              { build: '1.1.0.22', commitSha: 'f0f9772', description: 'Fix iOS camera/photo-library restriction in FCA — capture attribute removed so both are available' },
+              { build: '1.1.0.21', commitSha: 'eb0542e', description: 'FM schema fixes: portfolio analytics and team API column mismatches; settings payload trimmed; 16 missing FK indexes added (migration 049)' },
+              { build: '1.1.0.20', commitSha: '2931d3a', description: 'Staging QA sweep: GoTrue empty-role regression re-fixed; B2 backup status fetched on settings mount; auth diagnostic endpoint (removed after QA)' },
               { build: '1.1.0.19', commitSha: '9f9a56a', description: 'FM layout metadata fix — all FM pages now show correct browser tab title (was stale "Sentinel Public Works")' },
               { build: '1.1.0.18', commitSha: 'ffbc963', description: 'Calendar: add recurring event generation (60-day lookahead, rrule) + PATCH API for drag-to-reschedule; migration 048 adds parent_event_id' },
               { build: '1.1.0.17', commitSha: '7d57676', description: 'Contabo tile: switch from /snapshots to /v1/backups endpoint (correct API for auto-backup schedule)' },
