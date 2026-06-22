@@ -49,6 +49,7 @@ export const VERSION_HISTORY: MajorEntry[] = [
             patch: '1.1.0',
             summary: 'Platform hardening — CI/CD pipeline, System Health, version tracking, SMTP email, calendar engine, FM improvements',
             builds: [
+              { build: '1.1.0.27', commitSha: 'fedce2c', description: 'PRODUCTION PROMOTION: all 1.1.0.26 features promoted to production; created /opt/sentinel/.env (was missing) so deploy-prod.sh can inject Supabase credentials at build time' },
               { build: '1.1.0.26', commitSha: 'fedce2c', description: 'Mobile: work order/inspection/reports bottom margins; PDF thumbnails via pdfjs-dist; multi-page PDF viewer (embed); project edit form reachable on mobile; force-dynamic on API routes; fix concurrent-build .next corruption' },
               { build: '1.1.0.25', commitSha: 'a0f8f0a', description: 'Performance: mobile fast-path (?view=mobile) cuts dashboard payload ~90%; COUNT-only queries; Cache-Control headers on all FM API routes; dashboard stat cards tappable' },
               { build: '1.1.0.24', commitSha: '4382d07', description: 'Mobile FM: bottom nav overlap fixed across all pages; two-month calendar added to FM dashboard; FCA detail stacked layout on mobile; property detail portrait-mode fix' },
