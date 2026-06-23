@@ -520,11 +520,15 @@ function applyMapView(state, v) {
   const { map } = state;
   if (!map || !state.loaded) return;
   stopRadarAnim(state);
-  // Hide all
+  // Hide everything
   ALL_DATA_LAYERS.forEach(id => { try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'none'); } catch {} });
-  (state.windMarkers || []).forEach(m => { m.getElement().style.display = 'none'; });
-
-  // Animate radar frames for radar + composite
+  (state.rainfallMarkers || []).forEach(m => { m.getElement().style.display = 'none'; });
+  // Wind particles — start only for wind view
+  if (state.windParticles) {
+    if (v === 'wind') state.windParticles.start();
+    else state.windParticles.stop();
+  }
+  // Animated radar for radar + composite
   if (v === 'radar' || v === 'composite') {
     const frames = state.radarFrames;
     if (frames.length) {
@@ -537,7 +541,6 @@ function applyMapView(state, v) {
       state.radarTimer = setInterval(step, 600);
     }
   }
-  // Wind view now handled by Windy iframe — markers not shown
   // Alert zones
   if (v === 'composite' || v === 'track') {
     ['nws-alert-fill','nws-alert-outline'].forEach(id => { try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'visible'); } catch {} });
@@ -546,7 +549,7 @@ function applyMapView(state, v) {
   if (v === 'rainfall') {
     (state.rainfallMarkers || []).forEach(m => { m.getElement().style.display = 'flex'; });
   }
-  // NHC cone + track
+  // NHC cone + track — only view that zooms out
   if (v === 'track') {
     ['nhc-cone-fill','nhc-cone-outline','nhc-track-line','nhc-track-points'].forEach(id => { try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'visible'); } catch {} });
     if (state.hasStorm) {
@@ -554,10 +557,88 @@ function applyMapView(state, v) {
     } else {
       map.fitBounds(PR_BOUNDS, { padding: 10, duration: 600 });
     }
-    return;
   }
-  // Default: fit Rincón → Culebra across the full map width
-  map.fitBounds(PR_BOUNDS, { padding: 10, duration: 600 });
+  // All other views: preserve the user's current pan/zoom
+}
+
+// ── Wind particle system ──────────────────────────────────────────────────
+function createWindParticles(map, container) {
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2;display:none;';
+  container.appendChild(canvas);
+
+  const LAT_MIN=17.88, LAT_MAX=18.55, LNG_MIN=-67.40, LNG_MAX=-65.15;
+  const COUNT = 650;
+  const SPEED = 0.06; // px/frame per mph
+
+  let grid = [];
+  let running = false;
+  let rafId = null;
+
+  const pts = Array.from({length: COUNT}, () => ({
+    lat: LAT_MIN + Math.random() * (LAT_MAX - LAT_MIN),
+    lng: LNG_MIN + Math.random() * (LNG_MAX - LNG_MIN),
+    age: Math.floor(Math.random() * 120),
+    maxAge: 80 + Math.floor(Math.random() * 120),
+  }));
+
+  function windAt(lat, lng) {
+    if (!grid.length) return {u:2, v:0}; // gentle default easterly
+    let sw=0, su=0, sv=0;
+    for (const g of grid) {
+      const w = 1 / ((g.lat-lat)**2 + (g.lng-lng)**2 + 1e-8);
+      sw+=w; su+=w*g.u; sv+=w*g.v;
+    }
+    return {u:su/sw, v:sv/sw};
+  }
+
+  function tick() {
+    const W = container.clientWidth, H = container.clientHeight;
+    if (!W || !H) { if (running) rafId = requestAnimationFrame(tick); return; }
+    if (canvas.width !== W || canvas.height !== H) { canvas.width=W; canvas.height=H; }
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    ctx.fillRect(0,0,W,H);
+
+    for (const p of pts) {
+      const {u,v} = windAt(p.lat, p.lng);
+      const {x,y} = map.project([p.lng, p.lat]);
+      const nx = x + u*SPEED, ny = y - v*SPEED;
+      const np = map.unproject([nx, ny]);
+      p.age++;
+      if (p.age > p.maxAge || np.lat<LAT_MIN || np.lat>LAT_MAX || np.lng<LNG_MIN || np.lng>LNG_MAX) {
+        p.lat = LAT_MIN + Math.random()*(LAT_MAX-LAT_MIN);
+        p.lng = LNG_MIN + Math.random()*(LNG_MAX-LNG_MIN);
+        p.age = 0; p.maxAge = 80 + Math.floor(Math.random()*120);
+        continue;
+      }
+      p.lat=np.lat; p.lng=np.lng;
+      const spd = Math.sqrt(u*u+v*v);
+      const a = Math.sin(Math.PI*p.age/p.maxAge) * Math.min(1, spd/8) * 0.72;
+      if (a < 0.04) continue;
+      const clr = spd<10 ? `rgba(40,110,230,${a.toFixed(2)})` : spd<20 ? `rgba(20,175,140,${a.toFixed(2)})` : `rgba(210,85,30,${a.toFixed(2)})`;
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(nx,ny);
+      ctx.strokeStyle=clr; ctx.lineWidth=1.5; ctx.stroke();
+    }
+    if (running) rafId = requestAnimationFrame(tick);
+  }
+
+  return {
+    start() {
+      if (running) return;
+      running = true; canvas.style.display = '';
+      rafId = requestAnimationFrame(tick);
+    },
+    stop() {
+      running = false;
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+      canvas.style.display = 'none';
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    },
+    setGrid(g) { grid = g; },
+    destroy() { running=false; if(rafId){cancelAnimationFrame(rafId);} canvas.remove(); },
+  };
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────
@@ -629,10 +710,6 @@ function Header({ lang, setLang, alertCount }) {
             <li>
               <a href="#alerts" className="en" onClick={e => scrollTo('alerts', e)}>Alerts</a>
               <a href="#alerts" className="es" onClick={e => scrollTo('alerts', e)}>Alertas</a>
-            </li>
-            <li>
-              <a href="#forecast" className="en" onClick={e => scrollTo('forecast', e)}>Forecast</a>
-              <a href="#forecast" className="es" onClick={e => scrollTo('forecast', e)}>Pronóstico</a>
             </li>
             <li><a href="https://www.nhc.noaa.gov" target="_blank" rel="noopener" className="en">NHC ↗</a>
                 <a href="https://www.nhc.noaa.gov" target="_blank" rel="noopener" className="es">NHC ↗</a></li>
@@ -764,7 +841,7 @@ function ViewIcon({ k }) {
 
 function PRMap({ view, hurricane }) {
   const containerRef = useRef(null);
-  const stateRef = useRef({ map: null, loaded: false, radarFrames: [], radarTimer: null, windMarkers: [], rainfallMarkers: [], hasStorm: false, rainfallDry: false });
+  const stateRef = useRef({ map: null, loaded: false, radarFrames: [], radarTimer: null, windParticles: null, rainfallMarkers: [], hasStorm: false, rainfallDry: false });
   const viewRef = useRef(view);
   const [rainfallDry, setRainfallDry] = useState(false);
 
@@ -846,31 +923,25 @@ function PRMap({ view, hurricane }) {
         map.addLayer({ id: 'radar-current', type: 'fill', source: 'radar-current-src', layout: { visibility: 'none' } });
       }
 
-      // ── Open-Meteo wind grid (9 points) ──────────────────────────────
+      // ── Wind particle system ─────────────────────────────────────────
+      s.windParticles = createWindParticles(map, containerRef.current);
       try {
         const lats = [18.47,18.47,18.47,18.22,18.22,18.22,17.97,17.97,17.97];
         const lngs = [-67.15,-66.10,-65.60,-67.15,-66.10,-65.60,-67.15,-66.10,-65.60];
         const wurl = `https://api.open-meteo.com/v1/forecast?latitude=${lats.join(',')}&longitude=${lngs.join(',')}&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=mph&timezone=America%2FPuerto_Rico`;
         const wr = await fetch(wurl);
         const wd = await wr.json();
-        (Array.isArray(wd) ? wd : [wd]).forEach(loc => {
-          const speed = Math.round(loc.current?.wind_speed_10m ?? 0);
-          const dir = loc.current?.wind_direction_10m ?? 0;
-          const strong = speed >= 25;
-          const el = document.createElement('div');
-          el.style.cssText = 'display:none;flex-direction:column;align-items:center;gap:2px;pointer-events:none;';
-          // Arrow shaft + head pointing in wind direction
-          el.innerHTML = `
-            <svg width="28" height="32" viewBox="0 0 28 32" style="overflow:visible;transform:rotate(${(dir+180)%360}deg)">
-              <line x1="14" y1="28" x2="14" y2="6" stroke="${strong?'#c41818':'#1a1a1a'}" stroke-width="2" stroke-linecap="round"/>
-              <polyline points="8,12 14,4 20,12" fill="none" stroke="${strong?'#c41818':'#1a1a1a'}" stroke-width="2" stroke-linejoin="round"/>
-            </svg>
-            <div style="font-family:JetBrains Mono,monospace;font-size:10px;font-weight:800;color:${strong?'#c41818':'#1a1a1a'};background:rgba(255,255,255,.88);padding:1px 4px;border:1px solid ${strong?'#c41818':'rgba(0,0,0,.15)'};">${speed}</div>
-          `;
-          const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-            .setLngLat([loc.longitude, loc.latitude]).addTo(map);
-          s.windMarkers.push(marker);
+        const windGrid = (Array.isArray(wd) ? wd : [wd]).map(loc => {
+          const speed = loc.current?.wind_speed_10m ?? 0;
+          const dir   = loc.current?.wind_direction_10m ?? 0;
+          const rad   = dir * Math.PI / 180;
+          return {
+            lat: loc.latitude, lng: loc.longitude,
+            u: -speed * Math.sin(rad), // eastward component
+            v: -speed * Math.cos(rad), // northward component
+          };
         });
+        s.windParticles.setGrid(windGrid);
       } catch (e) { console.warn('Wind grid failed:', e); }
 
       // ── Open-Meteo QPF rainfall (HTML markers, same pattern as wind) ────
@@ -933,13 +1004,12 @@ function PRMap({ view, hurricane }) {
 
     return () => {
       stopRadarAnim(s);
-      s.windMarkers.forEach(m => m.remove());
-      s.windMarkers = [];
+      if (s.windParticles) { s.windParticles.destroy(); s.windParticles = null; }
       (s.rainfallMarkers || []).forEach(m => m.remove());
       s.rainfallMarkers = [];
       s.loaded = false;
       map.remove();
-      stateRef.current = { map:null, loaded:false, radarFrames:[], radarTimer:null, windMarkers:[], rainfallMarkers:[], hasStorm:false };
+      stateRef.current = { map:null, loaded:false, radarFrames:[], radarTimer:null, windParticles:null, rainfallMarkers:[], hasStorm:false };
     };
   }, []); // intentionally empty — map initializes once
 
@@ -982,10 +1052,10 @@ function MapLegend({ view }) {
   );
   if (view==='wind') return (
     <div className="legend-items">
-      <span className="label-sm">Windy.com · ECMWF · Live</span>
-      <div className="legend-item"><span className="swatch" style={{background:'rgba(0,100,255,.35)'}}></span><span className="en">Light wind</span><span className="es">Viento leve</span></div>
-      <div className="legend-item"><span className="swatch" style={{background:'rgba(0,200,150,.6)'}}></span><span className="en">Moderate</span><span className="es">Moderado</span></div>
-      <div className="legend-item"><span className="swatch" style={{background:'rgba(255,100,0,.8)'}}></span><span className="en">Strong</span><span className="es">Fuerte</span></div>
+      <span className="label-sm">Open-Meteo · Live particles</span>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(40,110,230,.7)'}}></span><span className="en">&lt;10 mph</span><span className="es">&lt;10 mph</span></div>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(20,175,140,.7)'}}></span><span className="en">10–20 mph</span><span className="es">10–20 mph</span></div>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(210,85,30,.8)'}}></span><span className="en">&gt;20 mph</span><span className="es">&gt;20 mph</span></div>
     </div>
   );
   if (view==='rainfall') return (
@@ -1012,7 +1082,7 @@ const OVERLAY_TITLES = {
   composite: { en:'Composite View',    es:'Vista Compuesta',  sub_en:'All weather layers + active system',         sub_es:'Todas las capas + sistema activo' },
   track:     { en:'Storm Track',       es:'Trayectoria',      sub_en:'NHC cone of uncertainty + forecast positions',sub_es:'Cono NHC + posiciones pronosticadas' },
   radar:     { en:'Radar',             es:'Radar',            sub_en:'NWS NEXRAD precipitation · Live',             sub_es:'Precipitación NEXRAD · En vivo' },
-  wind:      { en:'Wind · Windy.com',  es:'Viento · Windy.com', sub_en:'Animated wind particles — powered by Windy.com', sub_es:'Partículas de viento animadas — con Windy.com' },
+  wind:      { en:'Wind · Live',       es:'Viento · Vivo',      sub_en:'Animated particles from Open-Meteo wind data',   sub_es:'Partículas animadas con datos de Open-Meteo' },
   rainfall:  { en:'Rainfall · 24h',   es:'Lluvia · 24h',     sub_en:'Forecast accumulation through Friday',        sub_es:'Acumulación pronosticada hasta el viernes' },
 };
 
@@ -1021,7 +1091,8 @@ function MapPanel({ view, setView, theme, hurricane }) {
     <div className="panel map-panel">
       <div className="view-tabs">
         {VIEWS.map(v => (
-          <button key={v.id} className={`view-tab ${view===v.id?'on':''}`} onClick={() => setView(v.id)}>
+          <button key={v.id} className={`view-tab ${view===v.id?'on':''}`}
+            onClick={() => setView(cur => cur === v.id ? 'composite' : v.id)}>
             <ViewIcon k={v.iconKey}/>
             <span className="en">{v.en}</span>
             <span className="es">{v.es}</span>
@@ -1029,19 +1100,9 @@ function MapPanel({ view, setView, theme, hurricane }) {
         ))}
       </div>
       <div className="map-frame">
-        {/* MapLibre map — always mounted; hidden behind Windy when wind view active */}
-        <div className="map-wrap" style={{display: view === 'wind' ? 'none' : undefined}}>
+        <div className="map-wrap">
           <PRMap view={view} hurricane={hurricane}/>
         </div>
-        {/* Windy embed — replaces custom wind markers */}
-        {view === 'wind' && (
-          <iframe
-            src="https://embed.windy.com/embed2.html?lat=18.4655&lon=-66.1057&detailLat=18.4655&detailLon=-66.1057&zoom=7&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1"
-            style={{position:'absolute',inset:0,width:'100%',height:'100%',border:'none',display:'block'}}
-            allowFullScreen
-            title="Windy Wind Map"
-          />
-        )}
       </div>
       <div className="map-bottom-bar">
         <MapLegend view={view}/>
