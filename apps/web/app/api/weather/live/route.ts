@@ -132,7 +132,7 @@ async function fetchAlerts(): Promise<AlertItem[]> {
       area: String(p.areaDesc ?? ''),
       issued: formatAST(String(p.sent ?? '')),
       expires: String(p.expires ?? ''),
-      detail: String(p.description ?? '').split('\n\n')[0].replace(/\n/g, ' ').slice(0, 300),
+      detail: parseNWSDetail(String(p.description ?? '')),
       isTropical: /tropical|hurricane|storm surge/i.test(String(p.event ?? '')),
     } as AlertItem
   })
@@ -283,6 +283,27 @@ function formatAST(sent: string): string {
     timeZone: 'America/Puerto_Rico', month: 'short', day: 'numeric',
     hour: 'numeric', minute: '2-digit', hour12: true,
   }) + ' AST'
+}
+
+function parseNWSDetail(raw: string): string {
+  if (!raw) return ''
+  const STOP = /^(PRECAUTIONARY|DETAILED BULLETINS|&&|LAT\.\.\.LON|\$\$)/i
+  const BULLET = /^\*\s+[A-Z][A-Z\s\/]*\.\.\.(.*)/
+  const values: string[] = []
+  let buf = ''
+  for (const line of raw.split('\n')) {
+    const t = line.trim()
+    if (STOP.test(t)) break
+    const m = t.match(BULLET)
+    if (m) {
+      if (buf) values.push(buf.replace(/\s+/g, ' ').trim())
+      buf = m[1].trim()
+    } else if (buf && t) {
+      buf += ' ' + t
+    }
+  }
+  if (buf) values.push(buf.replace(/\s+/g, ' ').trim())
+  return values.filter(Boolean).join(' ').trim().slice(0, 400)
 }
 
 function asArray(v: unknown): unknown[] {
