@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sentinel · Weather Operations · Puerto Rico</title>
+<meta name="description" content="Live weather alerts, tropical storm tracking, and NHC bulletins for Puerto Rico. Updated every 5 minutes from NWS, NHC, and NMEAD.">
+<meta property="og:title" content="Sentinel Weather Operations · Puerto Rico">
+<meta property="og:description" content="Live NWS alerts, tropical storm tracking, and 7-day forecast for Puerto Rico.">
+
+<style>
+  :root {
+    --black:        #000000;
+    --white:        #ffffff;
+    --gray-bg:      #f9f9f9;
+    --gray-border:  #eeeeee;
+    --gray-text:    #666666;
+    --gray-dim:     #999999;
+    --gray-deep:    #333333;
+    --accent:       #1a1a1a;
+
+    --crit:         #c41818;
+    --crit-bg:      #fdf2f2;
+    --warn:         #d97706;
+    --warn-bg:      #fef9ec;
+    --info:         #1e5fb8;
+    --info-bg:      #eaf2fc;
+    --calm:         #2d5f3f;
+    --calm-bg:      #f0f5f1;
+
+    --f-sans: "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+    --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  html[data-theme="dark"] {
+    --black: #ffffff;
+    --white: #0a0a0a;
+    --gray-bg: #141414;
+    --gray-border: #232323;
+    --gray-text: #999999;
+    --gray-dim: #666666;
+    --gray-deep: #cccccc;
+    --crit-bg: rgba(196,24,24,.12);
+    --warn-bg: rgba(217,119,6,.10);
+    --info-bg: rgba(30,95,184,.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--white); color: var(--black); font-family: var(--f-sans); -webkit-font-smoothing: antialiased; }
+  body { line-height: 1.5; min-height: 100vh; }
+  button { font: inherit; cursor: pointer; border: none; background: transparent; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  ul { list-style: none; }
+  ::selection { background: var(--black); color: var(--white); }
+  .mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+  .label { text-transform: uppercase; font-size: 10px; letter-spacing: 0.2em; color: var(--gray-text); font-weight: 700; }
+  .label-sm { text-transform: uppercase; font-size: 9px; letter-spacing: 0.18em; color: var(--gray-text); font-weight: 700; }
+
+  /* HEADER */
+  header.app-header {
+    width: 100%; border-bottom: 1px solid var(--gray-border);
+    padding: 14px 0; background: var(--white);
+    position: sticky; top: 0; z-index: 1000;
+  }
+  .header-container {
+    max-width: 1920px; margin: 0 auto; padding: 0 32px;
+    display: flex; justify-content: space-between; align-items: center; gap: 24px;
+  }
+  .brand-block { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+  .main-logo { height: 22px; width: auto; display: block; }
+  html[data-theme="dark"] .main-logo { filter: invert(1); }
+  .section-pill {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gray-text); padding: 3px 8px; border: 1px solid var(--gray-border); white-space: nowrap;
+  }
+  .section-pill.live { color: var(--crit); border-color: var(--crit); }
+  .main-nav { display: flex; align-items: center; gap: 24px; }
+  .nav-links { display: flex; gap: 22px; }
+  .nav-links a {
+    text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.15em; font-weight: 600;
+    transition: opacity .2s; white-space: nowrap;
+  }
+  .nav-links a:hover { opacity: 0.6; }
+  .nav-links a.active { border-bottom: 1.5px solid var(--black); padding-bottom: 4px; }
+  .header-right { display: flex; align-items: center; gap: 18px; }
+  .live-status {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--gray-text); font-weight: 600;
+    padding-right: 18px; border-right: 1px solid var(--gray-border);
+  }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--crit); animation: blink 1.6s infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+  .language-switcher { display: flex; gap: 12px; align-items: center; }
+  .flag-icon { width: 20px; height: 14px; cursor: pointer; display: block; }
+  .flag-gray { filter: grayscale(100%); opacity: 0.3; pointer-events: none; cursor: default; }
+  .btn-signin {
+    padding: 8px 14px; border: 1px solid var(--black); background: var(--black); color: var(--white);
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 700; transition: all .2s;
+  }
+  .btn-signin:hover { background: transparent; color: var(--black); }
+
+  /* STATUS BAR — replaces hero strip, compact single-line */
+  .status-bar {
+    border-bottom: 1px solid var(--gray-border);
+    background: var(--white);
+    display: flex; align-items: stretch; overflow: hidden;
+  }
+  .sb-segment {
+    display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+    border-right: 1px solid var(--gray-border);
+    flex-shrink: 0;
+  }
+  .sb-segment:last-child { border-right: 0; margin-left: auto; }
+  .sb-season {
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.25em; font-weight: 700;
+    color: var(--gray-text);
+  }
+  .sb-status {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+    flex: 1; padding: 10px 20px; display: flex; align-items: center;
+  }
+  .sb-status .count { color: var(--crit); }
+  .sb-status.storm-mode { background: var(--crit-bg); border-bottom: 2px solid var(--crit); }
+  .sb-status.watch-mode { background: var(--warn-bg); border-bottom: 2px solid var(--warn); }
+  .sb-alerts {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sb-alert-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-dim); }
+  .sb-alert-dot.has-warn { background: var(--warn); }
+  .sb-alert-dot.has-crit { background: var(--crit); animation: pulse-dot 1.8s ease-in-out infinite; }
+  @keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+  .sb-sync { font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray-text); font-family: var(--f-mono); }
+
+  .active-threat-banner {
+    display: flex; align-items: stretch; border: 1px solid var(--crit); background: var(--crit-bg); overflow: hidden;
+  }
+  .atb-tag {
+    background: var(--crit); color: white; padding: 14px 16px;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 800;
+    display: flex; align-items: center; gap: 8px; white-space: nowrap;
+  }
+  .atb-swirl { animation: spin 6s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(-360deg); } }
+  .atb-body { flex: 1; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .atb-body .name { font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; }
+  .atb-body .meta { font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray-deep); font-weight: 600; margin-top: 2px; }
+  .atb-stats { display: flex; gap: 18px; }
+  .atb-stat { display: flex; flex-direction: column; align-items: flex-start; }
+  .atb-stat .v { font-family: var(--f-mono); font-size: 14px; font-weight: 800; color: var(--crit); }
+  .atb-stat .l { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--gray-text); font-weight: 700; }
+  .atb-cta {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 700;
+    color: var(--crit); border: 1px solid var(--crit); padding: 10px 14px; background: white; white-space: nowrap;
+  }
+  .atb-cta:hover { background: var(--crit); color: white; }
+
+  /* no-storm hero: just show active alerts count */
+  .alert-count-banner {
+    display: flex; align-items: center; gap: 14px;
+    border: 1px solid var(--gray-border); padding: 14px 18px; background: var(--gray-bg);
+  }
+  .acb-num { font-size: 2rem; font-weight: 800; font-family: var(--f-mono); line-height: 1; }
+  .acb-num.has-warn { color: var(--warn); }
+  .acb-num.has-crit { color: var(--crit); }
+  .acb-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em; font-weight: 700; color: var(--gray-text); }
+  .acb-sub { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gray-text); font-weight: 600; margin-top: 2px; }
+
+  /* MAIN DASHBOARD GRID — viewport-height 2-col layout */
+  .dashboard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    height: calc(100vh - 93px); /* 52px header + 41px status bar */
+    overflow: hidden;
+  }
+  @media (max-width: 1200px) { .dashboard { grid-template-columns: minmax(0, 1fr) 320px; } }
+  @media (max-width: 1024px) { .dashboard { grid-template-columns: 1fr; height: auto; overflow: visible; } }
+  .panel { border: 1px solid var(--gray-border); background: var(--white); display: flex; flex-direction: column; }
+  .panel-hd {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--gray-border); background: var(--gray-bg);
+  }
+  .panel-hd h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 700; }
+  .panel-hd .meta { font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray-text); font-weight: 700; font-family: var(--f-mono); }
+
+  /* MAP PANEL */
+  .map-panel {
+    display: flex; flex-direction: column; min-width: 0;
+    border-right: 1px solid var(--gray-border);
+    overflow: hidden;
+  }
+  @media (max-width: 1024px) { .map-panel { border-right: 0; } }
+  .view-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--gray-border); overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+  .view-tabs::-webkit-scrollbar { display: none; }
+  .view-tab {
+    flex: 1; min-width: 0; padding: 13px 10px;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 700;
+    color: var(--gray-text); white-space: nowrap;
+    border-right: 1px solid var(--gray-border); background: var(--white);
+    transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .view-tab:last-child { border-right: 0; }
+  .view-tab:hover { background: var(--gray-bg); color: var(--black); }
+  .view-tab.on { background: var(--black); color: var(--white); border-color: var(--black); }
+  .view-tab .icon { width: 14px; height: 14px; opacity: 0.7; }
+  .view-tab.on .icon { opacity: 1; }
+  .map-frame {
+    background: var(--gray-bg); position: relative;
+    flex: 1; min-height: 0; overflow: hidden;
+  }
+  @media (max-width: 1024px) { .map-frame { min-height: 480px; } }
+  html[data-theme="dark"] .map-frame { background: #0c0c0c; }
+  .map-wrap { width: 100%; height: 100%; position: relative; min-height: 0; }
+  /* MapLibre overrides to match editorial style */
+  .maplibregl-map { font-family: var(--f-sans) !important; }
+  .maplibregl-ctrl-attrib { font-size: 9px !important; opacity: 0.5 !important; }
+  .maplibregl-ctrl-bottom-right { bottom: 4px !important; right: 4px !important; }
+  /* No-storm overlay */
+  .no-storm-overlay {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,.94); border: 1px solid var(--gray-border);
+    padding: 8px 16px; font-size: 10px; text-transform: uppercase;
+    letter-spacing: .18em; font-weight: 700; color: var(--gray-text);
+    white-space: nowrap; pointer-events: none; z-index: 5;
+  }
+  .maplibregl-ctrl-logo { display: none !important; }
+  .map-bottom-bar {
+    display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 10px 16px; border-top: 1px solid var(--gray-border); background: var(--gray-bg);
+  }
+  .legend-items { display: flex; gap: 18px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 700; color: var(--gray-text); }
+  .legend-item .swatch { width: 14px; height: 8px; }
+  .legend-item .num { color: var(--gray-dim); margin-left: 3px; font-family: var(--f-mono); }
+  .legend-item .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .scale-readout { font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray-text); font-family: var(--f-mono); }
+
+  /* RIGHT COLUMN — scrollable sidebar */
+  .right-col {
+    display: flex; flex-direction: column; min-width: 0;
+    overflow-y: auto; overflow-x: hidden;
+    border-left: 0; /* handled by map-panel border-right */
+    background: var(--white);
+  }
+  .right-col .panel { border-bottom: 1px solid var(--gray-border); border-left: 0; border-right: 0; border-top: 0; }
+  .right-col .panel:first-child { border-top: 0; }
+  @media (max-width: 1024px) { .right-col { overflow-y: visible; border-top: 1px solid var(--gray-border); } }
+  .ts-card { padding: 0; }
+  .ts-card-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .ts-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .ts-name { font-size: 1.15rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em; line-height: 1.1; }
+  .ts-sub { font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--gray-text); font-weight: 600; margin-top: 4px; }
+  .ts-tag { padding: 4px 8px; background: var(--crit); color: white; font-size: 9px; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 800; }
+  .ts-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; border: 1px solid var(--gray-border); }
+  .ts-cell { padding: 12px; border-right: 1px solid var(--gray-border); }
+  .ts-cell:last-child { border-right: 0; }
+  .ts-cell .v { font-family: var(--f-mono); font-size: 1.05rem; font-weight: 800; line-height: 1; }
+  .ts-cell .l { font-size: 9px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--gray-text); font-weight: 700; margin-top: 6px; }
+  .ts-bar-row { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; height: 38px; align-items: end; }
+  .ts-bar { background: var(--gray-deep); }
+  .ts-bar.hur { background: var(--crit); }
+  .ts-bar.now { outline: 1.5px solid var(--black); outline-offset: -1px; }
+  .ts-bar-labels { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin-top: 4px; }
+  .ts-bar-labels span { font-size: 8.5px; color: var(--gray-text); font-family: var(--f-mono); text-align: center; }
+  .ts-next {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 12px; background: var(--gray-bg); border: 1px solid var(--gray-border);
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray-text); font-weight: 600;
+  }
+  .ts-next strong { color: var(--black); }
+  .ts-link { color: var(--crit); font-weight: 800; border-bottom: 1px solid var(--crit); padding-bottom: 2px; }
+
+  /* CURRENT CONDITIONS */
+  .cc-body { padding: 16px; }
+  .cc-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+  .cc-temp { font-size: 3rem; font-weight: 800; line-height: 1; letter-spacing: -0.04em; }
+  .cc-temp .deg { font-size: 1.4rem; color: var(--gray-text); font-weight: 600; vertical-align: top; }
+  .cc-cond { display: flex; flex-direction: column; align-items: flex-end; }
+  .cc-cond .city { font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em; font-weight: 800; }
+  .cc-cond .desc { font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray-text); font-weight: 600; margin-top: 4px; }
+  .cc-cond .hilo { font-size: 12px; font-family: var(--f-mono); color: var(--gray-text); margin-top: 6px; }
+  .cc-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0; border-top: 1px solid var(--gray-border); }
+  .cc-cell { padding: 10px 6px; border-right: 1px solid var(--gray-border); text-align: center; }
+  .cc-cell:last-child { border-right: 0; }
+  .cc-cell .v { font-family: var(--f-mono); font-size: 14px; font-weight: 800; }
+  .cc-cell .l { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray-text); font-weight: 700; margin-top: 4px; }
+  .cc-cell .u { font-size: 9px; color: var(--gray-text); font-weight: 600; margin-left: 2px; }
+
+  /* ALERTS LIST */
+  .alerts-list { display: flex; flex-direction: column; }
+  .alert-row { padding: 12px 16px; border-bottom: 1px solid var(--gray-border); display: flex; gap: 12px; align-items: flex-start; }
+  .alert-row:last-child { border-bottom: 0; }
+  .alert-row:hover { background: var(--gray-bg); cursor: pointer; }
+  .alert-row-bar { width: 4px; align-self: stretch; flex-shrink: 0; }
+  .alert-row-bar.WARNING { background: var(--crit); }
+  .alert-row-bar.WATCH { background: var(--warn); }
+  .alert-row-bar.ADVISORY { background: var(--gray-text); }
+  .alert-row-bar.INFO { background: var(--info); }
+  .alert-row-body { flex: 1; min-width: 0; }
+  .alert-row-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .alert-row-level { font-size: 9px; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 800; }
+  .alert-row-level.WARNING { color: var(--crit); }
+  .alert-row-level.WATCH { color: var(--warn); }
+  .alert-row-level.ADVISORY { color: var(--gray-deep); }
+  .alert-row-level.INFO { color: var(--info); }
+  .alert-row-time { font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray-text); font-family: var(--f-mono); }
+  .alert-row-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1.15; margin-top: 4px; }
+  .alert-row-area { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gray-text); font-weight: 600; margin-top: 4px; }
+  .alert-row-chevron { font-size: 10px; color: var(--gray-dim); margin-left: auto; flex-shrink: 0; transition: transform .2s; }
+  .alert-row.expanded .alert-row-chevron { transform: rotate(180deg); }
+  .alert-row-detail {
+    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--gray-border);
+    font-size: 12px; color: var(--gray-deep); line-height: 1.55;
+  }
+  .alert-row-footer { display: flex; justify-content: flex-end; margin-top: 8px; }
+  .alert-nws-link {
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.18em; font-weight: 700;
+    color: var(--crit); border-bottom: 1px solid var(--crit); padding-bottom: 1px;
+  }
+
+  /* FORECAST STRIP — hidden on desktop (sidebar shows instead), visible when layout collapses */
+  .forecast-strip-wrap { max-width: 1920px; margin: 0 auto 24px; padding: 0 32px; display: none; }
+  @media (max-width: 1024px) { .forecast-strip-wrap { display: block; } }
+
+  /* FORECAST SIDEBAR — visible on desktop, hidden when layout collapses (strip takes over) */
+  .fc-sidebar-panel { display: flex; flex-direction: column; }
+  @media (max-width: 1024px) { .fc-sidebar-panel { display: none; } }
+  .forecast-strip {
+    display: grid; grid-template-columns: 200px repeat(7, minmax(0, 1fr));
+    border: 1px solid var(--gray-border); background: var(--white);
+  }
+  .fs-label { padding: 18px 20px; border-right: 1px solid var(--gray-border); background: var(--gray-bg); display: flex; flex-direction: column; justify-content: center; }
+  .fs-label .h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 800; }
+  .fs-label .s { font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray-text); font-weight: 600; margin-top: 4px; }
+  .fs-day {
+    padding: 14px 8px; border-right: 1px solid var(--gray-border);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    text-align: center; position: relative;
+  }
+  .fs-day:last-child { border-right: 0; }
+  .fs-day.today { background: var(--gray-bg); }
+  .fs-day.today::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--black); }
+  .fs-day.severe::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--crit); }
+  .fs-dow { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.22em; font-weight: 700; color: var(--gray-text); }
+  .fs-day.today .fs-dow { color: var(--black); }
+  .fs-date { font-size: 9px; color: var(--gray-dim); font-family: var(--f-mono); margin-top: -3px; }
+  .fs-temps { display: flex; gap: 6px; align-items: baseline; }
+  .fs-hi { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em; }
+  .fs-lo { font-size: 0.85rem; color: var(--gray-text); }
+  .fs-cond { font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; color: var(--gray-text); line-height: 1.25; min-height: 22px; }
+  .fs-day.severe .fs-cond { color: var(--crit); }
+  .fs-bot { display: flex; gap: 10px; font-size: 9.5px; color: var(--gray-text); font-family: var(--f-mono); }
+  .fs-bot .extreme { color: var(--crit); font-weight: 800; }
+
+  /* FORECAST SIDEBAR — compact row layout for the 360px right column */
+  .fc-sidebar { display: flex; flex-direction: column; }
+  .fc-row {
+    display: grid;
+    grid-template-columns: 38px 36px 1fr 46px 28px;
+    align-items: center; gap: 8px;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--gray-border);
+    font-size: 11px; transition: background .1s;
+  }
+  .fc-row:last-child { border-bottom: 0; }
+  .fc-row.fc-today { background: var(--gray-bg); }
+  .fc-row.fc-today .fc-dow { color: var(--black); font-weight: 800; }
+  .fc-row.fc-severe .fc-cond { color: var(--crit); }
+  .fc-dow { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 700; color: var(--gray-text); }
+  .fc-date { font-size: 9px; font-family: var(--f-mono); color: var(--gray-dim); }
+  .fc-cond { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; color: var(--gray-text); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fc-temps { font-size: 12px; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; text-align: right; }
+  .fc-temps .lo { font-size: 10px; color: var(--gray-text); font-weight: 500; margin-left: 3px; }
+  .fc-pop { font-size: 9.5px; font-family: var(--f-mono); color: var(--gray-text); text-align: right; }
+
+  /* BELOW THE FOLD */
+  .below { border-top: 1px solid var(--gray-border); background: var(--gray-bg); padding: 56px 32px; }
+  .below-inner { max-width: 1920px; margin: 0 auto; }
+  .below-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 48px; align-items: flex-start; }
+  @media (max-width: 1024px) { .below-grid { grid-template-columns: 1fr; } }
+  .below h2 { font-size: 1.8rem; text-transform: uppercase; letter-spacing: -0.02em; line-height: 1.05; font-weight: 800; }
+  .below p { font-size: 14px; color: var(--gray-text); line-height: 1.6; margin-top: 14px; }
+
+  /* CONVERSION CARD (replaces member sign-in — low friction) */
+  .conversion-card { padding: 28px; background: var(--white); border: 1px solid var(--gray-border); }
+  .conversion-card h3 { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; line-height: 1.2; }
+  .conversion-card p { font-size: 13px; color: var(--gray-text); margin: 12px 0 18px; line-height: 1.5; }
+  .conversion-features { list-style: none; padding: 0; margin: 0 0 20px; }
+  .conversion-features li {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
+    color: var(--gray-text); padding: 8px 0; border-bottom: 1px solid var(--gray-border);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .conversion-features li:last-child { border-bottom: 0; }
+  .conversion-features li::before { content: "+"; color: var(--black); font-weight: 800; }
+
+
+  /* SIMS conversion card CTA button */
+  .btn-sims-cta {
+    display: block; width: 100%; padding: 16px; text-align: center;
+    border: 1.5px solid var(--black); background: var(--black); color: var(--white);
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.22em; font-weight: 800;
+    transition: all .2s; cursor: pointer; text-decoration: none; margin-top: 22px;
+  }
+  .btn-sims-cta:hover { background: transparent; color: var(--black); }
+  .sims-stat {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--gray-border); margin-bottom: 20px;
+  }
+  .sims-stat-cell {
+    padding: 14px 12px; border-right: 1px solid var(--gray-border);
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .sims-stat-cell:last-child { border-right: 0; }
+  .sims-stat-cell .sv { font-family: var(--f-mono); font-size: 1.4rem; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
+  .sims-stat-cell .sl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray-text); font-weight: 700; margin-top: 2px; line-height: 1.3; }
+
+  /* SKELETON loader */
+  .skeleton { background: var(--gray-border); border-radius: 2px; animation: shimmer 1.4s ease-in-out infinite; }
+  @keyframes shimmer { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .sk-text { height: 14px; margin: 6px 0; }
+  .sk-title { height: 28px; margin: 8px 0; }
+  .sk-block { height: 80px; margin: 12px 0; }
+
+  /* DATA STALE NOTICE */
+  .stale-notice {
+    max-width: 1920px; margin: 0 auto; padding: 8px 32px;
+    background: var(--warn-bg); border-bottom: 1px solid var(--warn);
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--warn); font-weight: 700;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  /* FOOTER */
+  footer { padding: 28px 32px; text-align: center; font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--gray-text); border-top: 1px solid var(--gray-border); }
+
+  /* LANG */
+  body.lang-en .es { display: none !important; }
+  body.lang-es .en { display: none !important; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .header-container { padding: 0 18px; flex-wrap: wrap; }
+    .nav-links { display: none; }
+    .status-bar { flex-wrap: wrap; }
+    .sb-segment { padding: 8px 14px; }
+    .sb-status { padding: 8px 14px; }
+    .forecast-strip-wrap { padding: 0 18px; }
+    .forecast-strip { grid-template-columns: repeat(7, minmax(80px, 1fr)); overflow-x: auto; }
+    .fs-label { display: none; }
+    .below { padding: 32px 18px; }
+  }
+
+  /* ARTICLE LINK CARDS */
+  .article-link-card {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 20px; border: 1px solid var(--gray-border); background: var(--white);
+    text-decoration: none; color: inherit; transition: border-color .15s;
+  }
+  .article-link-card:hover { border-color: var(--black); }
+
+  .alc-title { font-size: 15px; font-weight: 800; line-height: 1.2; margin-top: 6px; }
+  .alc-teaser { font-size: 13px; color: var(--gray-text); line-height: 1.5; margin-top: 4px; flex: 1; }
+  .alc-cta { font-size: 9.5px; text-transform: uppercase; letter-spacing: .18em; font-weight: 700; color: var(--black); margin-top: 10px; }
+
+  /* STALE NOTICE reload button */
+  .stale-reload-btn {
+    margin-left: auto; padding: 4px 10px; font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .15em; cursor: pointer;
+    border: 1px solid var(--warn); background: transparent; color: var(--warn);
+    font-family: var(--f-mono); transition: all .15s; white-space: nowrap;
+  }
+  .stale-reload-btn:hover { background: var(--warn); color: white; }
+
+  /* Hide MapLibre attribution controls entirely */
+  .maplibregl-ctrl-attrib { display: none !important; }
+  .maplibregl-ctrl-attrib-button { display: none !important; }
+</style>
+</head>
+<body class="lang-en">
+<div id="root"></div>
+<!-- MapLibre GL JS -->
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- Logo (same base64 as mockup — loaded once) -->
+<script id="logoData">
+  window.SENTINEL_LOGO = null; // will be set below after the large base64 block
+</script>
+<script>
+// Inline the logo path so the page works standalone
+window.SENTINEL_LOGO = "data:image/png;base64,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";
+</script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ── PR bounding box: Rincón (west) → Culebra (east) ─────────────────────
+// SW: -67.40°W, 17.88°N   NE: -65.15°W, 18.55°N
+const PR_BOUNDS = [[-67.40, 17.88], [-65.15, 18.55]];
+
+// ── Map layer helpers (outside React) ────────────────────────────────────
+const ALL_DATA_LAYERS = [
+  'radar-current','nws-alert-fill','nws-alert-outline',
+  'rainfall-circles','rainfall-labels',
+  'nhc-cone-fill','nhc-cone-outline','nhc-track-line','nhc-track-points',
+];
+
+function stopRadarAnim(state) {
+  if (state.radarTimer) { clearInterval(state.radarTimer); state.radarTimer = null; }
+  (state.radarFrames || []).forEach(f => {
+    try { if (state.map?.getLayer(f.id)) state.map.setLayoutProperty(f.id, 'visibility', 'none'); } catch {}
+  });
+}
+
+function applyMapView(state, v) {
+  const { map } = state;
+  if (!map || !state.loaded) return;
+  stopRadarAnim(state);
+  // Hide all
+  ALL_DATA_LAYERS.forEach(id => { try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'none'); } catch {} });
+  (state.windMarkers || []).forEach(m => { m.getElement().style.display = 'none'; });
+
+  // Animate radar frames for radar + composite
+  if (v === 'radar' || v === 'composite') {
+    const frames = state.radarFrames;
+    if (frames.length) {
+      let i = 0;
+      const step = () => {
+        frames.forEach((f, j) => { try { if (map.getLayer(f.id)) map.setLayoutProperty(f.id, 'visibility', j === i ? 'visible' : 'none'); } catch {} });
+        i = (i + 1) % frames.length;
+      };
+      step();
+      state.radarTimer = setInterval(step, 600);
+    }
+  }
+  // Wind view now handled by Windy iframe — markers not shown
+  // Alert zones
+  if (v === 'composite' || v === 'track') {
+    ['nws-alert-fill','nws-alert-outline'].forEach(id => { try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'visible'); } catch {} });
+  }
+  // Rainfall HTML markers
+  if (v === 'rainfall') {
+    (state.rainfallMarkers || []).forEach(m => { m.getElement().style.display = 'flex'; });
+  }
+  // NHC cone + track
+  if (v === 'track') {
+    ['nhc-cone-fill','nhc-cone-outline','nhc-track-line','nhc-track-points'].forEach(id => { try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'visible'); } catch {} });
+    if (state.hasStorm) {
+      map.fitBounds([[-75, 13], [-58, 25]], { padding: 30, duration: 800 });
+    } else {
+      map.fitBounds(PR_BOUNDS, { padding: 10, duration: 600 });
+    }
+    return;
+  }
+  // Default: fit Rincón → Culebra across the full map width
+  map.fitBounds(PR_BOUNDS, { padding: 10, duration: 600 });
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────
+function formatMovement(m) {
+  if (!m) return '—';
+  return String(m).replace(/^(\w+)\s+at\s+(\d+)\s*mph$/i, '$1 · $2 mph');
+}
+
+// ── LiveClock ─────────────────────────────────────────────────────────────
+function LiveClock() {
+  const [t, setT] = useState(new Date());
+  useEffect(() => {
+    const i = setInterval(() => setT(new Date()), 1000);
+    return () => clearInterval(i);
+  }, []);
+  const ast = new Date(t.toLocaleString('en-US', { timeZone: 'America/Puerto_Rico' }));
+  const hh = String(ast.getHours()).padStart(2, '0');
+  const mm = String(ast.getMinutes()).padStart(2, '0');
+  const MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateStr = `${MONS[ast.getMonth()]} ${ast.getDate()}`;
+  return <span className="mono" style={{letterSpacing:'.08em'}}>{dateStr} · {hh}:{mm}</span>;
+}
+
+// ── Flag components ───────────────────────────────────────────────────────
+// Flags: selected language is grayed (matches sentinelmgpr.com convention)
+function FlagUS({ active, onClick }) {
+  return (
+    <img
+      src="../assets/img/flag-us.svg"
+      className={`flag-icon${active ? ' flag-gray' : ''}`}
+      alt="English"
+      title="English"
+      onClick={active ? undefined : onClick}
+    />
+  );
+}
+function FlagPR({ active, onClick }) {
+  return (
+    <img
+      src="../assets/img/flag-pr.svg"
+      className={`flag-icon${active ? ' flag-gray' : ''}`}
+      alt="Español"
+      title="Español"
+      onClick={active ? undefined : onClick}
+    />
+  );
+}
+
+// ── Header ────────────────────────────────────────────────────────────────
+function Header({ lang, setLang, alertCount }) {
+  const scrollTo = (id, e) => {
+    e.preventDefault();
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  return (
+    <header className="app-header">
+      <div className="header-container">
+        <div className="brand-block">
+          <a href="https://sentinelmgpr.com" target="_blank" rel="noopener" style={{display:'flex',alignItems:'center',gap:10,textDecoration:'none'}}>
+            <img src={window.SENTINEL_LOGO} className="main-logo" alt="Sentinel" />
+          </a>
+          <span className="section-pill">Weather Operations</span>
+        </div>
+        <nav className="main-nav">
+          <ul className="nav-links">
+            <li><a href="#" className="en active">Live Map</a><a href="#" className="es active">Mapa en Vivo</a></li>
+            <li>
+              <a href="#alerts" className="en" onClick={e => scrollTo('alerts', e)}>Alerts</a>
+              <a href="#alerts" className="es" onClick={e => scrollTo('alerts', e)}>Alertas</a>
+            </li>
+            <li>
+              <a href="#forecast" className="en" onClick={e => scrollTo('forecast', e)}>Forecast</a>
+              <a href="#forecast" className="es" onClick={e => scrollTo('forecast', e)}>Pronóstico</a>
+            </li>
+            <li><a href="https://www.nhc.noaa.gov" target="_blank" rel="noopener" className="en">NHC ↗</a>
+                <a href="https://www.nhc.noaa.gov" target="_blank" rel="noopener" className="es">NHC ↗</a></li>
+          </ul>
+          <div className="header-right">
+            <div className="live-status">
+              <span className="live-dot"></span>
+              <LiveClock />
+              <span style={{color:'var(--gray-dim)'}}>AST</span>
+            </div>
+            <div className="language-switcher">
+              <FlagUS active={lang === 'en'} onClick={() => setLang('en')} />
+              <FlagPR active={lang === 'es'} onClick={() => setLang('es')} />
+            </div>
+            <a href="https://sims.sentinelmgpr.com" className="btn-signin en">SIMS Login</a>
+            <a href="https://sims.sentinelmgpr.com" className="btn-signin es">Acceder</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+// ── Hero Strip ────────────────────────────────────────────────────────────
+function StatusBar({ data }) {
+  const { mode, daysUntilSeason, seasonActive, hurricane, lastSync } = data;
+  const totalAlerts = (data.alerts ?? []).filter(a => a.level !== 'INFO').length;
+  const activeAlerts = (data.alerts ?? []).filter(a => a.level === 'WARNING' || a.level === 'WATCH').length;
+  const isStorm = mode === 'storm' && hurricane;
+  const isWatch = mode === 'watch' || totalAlerts > 0;
+  const dotClass = isStorm ? 'sb-alert-dot has-crit' : isWatch ? 'sb-alert-dot has-warn' : 'sb-alert-dot';
+  const scrollToAlerts = () => { const el = document.getElementById('alerts'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); };
+
+  return (
+    <div className="status-bar">
+      {/* Season label */}
+      <div className="sb-segment">
+        <span className="sb-season en">2026 Atlantic Hurricane Season</span>
+        <span className="sb-season es">Temporada de Huracanes 2026</span>
+      </div>
+
+      {/* Status message */}
+      {isStorm ? (
+        <div className={`sb-status storm-mode`}>
+          <span className="en">
+            ◉ {hurricane.name} — <span className="count">{hurricane.windsSustained} mph · {hurricane.pressure} mb</span> · NHC Adv #{hurricane.advisory}
+          </span>
+          <span className="es">
+            ◉ {hurricane.name} — <span className="count">{hurricane.windsSustained} mph · {hurricane.pressure} mb</span> · Aviso NHC #{hurricane.advisory}
+          </span>
+        </div>
+      ) : (
+        <div className={`sb-status${isWatch ? ' watch-mode' : ''}`}>
+          {seasonActive ? (<>
+            <span className="en" onClick={totalAlerts > 0 ? scrollToAlerts : undefined} style={totalAlerts > 0 ? {cursor:'pointer'} : {}}>
+              {totalAlerts > 0
+                ? <>Season active · <span className="count" style={{textDecoration:'underline'}}>{totalAlerts} alert{totalAlerts !== 1 ? 's' : ''}</span> in effect</>
+                : 'Season active · No active alerts'}
+            </span>
+            <span className="es" onClick={totalAlerts > 0 ? scrollToAlerts : undefined} style={totalAlerts > 0 ? {cursor:'pointer'} : {}}>
+              {totalAlerts > 0
+                ? <>Temporada activa · <span className="count" style={{textDecoration:'underline'}}>{totalAlerts} alerta{totalAlerts !== 1 ? 's' : ''}</span> vigente{totalAlerts !== 1 ? 's' : ''}</>
+                : 'Temporada activa · Sin alertas activas'}
+            </span>
+          </>) : (<>
+            <span className="en">
+              {daysUntilSeason > 0
+                ? <>Opens in <span className="count">{daysUntilSeason} day{daysUntilSeason !== 1 ? 's' : ''}</span> — monitoring active now</>
+                : 'Season begins today — monitoring active'}
+            </span>
+            <span className="es">
+              {daysUntilSeason > 0
+                ? <>En <span className="count">{daysUntilSeason} día{daysUntilSeason !== 1 ? 's' : ''}</span> — monitoreo activo ahora</>
+                : 'La temporada comienza hoy — monitoreo activo'}
+            </span>
+          </>)}
+        </div>
+      )}
+
+      {/* Sync time */}
+      <div className="sb-segment">
+        <span className="sb-sync en">↺ {lastSync ?? '—'}</span>
+        <span className="sb-sync es">↺ {lastSync ?? '—'}</span>
+      </div>
+    </div>
+  );
+}
+
+// Keep HeroStrip alias so no other references break (not rendered anymore)
+function HeroStrip({ data }) {
+  const { mode, daysUntilSeason, seasonActive, hurricane, alerts, metrics } = data;
+  const activeAlerts = metrics?.activeAlerts ?? 0;
+  const rightPanel = () => {
+    return (
+      <div className="alert-count-banner">
+        <div className={`acb-num ${activeAlerts > 0 ? (mode === 'watch' ? 'has-warn' : 'has-crit') : ''}`}>
+          {metrics?.totalAlerts ?? 0}
+        </div>
+        <div>
+          <div className="acb-label en">Active Alerts</div>
+          <div className="acb-label es">Alertas Activas</div>
+        </div>
+      </div>
+    );
+  };
+
+  return null; // replaced by StatusBar
+}
+
+// ── Map Views ─────────────────────────────────────────────────────────────
+const VIEWS = [
+  { id: 'composite', en: 'Composite',    es: 'Compuesto',   iconKey: 'comp' },
+  { id: 'track',     en: 'Storm Track',  es: 'Trayectoria', iconKey: 'storm' },
+  { id: 'radar',     en: 'Radar',        es: 'Radar',       iconKey: 'radar' },
+  { id: 'wind',      en: 'Wind',         es: 'Viento',      iconKey: 'wind' },
+  { id: 'rainfall',  en: 'Rainfall 24h', es: 'Lluvia 24h',  iconKey: 'rain' },
+];
+
+function ViewIcon({ k }) {
+  const p = {className:'icon',viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:'1.6',strokeLinecap:'round',strokeLinejoin:'round'};
+  if (k==='comp')  return <svg {...p}><rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/></svg>;
+  if (k==='storm') return <svg {...p}><path d="M12 12c0-5 4-7 8-7-1 4-3 7-7 8M12 12c0 5-4 7-8 7 1-4 3-7 7-8"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>;
+  if (k==='radar') return <svg {...p}><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7" opacity=".5"/><circle cx="12" cy="12" r="11" opacity=".25"/></svg>;
+  if (k==='wind')  return <svg {...p}><path d="M3 8h14a3 3 0 1 0-3-3M3 12h17M3 16h12a3 3 0 1 1-3 3"/></svg>;
+  if (k==='rain')  return <svg {...p}><path d="M17.5 13a4.5 4.5 0 1 0-1.4-8.78A6 6 0 0 0 4 7.5 4.5 4.5 0 0 0 6.5 13"/><path d="M8 18v3M12 16v5M16 18v3"/></svg>;
+  if (k==='lt')    return <svg {...p}><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>;
+  return null;
+}
+
+function PRMap({ view, hurricane }) {
+  const containerRef = useRef(null);
+  const stateRef = useRef({ map: null, loaded: false, radarFrames: [], radarTimer: null, windMarkers: [], rainfallMarkers: [], hasStorm: false, rainfallDry: false });
+  const viewRef = useRef(view);
+  const [rainfallDry, setRainfallDry] = useState(false);
+
+  // React to view changes after map is ready
+  useEffect(() => {
+    viewRef.current = view;
+    const s = stateRef.current;
+    if (s.map && s.loaded) applyMapView(s, view);
+  }, [view]);
+
+  // One-time map init
+  useEffect(() => {
+    if (!containerRef.current || stateRef.current.map) return;
+    const s = stateRef.current;
+
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: 'https://tiles.openfreemap.org/styles/liberty',
+      bounds: PR_BOUNDS,           // Rincón (west) → Culebra (east) on init
+      fitBoundsOptions: { padding: 10 },
+      attributionControl: false,
+      maxBounds: [[-80, 12], [-55, 28]],
+    });
+    s.map = map;
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+
+    map.on('load', async () => {
+      // ── NWS Alert zones ──────────────────────────────────────────────
+      let alertFC = { type: 'FeatureCollection', features: [] };
+      try {
+        const r = await fetch('https://api.weather.gov/alerts/active?area=PR');
+        const d = await r.json();
+        const enriched = await Promise.all((d.features || []).slice(0, 6).map(async f => {
+          if (f.geometry) return f;
+          const zones = f.properties?.affectedZones ?? [];
+          if (!zones.length) return null;
+          try {
+            const zr = await fetch(zones[0]);
+            const zd = await zr.json();
+            return { ...f, geometry: zd.geometry };
+          } catch { return null; }
+        }));
+        alertFC.features = enriched.filter(Boolean);
+      } catch {}
+      map.addSource('nws-alerts', { type: 'geojson', data: alertFC });
+      map.addLayer({ id: 'nws-alert-fill', type: 'fill', source: 'nws-alerts',
+        layout: { visibility: 'none' },
+        paint: { 'fill-color': ['match',['get','severity'],'Extreme','#c41818','Severe','#c41818','Moderate','#d97706','#1e5fb8'], 'fill-opacity': 0.13 }
+      });
+      map.addLayer({ id: 'nws-alert-outline', type: 'line', source: 'nws-alerts',
+        layout: { visibility: 'none' },
+        paint: { 'line-color': ['match',['get','severity'],'Extreme','#c41818','Severe','#c41818','Moderate','#d97706','#1e5fb8'], 'line-width': 1.5, 'line-dasharray': [3,2] }
+      });
+
+      // ── RainViewer radar ──────────────────────────────────────────────
+      try {
+        const rv = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+        const rvd = await rv.json();
+        const frames = rvd.radar.past.slice(-10).map(f => ({
+          id: `rv-${f.time}`,
+          url: `https://tilecache.rainviewer.com${f.path}/512/{z}/{x}/{y}/4/1_1.png`,
+        }));
+        s.radarFrames = frames;
+        frames.forEach(f => {
+          map.addSource(f.id, { type: 'raster', tiles: [f.url], tileSize: 512, attribution: '© RainViewer', minzoom: 1, maxzoom: 6 });
+          map.addLayer({ id: f.id, type: 'raster', source: f.id, layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.8 } });
+        });
+        // Static alias = last frame (used for composite)
+        if (frames.length) {
+          map.addSource('radar-current-src', { type: 'raster', tiles: [frames[frames.length-1].url], tileSize: 512, minzoom: 1, maxzoom: 6 });
+          map.addLayer({ id: 'radar-current', type: 'raster', source: 'radar-current-src', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7 } });
+        } else {
+          map.addSource('radar-current-src', { type: 'geojson', data: {type:'FeatureCollection',features:[]} });
+          map.addLayer({ id: 'radar-current', type: 'fill', source: 'radar-current-src', layout: { visibility: 'none' } });
+        }
+      } catch (e) {
+        console.warn('RainViewer failed:', e);
+        map.addSource('radar-current-src', { type: 'geojson', data: {type:'FeatureCollection',features:[]} });
+        map.addLayer({ id: 'radar-current', type: 'fill', source: 'radar-current-src', layout: { visibility: 'none' } });
+      }
+
+      // ── Open-Meteo wind grid (9 points) ──────────────────────────────
+      try {
+        const lats = [18.47,18.47,18.47,18.22,18.22,18.22,17.97,17.97,17.97];
+        const lngs = [-67.15,-66.10,-65.60,-67.15,-66.10,-65.60,-67.15,-66.10,-65.60];
+        const wurl = `https://api.open-meteo.com/v1/forecast?latitude=${lats.join(',')}&longitude=${lngs.join(',')}&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=mph&timezone=America%2FPuerto_Rico`;
+        const wr = await fetch(wurl);
+        const wd = await wr.json();
+        (Array.isArray(wd) ? wd : [wd]).forEach(loc => {
+          const speed = Math.round(loc.current?.wind_speed_10m ?? 0);
+          const dir = loc.current?.wind_direction_10m ?? 0;
+          const strong = speed >= 25;
+          const el = document.createElement('div');
+          el.style.cssText = 'display:none;flex-direction:column;align-items:center;gap:2px;pointer-events:none;';
+          // Arrow shaft + head pointing in wind direction
+          el.innerHTML = `
+            <svg width="28" height="32" viewBox="0 0 28 32" style="overflow:visible;transform:rotate(${(dir+180)%360}deg)">
+              <line x1="14" y1="28" x2="14" y2="6" stroke="${strong?'#c41818':'#1a1a1a'}" stroke-width="2" stroke-linecap="round"/>
+              <polyline points="8,12 14,4 20,12" fill="none" stroke="${strong?'#c41818':'#1a1a1a'}" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+            <div style="font-family:JetBrains Mono,monospace;font-size:10px;font-weight:800;color:${strong?'#c41818':'#1a1a1a'};background:rgba(255,255,255,.88);padding:1px 4px;border:1px solid ${strong?'#c41818':'rgba(0,0,0,.15)'};">${speed}</div>
+          `;
+          const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+            .setLngLat([loc.longitude, loc.latitude]).addTo(map);
+          s.windMarkers.push(marker);
+        });
+      } catch (e) { console.warn('Wind grid failed:', e); }
+
+      // ── Open-Meteo QPF rainfall (HTML markers, same pattern as wind) ────
+      try {
+        const rlats = [18.47,18.47,18.47,18.22,18.22,18.22,17.97,17.97,17.97];
+        const rlngs = [-67.15,-66.10,-65.60,-67.15,-66.10,-65.60,-67.15,-66.10,-65.60];
+        const rurl = `https://api.open-meteo.com/v1/forecast?latitude=${rlats.join(',')}&longitude=${rlngs.join(',')}&daily=precipitation_sum&timezone=America%2FPuerto_Rico&forecast_days=1`;
+        const rr = await fetch(rurl);
+        const rd = await rr.json();
+        const locs = Array.isArray(rd) ? rd : [rd];
+        const maxMm = Math.max(...locs.map(loc => loc.daily?.precipitation_sum?.[0] ?? 0));
+        const dry = maxMm < 2.5;
+        stateRef.current.rainfallDry = dry;
+        setRainfallDry(dry);
+        locs.forEach(loc => {
+          const mm = loc.daily?.precipitation_sum?.[0] ?? 0;
+          const inches = mm / 25.4;
+          const label = inches >= 0.1 ? `${inches.toFixed(1)}"` : '<0.1"';
+          // Size 28–56px based on rainfall
+          const sz = Math.round(28 + Math.min(mm / 40, 1) * 28);
+          // Color intensity based on mm
+          const alpha = Math.max(0.18, Math.min(0.88, 0.18 + (mm / 40) * 0.70));
+          const el = document.createElement('div');
+          el.style.cssText = `display:none;flex-direction:column;align-items:center;gap:2px;cursor:default;`;
+          el.innerHTML = `
+            <div style="
+              width:${sz}px;height:${sz}px;border-radius:50%;
+              background:rgba(30,60,120,${alpha.toFixed(2)});
+              border:1.5px solid rgba(30,60,120,0.55);
+              display:flex;align-items:center;justify-content:center;
+            ">
+              <span style="font-family:JetBrains Mono,monospace;font-size:9px;font-weight:800;color:rgba(255,255,255,0.95);">💧</span>
+            </div>
+            <div style="font-family:JetBrains Mono,monospace;font-size:10px;font-weight:800;color:#0a1828;background:rgba(255,255,255,0.88);padding:1px 4px;border:1px solid rgba(30,60,120,0.25);">${label}</div>
+          `;
+          const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+            .setLngLat([loc.longitude, loc.latitude]).addTo(map);
+          s.rainfallMarkers = s.rainfallMarkers || [];
+          s.rainfallMarkers.push(marker);
+        });
+      } catch (e) { console.warn('Rainfall QPF failed:', e); }
+      // Stub geojson sources (needed for applyMapView layer checks)
+      map.addSource('rainfall-data', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+      map.addLayer({ id:'rainfall-circles', type:'fill', source:'rainfall-data', layout:{ visibility:'none' } });
+      map.addLayer({ id:'rainfall-labels', type:'fill', source:'rainfall-data', layout:{ visibility:'none' } });
+
+      // ── NHC Storm Track ───────────────────────────────────────────────
+      const coneGeoJson = hurricane?.coneGeoJson ?? null;
+      s.hasStorm = !!coneGeoJson;
+      map.addSource('nhc-cone', { type:'geojson', data: coneGeoJson || { type:'FeatureCollection', features:[] } });
+      map.addLayer({ id:'nhc-cone-fill', type:'fill', source:'nhc-cone', layout:{ visibility:'none' }, paint:{ 'fill-color':'#c41818','fill-opacity':0.1 } });
+      map.addLayer({ id:'nhc-cone-outline', type:'line', source:'nhc-cone', layout:{ visibility:'none' }, paint:{ 'line-color':'#c41818','line-width':1.5,'line-dasharray':[4,3] } });
+      map.addSource('nhc-track', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+      map.addLayer({ id:'nhc-track-line', type:'line', source:'nhc-track', layout:{ visibility:'none' }, paint:{ 'line-color':'#c41818','line-width':2.5 } });
+      map.addLayer({ id:'nhc-track-points', type:'circle', source:'nhc-track', layout:{ visibility:'none' }, paint:{ 'circle-radius':6,'circle-color':'#c41818','circle-stroke-color':'white','circle-stroke-width':2 } });
+
+      s.loaded = true;
+      applyMapView(s, viewRef.current);
+    });
+
+    return () => {
+      stopRadarAnim(s);
+      s.windMarkers.forEach(m => m.remove());
+      s.windMarkers = [];
+      (s.rainfallMarkers || []).forEach(m => m.remove());
+      s.rainfallMarkers = [];
+      s.loaded = false;
+      map.remove();
+      stateRef.current = { map:null, loaded:false, radarFrames:[], radarTimer:null, windMarkers:[], rainfallMarkers:[], hasStorm:false };
+    };
+  }, []); // intentionally empty — map initializes once
+
+  const noStorm = view === 'track' && !hurricane;
+  const showDryOverlay = view === 'rainfall' && rainfallDry;
+
+  return (
+    <div style={{ position:'relative', width:'100%', height:'100%', minHeight:420 }}>
+      <div ref={containerRef} style={{ width:'100%', height:'100%', minHeight:420 }} />
+      {noStorm && (
+        <div className="no-storm-overlay">
+          <span className="en">No active tropical systems · Caribbean &amp; Atlantic</span>
+          <span className="es">Sin sistemas tropicales activos · Caribe y Atlántico</span>
+        </div>
+      )}
+      {showDryOverlay && (
+        <div className="no-storm-overlay">
+          <span className="en">No significant rainfall expected · Next 24 hours</span>
+          <span className="es">Sin lluvia significativa prevista · Próximas 24 horas</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MapLegend({ view }) {
+  if (view==='radar') return (
+    <div className="legend-items">
+      <span className="label-sm">RainViewer · Animated</span>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(0,200,100,.5)'}}></span>Light</div>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(255,200,0,.7)'}}></span>Moderate</div>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(200,0,0,.8)'}}></span>Heavy</div>
+    </div>
+  );
+  if (view==='composite') return (
+    <div className="legend-items">
+      <span className="label-sm">RainViewer + NWS Alerts</span>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(196,24,24,.15)',border:'1px dashed #c41818'}}></span>Alert Zone</div>
+    </div>
+  );
+  if (view==='wind') return (
+    <div className="legend-items">
+      <span className="label-sm">Windy.com · ECMWF · Live</span>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(0,100,255,.35)'}}></span><span className="en">Light wind</span><span className="es">Viento leve</span></div>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(0,200,150,.6)'}}></span><span className="en">Moderate</span><span className="es">Moderado</span></div>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(255,100,0,.8)'}}></span><span className="en">Strong</span><span className="es">Fuerte</span></div>
+    </div>
+  );
+  if (view==='rainfall') return (
+    <div className="legend-items">
+      <span className="label-sm en">Open-Meteo QPF · 24h</span><span className="label-sm es">Lluvia Pronosticada 24h</span>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(30,60,120,.08)'}}></span>&lt;0.2"</div>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(30,60,120,.22)'}}></span>0.2–0.6"</div>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(30,60,120,.45)'}}></span>0.6–1.5"</div>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(30,60,120,.72)'}}></span>&gt;1.5"</div>
+    </div>
+  );
+  if (view==='track') return (
+    <div className="legend-items">
+      <span className="label-sm">NHC Official · Real-Time</span>
+      <div className="legend-item"><span className="dot" style={{background:'#c41818'}}></span>Track Point</div>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(196,24,24,.18)',border:'1px dashed rgba(196,24,24,.6)'}}></span>Cone of Uncertainty</div>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(196,24,24,.13)',border:'1px dashed #d97706'}}></span>NWS Alert Zone</div>
+    </div>
+  );
+  return null;
+}
+
+const OVERLAY_TITLES = {
+  composite: { en:'Composite View',    es:'Vista Compuesta',  sub_en:'All weather layers + active system',         sub_es:'Todas las capas + sistema activo' },
+  track:     { en:'Storm Track',       es:'Trayectoria',      sub_en:'NHC cone of uncertainty + forecast positions',sub_es:'Cono NHC + posiciones pronosticadas' },
+  radar:     { en:'Radar',             es:'Radar',            sub_en:'NWS NEXRAD precipitation · Live',             sub_es:'Precipitación NEXRAD · En vivo' },
+  wind:      { en:'Wind · Windy.com',  es:'Viento · Windy.com', sub_en:'Animated wind particles — powered by Windy.com', sub_es:'Partículas de viento animadas — con Windy.com' },
+  rainfall:  { en:'Rainfall · 24h',   es:'Lluvia · 24h',     sub_en:'Forecast accumulation through Friday',        sub_es:'Acumulación pronosticada hasta el viernes' },
+};
+
+function MapPanel({ view, setView, theme, hurricane }) {
+  return (
+    <div className="panel map-panel">
+      <div className="view-tabs">
+        {VIEWS.map(v => (
+          <button key={v.id} className={`view-tab ${view===v.id?'on':''}`} onClick={() => setView(v.id)}>
+            <ViewIcon k={v.iconKey}/>
+            <span className="en">{v.en}</span>
+            <span className="es">{v.es}</span>
+          </button>
+        ))}
+      </div>
+      <div className="map-frame">
+        {/* MapLibre map — always mounted; hidden behind Windy when wind view active */}
+        <div className="map-wrap" style={{display: view === 'wind' ? 'none' : undefined}}>
+          <PRMap view={view} hurricane={hurricane}/>
+        </div>
+        {/* Windy embed — replaces custom wind markers */}
+        {view === 'wind' && (
+          <iframe
+            src="https://embed.windy.com/embed2.html?lat=18.4655&lon=-66.1057&detailLat=18.4655&detailLon=-66.1057&zoom=7&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1"
+            style={{position:'absolute',inset:0,width:'100%',height:'100%',border:'none',display:'block'}}
+            allowFullScreen
+            title="Windy Wind Map"
+          />
+        )}
+      </div>
+      <div className="map-bottom-bar">
+        <MapLegend view={view}/>
+        <div className="scale-readout">50 km · 18.20°N 66.40°W</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Right column panels ───────────────────────────────────────────────────
+function TropicalSystemPanel({ hurricane }) {
+  if (!hurricane) return null;
+  return (
+    <div className="panel ts-card" id="track">
+      <div className="panel-hd">
+        <h3 className="en">Active Tropical System</h3>
+        <h3 className="es">Sistema Tropical Activo</h3>
+        <span className="meta">Adv #{hurricane.advisory}</span>
+      </div>
+      <div className="ts-card-body">
+        <div className="ts-header">
+          <div>
+            <div className="ts-name">{hurricane.name}</div>
+            <div className="ts-sub">{hurricane.issued}</div>
+          </div>
+          <span className="ts-tag">{hurricane.classification}</span>
+        </div>
+        <div className="ts-grid">
+          <div className="ts-cell">
+            <div className="v">{hurricane.windsSustained}<span style={{fontSize:10,color:'var(--gray-text)',marginLeft:3}}>mph</span></div>
+            <div className="l en">Max Wind</div><div className="l es">Viento Máx.</div>
+          </div>
+          <div className="ts-cell">
+            <div className="v">{hurricane.pressure}<span style={{fontSize:10,color:'var(--gray-text)',marginLeft:3}}>mb</span></div>
+            <div className="l en">Pressure</div><div className="l es">Presión</div>
+          </div>
+          <div className="ts-cell">
+            <div className="v" style={{fontSize:13}}>{formatMovement(hurricane.movement).split('·')[0].trim()}</div>
+            <div className="l en">{formatMovement(hurricane.movement).split('·')[1]?.trim() ?? 'Movement'}</div>
+            <div className="l es">Movimiento</div>
+          </div>
+        </div>
+        {hurricane.track?.length > 0 && (<>
+          <div>
+            <div className="label-sm en" style={{marginBottom:8}}>Intensity Forecast · mph</div>
+            <div className="label-sm es" style={{marginBottom:8}}>Pronóstico de Intensidad · mph</div>
+            <div className="ts-bar-row">
+              {hurricane.track.map((p,i) => {
+                const h = Math.max(8, (p.ws/130)*36);
+                return (
+                  <div key={i} style={{display:'flex',flexDirection:'column',justifyContent:'flex-end',height:'100%'}}>
+                    <div className={`ts-bar ${p.label?.startsWith('H')?'hur':''} ${i===0?'now':''}`} style={{height:h+'px'}}/>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="ts-bar-labels">
+              {hurricane.track.map((p,i) => <span key={i}>{p.t==='NOW'?'NOW':String(p.t).replace('+','')}</span>)}
+            </div>
+          </div>
+        </>)}
+        <div className="ts-next">
+          <span className="en">Next advisory <strong>{hurricane.nextAdvisory}</strong></span>
+          <span className="es">Próximo aviso <strong>{hurricane.nextAdvisory}</strong></span>
+          <a className="ts-link" href="https://www.nhc.noaa.gov" target="_blank" rel="noopener">NHC ↗</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CurrentConditions({ conditions }) {
+  const c = conditions ?? {};
+  return (
+    <div className="panel">
+      <div className="panel-hd">
+        <h3 className="en">Current Conditions</h3>
+        <h3 className="es">Condiciones Actuales</h3>
+      </div>
+      <div className="cc-body">
+        <div className="cc-top">
+          <div className="cc-temp">{c.temp ?? '—'}<span className="deg">°F</span></div>
+          <div className="cc-cond">
+            <div className="city">{c.city ?? 'San Juan'}</div>
+            <div className="desc">{c.description ?? '—'}</div>
+          </div>
+        </div>
+        <div className="cc-grid">
+          <div className="cc-cell"><div className="v">{c.windMph ?? '—'}<span className="u">mph</span></div><div className="l en">Wind</div><div className="l es">Viento</div></div>
+          <div className="cc-cell"><div className="v">{c.humidity ?? '—'}<span className="u">%</span></div><div className="l en">Humidity</div><div className="l es">Humedad</div></div>
+          <div className="cc-cell"><div className="v">{c.pressureInHg ?? '—'}<span className="u">in</span></div><div className="l en">Pressure</div><div className="l es">Presión</div></div>
+          <div className="cc-cell"><div className="v">{c.visibilityMi ?? '—'}<span className="u">mi</span></div><div className="l en">Visibility</div><div className="l es">Visibilidad</div></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AlertsPanel({ alerts }) {
+  const [expandedId, setExpandedId] = useState(null);
+  const raw = alerts ?? [];
+  const list = raw.filter(a => a.level !== 'INFO');
+  const toggle = (id) => setExpandedId(prev => prev === id ? null : id);
+  return (
+    <div className="panel" id="alerts">
+      <div className="panel-hd">
+        <h3 className="en">Active Alerts</h3>
+        <h3 className="es">Alertas Activas</h3>
+        <span className="meta">{list.length}</span>
+      </div>
+      <div className="alerts-list">
+        {list.slice(0,5).map(a => {
+          const isOpen = expandedId === a.id;
+          return (
+            <div key={a.id} className={`alert-row ${isOpen ? 'expanded' : ''}`}
+                 onClick={() => toggle(a.id)} role="button" tabIndex={0}
+                 onKeyDown={e => e.key === 'Enter' && toggle(a.id)}>
+              <div className={`alert-row-bar ${a.level}`}/>
+              <div className="alert-row-body" style={{minWidth:0}}>
+                <div className="alert-row-head">
+                  <span className={`alert-row-level ${a.level}`}>{a.level}</span>
+                  <span className="alert-row-time">{a.issued}</span>
+                  <span className="alert-row-chevron">▾</span>
+                </div>
+                <div className="alert-row-title">{a.title}</div>
+                <div className="alert-row-area">{a.area} · {a.source}</div>
+                {isOpen && a.detail && (
+                  <div className="alert-row-detail">
+                    {a.detail}
+                    <div className="alert-row-footer">
+                      {/nmead/i.test(a.source) ? (<>
+                        <a className="alert-nws-link en" href="https://manejodeemergencias.pr.gov/" target="_blank" rel="noopener">Full bulletin at NMEAD ↗</a>
+                        <a className="alert-nws-link es" href="https://manejodeemergencias.pr.gov/" target="_blank" rel="noopener">Boletín completo en NMEAD ↗</a>
+                      </>) : (<>
+                        <a className="alert-nws-link en" href="https://www.weather.gov/sju/" target="_blank" rel="noopener">Full bulletin at NWS San Juan ↗</a>
+                        <a className="alert-nws-link es" href="https://www.weather.gov/sju/" target="_blank" rel="noopener">Boletín completo en NWS ↗</a>
+                      </>)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {list.length === 0 && (
+          <div style={{padding:'20px 16px',fontSize:12,color:'var(--gray-text)',textTransform:'uppercase',letterSpacing:'.1em'}}>
+            <span className="en">No active alerts for Puerto Rico</span>
+            <span className="es">Sin alertas activas para Puerto Rico</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Forecast Strip ────────────────────────────────────────────────────────
+function ForecastStrip({ forecast }) {
+  const days = forecast ?? [];
+  return (
+    <div className="forecast-strip-wrap" id="forecast">
+      <div className="forecast-strip">
+        <div className="fs-label">
+          <div className="h en">7-Day Outlook</div>
+          <div className="h es">Pronóstico 7 Días</div>
+          <div className="s en">San Juan · NWS</div>
+          <div className="s es">San Juan · NWS</div>
+        </div>
+        {days.map((d,i) => (
+          <div key={i} className={`fs-day ${i===0?'today':''} ${d.cond?.toLowerCase().includes('tropical')||d.cond?.toLowerCase().includes('storm')?'severe':''}`}>
+            <div>
+              <div className="fs-dow">{i===0?'TODAY':d.day?.toUpperCase()}</div>
+              <div className="fs-date">{d.date}</div>
+            </div>
+            <div className="fs-temps"><span className="fs-hi">{d.hi}°</span><span className="fs-lo">{d.lo}°</span></div>
+            <div className="fs-cond">{d.cond}</div>
+            <div className="fs-bot">
+              <span className={d.pop>=80?'extreme':''}>↓{d.pop}%</span>
+              <span className={d.wind>=35?'extreme':''}>→{d.wind}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Forecast Sidebar — compact row layout for the right column ─────────────
+function ForecastSidebar({ forecast }) {
+  const days = forecast ?? [];
+  return (
+    <div className="panel fc-sidebar-panel">
+      <div className="panel-hd">
+        <h3 className="en">7-Day Outlook</h3>
+        <h3 className="es">Pronóstico 7 Días</h3>
+        <span className="meta en">San Juan · NWS</span>
+        <span className="meta es">San Juan · NWS</span>
+      </div>
+      <div className="fc-sidebar">
+        {days.map((d, i) => {
+          const isSevere = d.cond?.toLowerCase().includes('tropical') || d.cond?.toLowerCase().includes('storm');
+          return (
+            <div key={i} className={`fc-row ${i===0?'fc-today':''} ${isSevere?'fc-severe':''}`}>
+              <span className="fc-dow">{i===0 ? <span className="en">TODAY</span> : d.day?.toUpperCase()}</span>
+              <span className="fc-date">{d.date}</span>
+              <span className="fc-cond">{d.cond}</span>
+              <span className="fc-temps">{d.hi}°<span className="lo">{d.lo}°</span></span>
+              <span className="fc-pop">↓{d.pop}%</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Below the fold ────────────────────────────────────────────────────────
+
+function BelowFold({ alerts }) {
+  const primaryAlert = alerts?.find(a => a.level === 'WARNING') ?? alerts?.[0];
+  return (
+    <section className="below">
+      <div className="below-inner below-grid">
+        <div>
+          <span className="label en">Detailed Bulletins</span>
+          <span className="label es">Boletines Detallados</span>
+          {primaryAlert ? (<>
+            <h2 className="en" style={{marginTop:14}}>{primaryAlert.title}<br/><span className="heavy">for {primaryAlert.area}.</span></h2>
+            <h2 className="es" style={{marginTop:14}}>{primaryAlert.title}<br/><span className="heavy">para {primaryAlert.area}.</span></h2>
+            <p className="en">{primaryAlert.detail}</p>
+            <p className="es">{primaryAlert.detail}</p>
+          </>) : (<>
+            <h2 style={{marginTop:14}} className="en">No active warnings<br/><span className="heavy">for Puerto Rico.</span></h2>
+            <h2 style={{marginTop:14}} className="es">Sin advertencias activas<br/><span className="heavy">para Puerto Rico.</span></h2>
+          </>)}
+
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginTop:36,paddingTop:24,borderTop:'1px solid var(--gray-border)'}}>
+            <a href="https://sentinelmgpr.com/article.html?id=1777499212-hurricane-season-2026-a-facility-manager-s-pre-storm-checklist"
+               target="_blank" rel="noopener" className="article-link-card">
+              <span className="label-sm en">Facility Management · 2026 Season</span>
+              <span className="label-sm es">Gestión de Instalaciones · Temporada 2026</span>
+              <div className="alc-title en">Hurricane Season 2026: A Facility Manager's Pre-Storm Checklist</div>
+              <div className="alc-title es">Temporada de Huracanes 2026: Lista de Verificación Pre-Tormenta</div>
+              <p className="alc-teaser en">Twelve action items every facility manager should complete before June 1 — roof inspections, generator load testing, drainage clearance, and more.</p>
+              <p className="alc-teaser es">Doce acciones que todo gerente de instalaciones debe completar antes del 1 de junio — inspecciones de techo, pruebas de generadores y más.</p>
+              <span className="alc-cta en">Read Article →</span>
+              <span className="alc-cta es">Leer Artículo →</span>
+            </a>
+            <a href="https://sentinelmgpr.com/article.html?id=2026-05-27-6a173dbf0c42c"
+               target="_blank" rel="noopener" className="article-link-card">
+              <span className="label-sm en">Emergency Preparedness · Resources</span>
+              <span className="label-sm es">Preparación de Emergencias · Recursos</span>
+              <div className="alc-title en">Emergency Hurricane Resources</div>
+              <div className="alc-title es">Recursos de Emergencia para Huracanes</div>
+              <p className="alc-teaser en">FEMA, NMEAD, and NHC emergency resources — shelters, damage reporting, recovery guides, and emergency contacts for Puerto Rico municipalities.</p>
+              <p className="alc-teaser es">Recursos de FEMA, NMEAD y NHC — albergues, reportes de daños, guías de recuperación y contactos de emergencia para municipios de Puerto Rico.</p>
+              <span className="alc-cta en">Read Article →</span>
+              <span className="alc-cta es">Leer Artículo →</span>
+            </a>
+          </div>
+        </div>
+
+        <div className="conversion-card">
+          <span className="label en">SIMS · Sentinel Infrastructure Management System</span>
+          <span className="label es">SIMS · Sistema de Gestión de Infraestructura Sentinel</span>
+
+          <h3 className="en" style={{marginTop:16,textTransform:'none',fontSize:'1.35rem',lineHeight:1.15,letterSpacing:'-0.01em'}}>
+            When the roof fails,<br/>everything fails.
+          </h3>
+          <h3 className="es" style={{marginTop:16,textTransform:'none',fontSize:'1.35rem',lineHeight:1.15,letterSpacing:'-0.01em'}}>
+            Cuando el techo falla,<br/>todo falla.
+          </h3>
+
+          <p className="en" style={{marginTop:14}}>
+            Hurricanes María and Fiona proved it: the first point of failure is almost always the building envelope. Unsealed penetrations, aging flashing, and uninspected roof membranes turn a manageable storm into a total-loss event.
+          </p>
+          <p className="es" style={{marginTop:14}}>
+            Los huracanes María y Fiona lo demostraron: el primer punto de falla es casi siempre la envolvente del edificio. Penetraciones sin sellar, tapajuntas deteriorados y membranas no inspeccionadas convierten una tormenta manejable en pérdida total.
+          </p>
+
+          <div className="sims-stat">
+            <div className="sims-stat-cell">
+              <span className="sv">80%</span>
+              <span className="sl en">of hurricane damage begins at the roof or envelope</span>
+              <span className="sl es">del daño por huracán comienza en el techo o envolvente</span>
+            </div>
+            <div className="sims-stat-cell">
+              <span className="sv">9</span>
+              <span className="sl en">named hurricanes have impacted Puerto Rico since 2010</span>
+              <span className="sl es">huracanes nombrados han impactado Puerto Rico desde 2010</span>
+            </div>
+          </div>
+
+          <ul className="conversion-features">
+            <li className="en">Roof &amp; building envelope condition tracking</li>
+            <li className="es">Registro del estado de techo y envolvente</li>
+            <li className="en">Pre-season inspection checklists (NMEAD-aligned)</li>
+            <li className="es">Listas de inspección pre-temporada (alineadas con NMEAD)</li>
+            <li className="en">Work order lifecycle — report to certified close</li>
+            <li className="es">Ciclo de vida de órdenes de trabajo — reporte a cierre certificado</li>
+            <li className="en">Photo + GPS field documentation</li>
+            <li className="es">Documentación de campo con foto y GPS</li>
+            <li className="en">Post-storm damage assessment workflows</li>
+            <li className="es">Flujos de evaluación de daños post-tormenta</li>
+          </ul>
+
+          <a
+            href="https://sentinelmgpr.com/contact-index.html"
+            target="_blank"
+            rel="noopener"
+            className="btn-sims-cta"
+          >
+            <span className="en">Schedule a SIMS Demo →</span>
+            <span className="es">Solicitar Demo de SIMS →</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Footer({ lastSync }) {
+  return (
+    <footer>
+      <span className="en">© Sentinel Management Group · Weather Operations · Sources: NHC · NWS · NMEAD · Open-Meteo · Last sync {lastSync}</span>
+      <span className="es">© Sentinel Management Group · Operaciones Meteorológicas · Fuentes: NHC · NWS · NMEAD · Open-Meteo · Última sincronización {lastSync}</span>
+    </footer>
+  );
+}
+
+// ── Root App ──────────────────────────────────────────────────────────────
+function App() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [lang, setLang] = useState(() => {
+    try { return localStorage.getItem('sentinelLang') || 'en'; } catch { return 'en'; }
+  });
+  const [view, setView] = useState('composite');
+  const [showStale, setShowStale] = useState(false);
+  const [showReloadBtn, setShowReloadBtn] = useState(false);
+  const mountTime = useRef(Date.now());
+  const REFRESH_MS = 5 * 60 * 1000; // 5 min
+
+  // Fetch live data — falls back to demo payload when API is unreachable
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/weather/live');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const json = await res.json();
+      setData(json);
+      if (json.hasActiveStorm && view === 'composite') setView('track');
+    } catch (e) {
+      console.warn('Weather API unavailable, using demo data:', e.message);
+      // Show representative demo data so the page layout is always visible
+      const now = new Date();
+      const seasonStart = new Date(`${now.getFullYear()}-06-01T00:00:00-04:00`);
+      const daysUntil = Math.max(0, Math.floor((seasonStart - now) / 86400000));
+      const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const demoSync = now.toLocaleString('en-US', { timeZone:'America/Puerto_Rico', hour:'numeric', minute:'2-digit', hour12:true }) + ' AST';
+      setData({
+        mode: 'watch',
+        dataFresh: false,
+        lastSync: demoSync,
+        daysUntilSeason: daysUntil,
+        seasonActive: daysUntil <= 0,
+        hasActiveStorm: false,
+        metrics: { activeAlerts: 2, totalAlerts: 3 },
+        conditions: { temp:86, humidity:79, windMph:14, gustMph:22, rainIn:0, pressureInHg:30.04, visibilityMi:10, description:'Partly Cloudy', city:'San Juan' },
+        forecast: Array.from({length:7}, (_,i) => {
+          const d = new Date(); d.setDate(d.getDate()+i);
+          return { day:DAYS[d.getDay()], date:`${d.getMonth()+1}/${d.getDate()}`, hi:88-i, lo:76, pop:30+i*8, wind:14+i*2, cond: i>=3&&i<=5?'Scattered Showers':'Partly Cloudy' };
+        }),
+        hurricane: null,
+        alerts: [
+          { id:'d1', level:'WATCH', source:'NWS San Juan', title:'Flash Flood Watch', area:'All Puerto Rico', issued:'Jun 23 · 9:14 AM AST', detail:'4 to 8 inches of rainfall expected through the weekend with isolated totals exceeding 12 inches in mountain regions.', isTropical:false },
+          { id:'d2', level:'ADVISORY', source:'NWS', title:'Small Craft Advisory', area:'Coastal Waters', issued:'Jun 23 · 6:00 AM AST', detail:'Seas building to 8–12 ft. Hazardous conditions for small vessels.', isTropical:false },
+          { id:'d3', level:'INFO', source:'NMEAD', title:'Pre-Season Readiness Reminder', area:'Island-wide', issued:'Yesterday', detail:'Hurricane season begins June 1. Verify generator fuel, emergency comms, and shelter-in-place supplies.', isTropical:false },
+        ],
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const t = setInterval(fetchData, REFRESH_MS);
+    return () => clearInterval(t);
+  }, [fetchData]);
+
+  // Stale-notice: don't show until 5 min after mount; reload btn after 1 more min
+  useEffect(() => {
+    if (!data) return;
+    if (data.dataFresh) { setShowStale(false); setShowReloadBtn(false); return; }
+    const elapsed = Date.now() - mountTime.current;
+    const delay = Math.max(0, 5 * 60 * 1000 - elapsed);
+    const t = setTimeout(() => setShowStale(true), delay);
+    return () => clearTimeout(t);
+  }, [data?.dataFresh]);
+
+  useEffect(() => {
+    if (!showStale) { setShowReloadBtn(false); return; }
+    const t = setTimeout(() => setShowReloadBtn(true), 60 * 1000);
+    return () => clearTimeout(t);
+  }, [showStale]);
+
+  // Lang
+  useEffect(() => {
+    document.body.classList.remove('lang-en', 'lang-es');
+    document.body.classList.add('lang-' + lang);
+    try { localStorage.setItem('sentinelLang', lang); } catch {}
+  }, [lang]);
+
+  if (loading) return (
+    <div style={{padding:'32px',maxWidth:900,margin:'0 auto'}}>
+      <div className="skeleton sk-title" style={{width:'40%'}}/>
+      <div className="skeleton sk-text" style={{width:'60%'}}/>
+      <div className="skeleton sk-block"/>
+      <div className="skeleton sk-block"/>
+    </div>
+  );
+
+  const hurricane = data?.hurricane ?? null;
+  const alertCount = (data?.alerts ?? []).filter(a => a.level !== 'INFO').length;
+
+  return (<>
+    {showStale && (
+      <div className="stale-notice">
+        <span>⚠</span>
+        <span className="en">Data may be delayed — last sync {data?.lastSync}</span>
+        <span className="es">Los datos pueden estar retrasados — última sincronización {data?.lastSync}</span>
+        {showReloadBtn && (
+          <button className="stale-reload-btn" onClick={fetchData}>↺ Reload</button>
+        )}
+      </div>
+    )}
+    <Header lang={lang} setLang={setLang} alertCount={alertCount}/>
+    {data && <StatusBar data={data}/>}
+
+    <div className="dashboard">
+      <MapPanel view={view} setView={setView} hurricane={hurricane}/>
+      <div className="right-col">
+        {hurricane && <TropicalSystemPanel hurricane={hurricane}/>}
+        <CurrentConditions conditions={data?.conditions}/>
+        <AlertsPanel alerts={data?.alerts}/>
+        <ForecastSidebar forecast={data?.forecast}/>
+      </div>
+    </div>
+
+    <ForecastStrip forecast={data?.forecast}/>
+    <BelowFold alerts={data?.alerts}/>
+    <Footer lastSync={data?.lastSync ?? '—'}/>
+  </>);
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>
