@@ -523,9 +523,9 @@ function applyMapView(state, v) {
   // Hide everything
   ALL_DATA_LAYERS.forEach(id => { try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'none'); } catch {} });
   (state.rainfallMarkers || []).forEach(m => { m.getElement().style.display = 'none'; });
-  // Wind particles — start only for wind view
+  // Wind particles — show in wind view and composite
   if (state.windParticles) {
-    if (v === 'wind') state.windParticles.start();
+    if (v === 'wind' || v === 'composite') state.windParticles.start();
     else state.windParticles.stop();
   }
   // Animated radar for radar + composite
@@ -597,8 +597,10 @@ function createWindParticles(map, container) {
     if (!W || !H) { if (running) rafId = requestAnimationFrame(tick); return; }
     if (canvas.width !== W || canvas.height !== H) { canvas.width=W; canvas.height=H; }
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
     ctx.fillRect(0,0,W,H);
+    ctx.globalCompositeOperation = 'source-over';
 
     for (const p of pts) {
       const {u,v} = windAt(p.lat, p.lng);
