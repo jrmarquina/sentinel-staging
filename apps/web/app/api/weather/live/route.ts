@@ -15,6 +15,8 @@ const PR_LAT = 18.4655
 const PR_LNG = -66.1057
 const PR_BBOX = { minLat: 17.8, maxLat: 18.6, minLng: -67.4, maxLng: -65.2 }
 
+const CACHE_KEYS = ['alerts', 'conditions', 'forecast', 'storm', 'rainfall_stations'] as const
+
 const CORS = {
   'Access-Control-Allow-Origin': 'https://sentinelmgpr.com',
 }
@@ -43,7 +45,7 @@ export async function GET() {
     const { data: rows } = await supabase
       .from('weather_cache')
       .select('cache_key, payload, fetched_at')
-      .in('cache_key', ['alerts', 'conditions', 'forecast', 'storm'])
+      .in('cache_key', [...CACHE_KEYS])
 
     const byKey: Record<string, { payload: unknown; fetchedAt: Date }> = {}
     for (const row of rows ?? []) {
@@ -56,14 +58,14 @@ export async function GET() {
     // ── 2. Refresh when cold ───────────────────────────────────────────────
     if (!cacheFresh) {
       const live = await fetchLive()
-      // Save to cache (best-effort — don't fail the response if upsert errors)
       await Promise.allSettled([
         upsert(supabase, 'alerts', live.alerts),
         upsert(supabase, 'conditions', live.conditions),
         upsert(supabase, 'forecast', live.forecast),
         upsert(supabase, 'storm', live.storm),
+        upsert(supabase, 'rainfall_stations', live.rainfallStations),
       ])
-      return NextResponse.json(buildPayload(live.alerts, live.conditions, live.forecast, live.storm, now), {
+      return NextResponse.json(buildPayload(live.alerts, live.conditions, live.forecast, live.storm, live.rainfallStations, now), {
         headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', ...CORS },
       })
     }
@@ -73,16 +75,17 @@ export async function GET() {
     const conditions = byKey.conditions.payload as Conditions
     const forecast = asArray(byKey.forecast.payload) as ForecastDay[]
     const storm = (byKey.storm.payload ?? null) as StormData | null
+    const rainfallStations = asArray(byKey.rainfall_stations?.payload) as RainfallStation[]
     const latestFetch = byKey.alerts.fetchedAt
 
-    return NextResponse.json(buildPayload(alerts, conditions, forecast, storm, latestFetch), {
+    return NextResponse.json(buildPayload(alerts, conditions, forecast, storm, rainfallStations, latestFetch), {
       headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', ...CORS },
     })
   } catch (err) {
     // Last resort: return live data without saving to cache
     try {
       const live = await fetchLive()
-      return NextResponse.json(buildPayload(live.alerts, live.conditions, live.forecast, live.storm, new Date()), {
+      return NextResponse.json(buildPayload(live.alerts, live.conditions, live.forecast, live.storm, live.rainfallStations, new Date()), {
         headers: { 'Cache-Control': 'no-store', ...CORS },
       })
     } catch {
@@ -97,10 +100,11 @@ export async function GET() {
 // ── Live fetch ─────────────────────────────────────────────────────────────
 
 async function fetchLive() {
-  const [alerts, weatherData, storm] = await Promise.allSettled([
+  const [alerts, weatherData, storm, rainfallStations] = await Promise.allSettled([
     fetchAlerts(),
     fetchWeather(),
     fetchStorm(),
+    fetchRainfallStations(),
   ])
 
   return {
@@ -108,6 +112,7 @@ async function fetchLive() {
     conditions: weatherData.status === 'fulfilled' ? weatherData.value.conditions : fallbackConditions(),
     forecast: weatherData.status === 'fulfilled' ? weatherData.value.forecast : fallbackForecast(),
     storm: storm.status === 'fulfilled' ? storm.value : null,
+    rainfallStations: rainfallStations.status === 'fulfilled' ? rainfallStations.value : [],
   }
 }
 
@@ -179,6 +184,70 @@ async function fetchWeather() {
   }
 }
 
+async function fetchRainfallStations(): Promise<RainfallStation[]> {
+  const [cocoRes, usgsRes] = await Promise.allSettled([
+    fetch(
+      'https://data.cocorahs.org/cocorahs/export/exportreports.aspx?ReportType=Daily&dtf=1&Format=JSON&State=PR',
+      { signal: AbortSignal.timeout(10000) }
+    ),
+    fetch(
+      'https://waterservices.usgs.gov/nwis/iv/?stateCd=PR&parameterCd=00045&format=json&siteType=AT&period=PT24H',
+      { headers: { 'User-Agent': 'SentinelPR/1.0 (jrmarquina@gmail.com)' }, signal: AbortSignal.timeout(15000) }
+    ),
+  ])
+
+  const stations: RainfallStation[] = []
+
+  if (cocoRes.status === 'fulfilled' && cocoRes.value.ok) {
+    try {
+      const d = await cocoRes.value.json()
+      for (const r of d?.data?.reports ?? []) {
+        if (r.totalpcpn < 0) continue // N/A or trace
+        stations.push({
+          id: String(r.st_num),
+          source: 'cocorahs',
+          name: String(r.st_name),
+          lat: Number(r.lat),
+          lng: Number(r.lng),
+          totalIn: Number(Number(r.totalpcpn).toFixed(2)),
+          time: `${r.obs_date} ${r.obs_time}`,
+        })
+      }
+    } catch { /* silently skip bad data */ }
+  }
+
+  if (usgsRes.status === 'fulfilled' && usgsRes.value.ok) {
+    try {
+      const d = await usgsRes.value.json()
+      for (const ts of d?.value?.timeSeries ?? []) {
+        const si = ts.sourceInfo as Record<string, unknown>
+        const geo = (si?.geoLocation as Record<string, unknown>)?.geogLocation as Record<string, unknown>
+        const lat = Number(geo?.latitude)
+        const lng = Number(geo?.longitude)
+        if (!lat || !lng) continue
+        const vals: Array<{ value: string; dateTime: string }> = ts.values?.[0]?.value ?? []
+        const totalIn = vals.reduce((acc, v) => {
+          const n = parseFloat(v.value)
+          return acc + (isNaN(n) || n < 0 ? 0 : n)
+        }, 0)
+        const lastTime = vals[vals.length - 1]?.dateTime ?? ''
+        const siteCode = (si?.siteCode as Array<{ value: string }>)?.[0]?.value ?? ''
+        stations.push({
+          id: `usgs-${siteCode || lat}`,
+          source: 'usgs',
+          name: String(si.siteName ?? 'USGS Station'),
+          lat,
+          lng,
+          totalIn: Number(totalIn.toFixed(2)),
+          time: lastTime,
+        })
+      }
+    } catch { /* silently skip bad data */ }
+  }
+
+  return stations
+}
+
 async function fetchStorm(): Promise<StormData | null> {
   const res = await fetch('https://www.nhc.noaa.gov/CurrentStorms.json', {
     headers: { 'User-Agent': 'SentinelPR/1.0 (jrmarquina@gmail.com)' },
@@ -238,7 +307,7 @@ async function fetchStorm(): Promise<StormData | null> {
 
 function buildPayload(
   alerts: AlertItem[], conditions: Conditions, forecast: ForecastDay[],
-  storm: StormData | null, fetchedAt: Date
+  storm: StormData | null, rainfallStations: RainfallStation[], fetchedAt: Date
 ) {
   const now = new Date()
   const seasonStart = new Date(`${now.getFullYear()}-06-01T00:00:00-04:00`)
@@ -259,6 +328,7 @@ function buildPayload(
     forecast: forecast.length ? forecast : fallbackForecast(),
     hurricane: storm,
     hasActiveStorm,
+    rainfallStations,
     metrics: {
       activeAlerts: alerts.filter((a) => a.level === 'WARNING' || a.level === 'WATCH').length,
       totalAlerts: alerts.length,
@@ -341,6 +411,10 @@ interface StormData {
   issued: string; pressure: number; windsSustained: number; movement: string
   nextAdvisory: string; coneGeoJson: unknown; affectsPR: boolean
 }
+interface RainfallStation {
+  id: string; source: 'cocorahs' | 'usgs'; name: string
+  lat: number; lng: number; totalIn: number; time: string
+}
 
 // ── Fallbacks ──────────────────────────────────────────────────────────────
 
@@ -361,5 +435,5 @@ function buildFallback() {
   const now = new Date()
   const seasonStart = new Date(`${now.getFullYear()}-06-01T00:00:00-04:00`)
   const daysUntilSeason = Math.max(0, Math.floor((seasonStart.getTime() - now.getTime()) / 86400000))
-  return { mode: 'normal' as const, dataFresh: false, lastSync: '—', daysUntilSeason, seasonActive: daysUntilSeason <= 0, alerts: fallbackAlerts(), conditions: fallbackConditions(), forecast: fallbackForecast(), hurricane: null, hasActiveStorm: false, metrics: { activeAlerts: 0, totalAlerts: 0 } }
+  return { mode: 'normal' as const, dataFresh: false, lastSync: '—', daysUntilSeason, seasonActive: daysUntilSeason <= 0, alerts: fallbackAlerts(), conditions: fallbackConditions(), forecast: fallbackForecast(), hurricane: null, hasActiveStorm: false, rainfallStations: [], metrics: { activeAlerts: 0, totalAlerts: 0 } }
 }

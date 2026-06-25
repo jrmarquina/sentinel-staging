@@ -523,6 +523,7 @@ function applyMapView(state, v) {
   // Hide everything
   ALL_DATA_LAYERS.forEach(id => { try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'none'); } catch {} });
   (state.rainfallMarkers || []).forEach(m => { m.getElement().style.display = 'none'; });
+  (state.stationMarkers || []).forEach(m => { m.getElement().style.display = 'none'; });
   // Wind particles — show in wind view and composite
   if (state.windParticles) {
     if (v === 'wind' || v === 'composite') state.windParticles.start();
@@ -545,9 +546,10 @@ function applyMapView(state, v) {
   if (v === 'composite' || v === 'track') {
     ['nws-alert-fill','nws-alert-outline'].forEach(id => { try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'visible'); } catch {} });
   }
-  // Rainfall HTML markers
+  // Rainfall HTML markers (QPF forecast + observed stations)
   if (v === 'rainfall') {
     (state.rainfallMarkers || []).forEach(m => { m.getElement().style.display = 'flex'; });
+    (state.stationMarkers || []).forEach(m => { m.getElement().style.display = 'flex'; });
   }
   // NHC cone + track — only view that zooms out
   if (v === 'track') {
@@ -843,7 +845,7 @@ function ViewIcon({ k }) {
 
 function PRMap({ view, hurricane }) {
   const containerRef = useRef(null);
-  const stateRef = useRef({ map: null, loaded: false, radarFrames: [], radarTimer: null, windParticles: null, rainfallMarkers: [], hasStorm: false, rainfallDry: false });
+  const stateRef = useRef({ map: null, loaded: false, radarFrames: [], radarTimer: null, windParticles: null, rainfallMarkers: [], stationMarkers: [], hasStorm: false, rainfallDry: false });
   const viewRef = useRef(view);
   const [rainfallDry, setRainfallDry] = useState(false);
 
@@ -985,6 +987,46 @@ function PRMap({ view, hurricane }) {
           s.rainfallMarkers.push(marker);
         });
       } catch (e) { console.warn('Rainfall QPF failed:', e); }
+      // ── Rain gauge stations (CoCoRaHS + USGS via API) ──────────────────
+      s.stationMarkers = [];
+      try {
+        const stations = window.__WEATHER_STATIONS__ ?? [];
+        stations.forEach(st => {
+          const isCoco = st.source === 'cocorahs';
+          const color  = isCoco ? '#0d9488' : '#6d28d9';
+          const bcolor = isCoco ? '#065f46' : '#3b0764';
+          const amount = st.totalIn ?? 0;
+          const label  = amount >= 0.01 ? `${amount.toFixed(2)}"` : '0"';
+          const alpha  = Math.max(0.20, Math.min(0.92, 0.20 + (amount / 2) * 0.72));
+
+          const el = document.createElement('div');
+          el.style.cssText = 'display:none;flex-direction:column;align-items:center;gap:2px;cursor:pointer;pointer-events:auto;';
+          // CoCoRaHS = circle, USGS = square
+          const shapeStyle = isCoco
+            ? `width:14px;height:14px;border-radius:50%;background:${color};opacity:${alpha.toFixed(2)};border:1.5px solid ${bcolor};`
+            : `width:12px;height:12px;border-radius:2px;background:${color};opacity:${alpha.toFixed(2)};border:1.5px solid ${bcolor};`;
+          el.innerHTML = `
+            <div style="${shapeStyle}"></div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:800;color:#0a1828;background:rgba(255,255,255,0.90);padding:1px 3px;border:1px solid rgba(0,0,0,0.15);white-space:nowrap;">${label}</div>
+          `;
+
+          const srcLabel = isCoco ? 'CoCoRaHS' : 'USGS';
+          const timeStr  = st.time ? st.time.split('T')[0] + ' ' + (st.time.split('T')[1] || '').slice(0,5) : st.time;
+          const popup = new maplibregl.Popup({ closeButton: false, maxWidth: '220px', offset: [0, -4] })
+            .setHTML(`<div style="font-size:11px;line-height:1.5;padding:2px 0;">
+              <strong style="font-size:12px;">${label}</strong> in 24h<br>
+              <span style="color:#444;">${st.name}</span><br>
+              <span style="font-size:10px;color:#888;">${srcLabel} · ${timeStr || '—'}</span>
+            </div>`);
+
+          const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+            .setLngLat([st.lng, st.lat])
+            .setPopup(popup)
+            .addTo(map);
+          s.stationMarkers.push(marker);
+        });
+      } catch(e) { console.warn('Station markers failed:', e); }
+
       // Stub geojson sources (needed for applyMapView layer checks)
       map.addSource('rainfall-data', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
       map.addLayer({ id:'rainfall-circles', type:'fill', source:'rainfall-data', layout:{ visibility:'none' } });
@@ -1009,9 +1051,11 @@ function PRMap({ view, hurricane }) {
       if (s.windParticles) { s.windParticles.destroy(); s.windParticles = null; }
       (s.rainfallMarkers || []).forEach(m => m.remove());
       s.rainfallMarkers = [];
+      (s.stationMarkers || []).forEach(m => m.remove());
+      s.stationMarkers = [];
       s.loaded = false;
       map.remove();
-      stateRef.current = { map:null, loaded:false, radarFrames:[], radarTimer:null, windParticles:null, rainfallMarkers:[], hasStorm:false };
+      stateRef.current = { map:null, loaded:false, radarFrames:[], radarTimer:null, windParticles:null, rainfallMarkers:[], stationMarkers:[], hasStorm:false };
     };
   }, []); // intentionally empty — map initializes once
 
@@ -1062,11 +1106,10 @@ function MapLegend({ view }) {
   );
   if (view==='rainfall') return (
     <div className="legend-items">
-      <span className="label-sm en">Open-Meteo QPF · 24h</span><span className="label-sm es">Lluvia Pronosticada 24h</span>
-      <div className="legend-item"><span className="swatch" style={{background:'rgba(30,60,120,.08)'}}></span>&lt;0.2"</div>
-      <div className="legend-item"><span className="swatch" style={{background:'rgba(30,60,120,.22)'}}></span>0.2–0.6"</div>
-      <div className="legend-item"><span className="swatch" style={{background:'rgba(30,60,120,.45)'}}></span>0.6–1.5"</div>
-      <div className="legend-item"><span className="swatch" style={{background:'rgba(30,60,120,.72)'}}></span>&gt;1.5"</div>
+      <span className="label-sm en">QPF Forecast + Observed Gauges</span><span className="label-sm es">Pronóstico + Pluviómetros</span>
+      <div className="legend-item"><span className="swatch" style={{background:'rgba(30,60,120,.45)'}}></span><span className="en">QPF 24h forecast</span><span className="es">Pronóstico 24h</span></div>
+      <div className="legend-item"><span className="dot" style={{background:'#0d9488',borderRadius:'50%',width:8,height:8,display:'inline-block',marginRight:4}}></span><span className="en">CoCoRaHS gauge</span><span className="es">Pluviómetro CoCoRaHS</span></div>
+      <div className="legend-item"><span className="dot" style={{background:'#6d28d9',borderRadius:2,width:8,height:8,display:'inline-block',marginRight:4}}></span><span className="en">USGS gauge</span><span className="es">Pluviómetro USGS</span></div>
     </div>
   );
   if (view==='track') return (
@@ -1453,6 +1496,7 @@ function App() {
       const res = await fetch('/api/weather/live');
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
+      window.__WEATHER_STATIONS__ = json.rainfallStations ?? [];
       setData(json);
       if (json.hasActiveStorm && view === 'composite') setView('track');
     } catch (e) {
