@@ -909,7 +909,7 @@ function PRMap({ view, hurricane }) {
     s.map = map;
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
 
-    map.on('load', async () => {
+    map.on('style.load', async () => {
       // ── NWS Alert zones ──────────────────────────────────────────────
       let alertFC = { type: 'FeatureCollection', features: [] };
       try {
