@@ -185,9 +185,14 @@ async function fetchWeather() {
 }
 
 async function fetchRainfallStations(): Promise<RainfallStation[]> {
+  // CoCoRaHS daily reports are keyed to the PR local date — must use AST, not server tz
+  const prDate = new Date().toLocaleDateString('en-US', {
+    timeZone: 'America/Puerto_Rico', month: '2-digit', day: '2-digit', year: 'numeric',
+  }) // → "06/25/2026"
+
   const [cocoRes, usgsRes] = await Promise.allSettled([
     fetch(
-      'https://data.cocorahs.org/cocorahs/export/exportreports.aspx?ReportType=Daily&dtf=1&Format=JSON&State=PR',
+      `https://data.cocorahs.org/cocorahs/export/exportreports.aspx?ReportType=Daily&dtf=1&Format=JSON&State=PR&ReportDateType=reportdate&Date=${encodeURIComponent(prDate)}&TimesInGMT=false`,
       { signal: AbortSignal.timeout(10000) }
     ),
     fetch(
