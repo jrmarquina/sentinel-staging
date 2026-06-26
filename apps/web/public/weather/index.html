@@ -884,7 +884,11 @@ function PRMap({ view, hurricane, stations }) {
   const containerRef = useRef(null);
   const stateRef = useRef({ map: null, loaded: false, radarFrames: [], radarTimer: null, windParticles: null, rainfallMarkers: [], stationMarkers: [], hasStorm: false, rainfallDry: false });
   const viewRef = useRef(view);
+  const stationsRef = useRef(stations); // always holds latest stations for use inside map callbacks
   const [rainfallDry, setRainfallDry] = useState(false);
+
+  // Keep stationsRef in sync so map's on('load') can see latest value
+  useEffect(() => { stationsRef.current = stations; }, [stations]);
 
   // React to view changes after map is ready
   useEffect(() => {
@@ -893,12 +897,11 @@ function PRMap({ view, hurricane, stations }) {
     if (s.map && s.loaded) applyMapView(s, view);
   }, [view]);
 
-  // Build station markers when data arrives (handles race: data before OR after map load)
+  // Case A: data arrives AFTER map loads — stations prop changes, map already ready
   useEffect(() => {
     const s = stateRef.current;
     if (!s.map || !s.loaded || !stations || !stations.length) return;
     buildStationMarkers(s, stations, s.map);
-    // Show immediately if already in rainfall view
     if (viewRef.current === 'rainfall') {
       s.stationMarkers.forEach(m => { m.getElement().style.display = 'flex'; });
     }
@@ -1035,9 +1038,9 @@ function PRMap({ view, hurricane, stations }) {
           s.rainfallMarkers.push(marker);
         });
       } catch (e) { console.warn('Rainfall QPF failed:', e); }
-      // ── Rain gauge stations — built now only if data already arrived via prop ─
+      // ── Rain gauge stations — Case B: map loads after data already arrived ──
       s.stationMarkers = [];
-      // (If stations prop arrives after load, the useEffect above handles it)
+      buildStationMarkers(s, stationsRef.current, map);
 
       // Stub geojson sources (needed for applyMapView layer checks)
       map.addSource('rainfall-data', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
