@@ -880,15 +880,11 @@ function buildStationMarkers(s, stations, map) {
   });
 }
 
-function PRMap({ view, hurricane, stations }) {
+function PRMap({ view, hurricane }) {
   const containerRef = useRef(null);
   const stateRef = useRef({ map: null, loaded: false, radarFrames: [], radarTimer: null, windParticles: null, rainfallMarkers: [], stationMarkers: [], hasStorm: false, rainfallDry: false });
   const viewRef = useRef(view);
-  const stationsRef = useRef(stations); // always holds latest stations for use inside map callbacks
   const [rainfallDry, setRainfallDry] = useState(false);
-
-  // Keep stationsRef in sync so map's on('load') can see latest value
-  useEffect(() => { stationsRef.current = stations; }, [stations]);
 
   // React to view changes after map is ready
   useEffect(() => {
@@ -896,16 +892,6 @@ function PRMap({ view, hurricane, stations }) {
     const s = stateRef.current;
     if (s.map && s.loaded) applyMapView(s, view);
   }, [view]);
-
-  // Case A: data arrives AFTER map loads — stations prop changes, map already ready
-  useEffect(() => {
-    const s = stateRef.current;
-    if (!s.map || !s.loaded || !stations || !stations.length) return;
-    buildStationMarkers(s, stations, s.map);
-    if (viewRef.current === 'rainfall') {
-      s.stationMarkers.forEach(m => { m.getElement().style.display = 'flex'; });
-    }
-  }, [stations]);
 
   // One-time map init
   useEffect(() => {
@@ -1038,9 +1024,13 @@ function PRMap({ view, hurricane, stations }) {
           s.rainfallMarkers.push(marker);
         });
       } catch (e) { console.warn('Rainfall QPF failed:', e); }
-      // ── Rain gauge stations — Case B: map loads after data already arrived ──
+      // ── Rain gauge stations (CoCoRaHS + USGS) ────────────────────────────
       s.stationMarkers = [];
-      buildStationMarkers(s, stationsRef.current, map);
+      try {
+        const wr = await fetch('/api/weather/live');
+        const wd = await wr.json();
+        buildStationMarkers(s, wd.rainfallStations ?? [], map);
+      } catch(e) { console.warn('Station fetch failed:', e); }
 
       // Stub geojson sources (needed for applyMapView layer checks)
       map.addSource('rainfall-data', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
@@ -1146,7 +1136,7 @@ const OVERLAY_TITLES = {
   rainfall:  { en:'Rainfall · 24h',   es:'Lluvia · 24h',     sub_en:'Forecast accumulation through Friday',        sub_es:'Acumulación pronosticada hasta el viernes' },
 };
 
-function MapPanel({ view, setView, theme, hurricane, stations }) {
+function MapPanel({ view, setView, theme, hurricane }) {
   return (
     <div className="panel map-panel">
       <div className="view-tabs">
@@ -1161,7 +1151,7 @@ function MapPanel({ view, setView, theme, hurricane, stations }) {
       </div>
       <div className="map-frame">
         <div className="map-wrap">
-          <PRMap view={view} hurricane={hurricane} stations={stations}/>
+          <PRMap view={view} hurricane={hurricane}/>
         </div>
       </div>
       <div className="map-bottom-bar">
@@ -1602,7 +1592,7 @@ function App() {
     {data && <StatusBar data={data}/>}
 
     <div className="dashboard">
-      <MapPanel view={view} setView={setView} hurricane={hurricane} stations={data?.rainfallStations ?? []}/>
+      <MapPanel view={view} setView={setView} hurricane={hurricane}/>
       <div className="right-col">
         {hurricane && <TropicalSystemPanel hurricane={hurricane}/>}
         <CurrentConditions conditions={data?.conditions}/>
