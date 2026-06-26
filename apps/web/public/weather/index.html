@@ -1029,8 +1029,11 @@ function PRMap({ view, hurricane }) {
       try {
         const wr = await fetch('/api/weather/live');
         const wd = await wr.json();
-        buildStationMarkers(s, wd.rainfallStations ?? [], map);
-      } catch(e) { console.warn('Station fetch failed:', e); }
+        const stList = wd.rainfallStations ?? [];
+        console.log('[Sentinel] rainfallStations from API:', stList.length);
+        buildStationMarkers(s, stList, map);
+        console.log('[Sentinel] stationMarkers created:', s.stationMarkers.length);
+      } catch(e) { console.warn('[Sentinel] Station fetch failed:', e); }
 
       // Stub geojson sources (needed for applyMapView layer checks)
       map.addSource('rainfall-data', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
