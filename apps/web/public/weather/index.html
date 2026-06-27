@@ -523,7 +523,7 @@ function applyMapView(state, v) {
   // Hide everything
   ALL_DATA_LAYERS.forEach(id => { try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'none'); } catch {} });
   (state.rainfallMarkers || []).forEach(m => { m.getElement().style.display = 'none'; });
-  (state.stationMarkers || []).forEach(m => { m.getElement().style.display = 'none'; });
+  if (state.isohyetLayer) state.isohyetLayer.hide();
   // Wind particles — show in wind view and composite
   if (state.windParticles) {
     if (v === 'wind' || v === 'composite') state.windParticles.start();
@@ -546,10 +546,10 @@ function applyMapView(state, v) {
   if (v === 'composite' || v === 'track') {
     ['nws-alert-fill','nws-alert-outline'].forEach(id => { try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'visible'); } catch {} });
   }
-  // Rainfall HTML markers (QPF forecast + observed stations)
+  // Rainfall: QPF markers + isohyet canvas
   if (v === 'rainfall') {
     (state.rainfallMarkers || []).forEach(m => { m.getElement().style.display = 'flex'; });
-    (state.stationMarkers || []).forEach(m => { m.getElement().style.display = 'flex'; });
+    if (state.isohyetLayer) state.isohyetLayer.show();
   }
   // NHC cone + track — only view that zooms out
   if (v === 'track') {
@@ -843,46 +843,116 @@ function ViewIcon({ k }) {
   return null;
 }
 
-function buildStationMarkers(s, stations, map) {
-  if (!stations || !stations.length) return;
-  // Remove any previously built markers
-  (s.stationMarkers || []).forEach(m => m.remove());
-  s.stationMarkers = [];
-  stations.forEach(st => {
-    const isCoco = st.source === 'cocorahs';
-    const color  = isCoco ? '#0d9488' : '#6d28d9';
-    const bcolor = isCoco ? '#065f46' : '#3b0764';
-    const amount = st.totalIn ?? 0;
-    const label  = amount >= 0.01 ? `${amount.toFixed(2)}"` : '0"';
-    const alpha  = Math.max(0.20, Math.min(0.92, 0.20 + (amount / 2) * 0.72));
-    const el = document.createElement('div');
-    el.style.cssText = 'display:none;flex-direction:column;align-items:center;gap:2px;cursor:pointer;pointer-events:auto;';
-    const shapeStyle = isCoco
-      ? `width:14px;height:14px;border-radius:50%;background:${color};opacity:${alpha.toFixed(2)};border:1.5px solid ${bcolor};`
-      : `width:12px;height:12px;border-radius:2px;background:${color};opacity:${alpha.toFixed(2)};border:1.5px solid ${bcolor};`;
-    el.innerHTML = `
-      <div style="${shapeStyle}"></div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:800;color:#0a1828;background:rgba(255,255,255,0.90);padding:1px 3px;border:1px solid rgba(0,0,0,0.15);white-space:nowrap;">${label}</div>
-    `;
-    const srcLabel = isCoco ? 'CoCoRaHS' : 'USGS';
-    const timeStr  = st.time ? st.time.replace('T', ' ').slice(0, 16) : '';
-    const popup = new maplibregl.Popup({ closeButton: false, maxWidth: '220px', offset: [0, -4] })
-      .setHTML(`<div style="font-size:11px;line-height:1.5;padding:2px 0;">
-        <strong style="font-size:12px;">${label}</strong> in 24h<br>
-        <span style="color:#444;">${st.name}</span><br>
-        <span style="font-size:10px;color:#888;">${srcLabel} · ${timeStr || '—'}</span>
-      </div>`);
-    const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-      .setLngLat([st.lng, st.lat])
-      .setPopup(popup)
-      .addTo(map);
-    s.stationMarkers.push(marker);
-  });
+function createIsohyetLayer(map, container, stations) {
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;display:none;';
+  container.appendChild(canvas);
+
+  const BAND_COLORS = ['#0f2a46','#0d3d68','#0b5490','#1270b8','#2e90d8','#72b8ef','#b5d9f8'];
+  const THRESHOLDS  = [0, 0.25, 0.5, 1.0, 1.5, 2.5, 3.5];
+  const STEP = 5;
+
+  function render() {
+    if (canvas.style.display === 'none') return;
+    const W = container.clientWidth;
+    const H = container.clientHeight;
+    if (!W || !H) return;
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+
+    const pts = stations
+      .filter(st => st.totalIn >= 0 && st.lat && st.lng)
+      .map(st => {
+        const proj = map.project([st.lng, st.lat]);
+        return { x: proj.x, y: proj.y, v: st.totalIn, source: st.source };
+      });
+    if (pts.length < 3) return;
+
+    const cols = Math.ceil(W / STEP);
+    const rows = Math.ceil(H / STEP);
+    const grid = new Float32Array(cols * rows);
+    for (let r = 0; r < rows; r++) {
+      const py = r * STEP;
+      for (let c = 0; c < cols; c++) {
+        const px = c * STEP;
+        let sw = 0, sv = 0;
+        for (const p of pts) {
+          const d2 = (px - p.x) ** 2 + (py - p.y) ** 2 + 1e-6;
+          const w = 1 / (d2 * d2);
+          sw += w; sv += w * p.v;
+        }
+        grid[r * cols + c] = sv / sw;
+      }
+    }
+
+    ctx.globalAlpha = 0.58;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const v = grid[r * cols + c];
+        let bi = 0;
+        for (let t = THRESHOLDS.length - 1; t >= 0; t--) { if (v >= THRESHOLDS[t]) { bi = t; break; } }
+        ctx.fillStyle = BAND_COLORS[bi];
+        ctx.fillRect(c * STEP, r * STEP, STEP + 1, STEP + 1);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 0.7;
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    for (let t = 1; t < THRESHOLDS.length; t++) {
+      const tv = THRESHOLDS[t];
+      for (let r = 0; r < rows - 1; r++) {
+        for (let c = 0; c < cols - 1; c++) {
+          const v  = grid[r * cols + c];
+          const vr = grid[r * cols + c + 1];
+          const vd = grid[(r + 1) * cols + c];
+          if ((v < tv) !== (vr < tv)) { ctx.beginPath(); ctx.moveTo((c+1)*STEP, r*STEP); ctx.lineTo((c+1)*STEP, (r+1)*STEP); ctx.stroke(); }
+          if ((v < tv) !== (vd < tv)) { ctx.beginPath(); ctx.moveTo(c*STEP, (r+1)*STEP); ctx.lineTo((c+1)*STEP, (r+1)*STEP); ctx.stroke(); }
+        }
+      }
+    }
+    ctx.setLineDash([]);
+
+    const R = 3.5;
+    ctx.textAlign = 'center';
+    pts.forEach(p => {
+      ctx.lineWidth = 1.1;
+      ctx.strokeStyle = 'rgba(255,255,255,0.78)';
+      ctx.fillStyle   = 'rgba(0,0,0,0.28)';
+      ctx.beginPath();
+      if (p.source === 'cocorahs') {
+        ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
+      } else {
+        ctx.rect(p.x - R, p.y - R, R * 2, R * 2);
+      }
+      ctx.fill();
+      ctx.stroke();
+      if (p.v >= 0.01) {
+        ctx.font = 'bold 9px monospace';
+        ctx.fillStyle = 'rgba(255,255,255,0.82)';
+        ctx.fillText(p.v.toFixed(2) + '"', p.x, p.y - R - 3);
+      }
+    });
+  }
+
+  const onMove = () => render();
+  map.on('move', onMove);
+  map.on('zoom', onMove);
+  map.on('resize', onMove);
+
+  return {
+    show()    { canvas.style.display = ''; render(); },
+    hide()    { canvas.style.display = 'none'; },
+    destroy() { map.off('move', onMove); map.off('zoom', onMove); map.off('resize', onMove); canvas.remove(); },
+  };
 }
 
 function PRMap({ view, hurricane }) {
   const containerRef = useRef(null);
-  const stateRef = useRef({ map: null, loaded: false, radarFrames: [], radarTimer: null, windParticles: null, rainfallMarkers: [], stationMarkers: [], hasStorm: false, rainfallDry: false });
+  const stateRef = useRef({ map: null, loaded: false, radarFrames: [], radarTimer: null, windParticles: null, rainfallMarkers: [], isohyetLayer: null, hasStorm: false, rainfallDry: false });
   const viewRef = useRef(view);
   const [rainfallDry, setRainfallDry] = useState(false);
 
@@ -1024,15 +1094,15 @@ function PRMap({ view, hurricane }) {
           s.rainfallMarkers.push(marker);
         });
       } catch (e) { console.warn('Rainfall QPF failed:', e); }
-      // ── Rain gauge stations (CoCoRaHS + USGS) ────────────────────────────
-      s.stationMarkers = [];
+      // ── Rain gauge stations (CoCoRaHS + USGS) — isohyet canvas ──────────
+      s.isohyetLayer = null;
       try {
         const wr = await fetch('/api/weather/live');
         const wd = await wr.json();
         const stList = wd.rainfallStations ?? [];
-        console.log('[Sentinel] rainfallStations from API:', stList.length);
-        buildStationMarkers(s, stList, map);
-        console.log('[Sentinel] stationMarkers created:', s.stationMarkers.length);
+        if (stList.length >= 3) {
+          s.isohyetLayer = createIsohyetLayer(map, containerRef.current, stList);
+        }
       } catch(e) { console.warn('[Sentinel] Station fetch failed:', e); }
 
       // Stub geojson sources (needed for applyMapView layer checks)
@@ -1057,13 +1127,12 @@ function PRMap({ view, hurricane }) {
     return () => {
       stopRadarAnim(s);
       if (s.windParticles) { s.windParticles.destroy(); s.windParticles = null; }
+      if (s.isohyetLayer) { s.isohyetLayer.destroy(); s.isohyetLayer = null; }
       (s.rainfallMarkers || []).forEach(m => m.remove());
       s.rainfallMarkers = [];
-      (s.stationMarkers || []).forEach(m => m.remove());
-      s.stationMarkers = [];
       s.loaded = false;
       map.remove();
-      stateRef.current = { map:null, loaded:false, radarFrames:[], radarTimer:null, windParticles:null, rainfallMarkers:[], stationMarkers:[], hasStorm:false };
+      stateRef.current = { map:null, loaded:false, radarFrames:[], radarTimer:null, windParticles:null, rainfallMarkers:[], isohyetLayer:null, hasStorm:false };
     };
   }, []); // intentionally empty — map initializes once
 
@@ -1114,10 +1183,25 @@ function MapLegend({ view }) {
   );
   if (view==='rainfall') return (
     <div className="legend-items">
-      <span className="label-sm en">QPF Forecast + Observed Gauges</span><span className="label-sm es">Pronóstico + Pluviómetros</span>
-      <div className="legend-item"><span className="swatch" style={{background:'rgba(30,60,120,.45)'}}></span><span className="en">QPF 24h forecast</span><span className="es">Pronóstico 24h</span></div>
-      <div className="legend-item"><span className="dot" style={{background:'#0d9488',borderRadius:'50%',width:8,height:8,display:'inline-block',marginRight:4}}></span><span className="en">CoCoRaHS gauge</span><span className="es">Pluviómetro CoCoRaHS</span></div>
-      <div className="legend-item"><span className="dot" style={{background:'#6d28d9',borderRadius:2,width:8,height:8,display:'inline-block',marginRight:4}}></span><span className="en">USGS gauge</span><span className="es">Pluviómetro USGS</span></div>
+      <span className="label-sm en">Observed · 24h accumulation</span><span className="label-sm es">Observado · Acumulación 24h</span>
+      <div style={{display:'flex',alignItems:'center',gap:6}}>
+        {['#0f2a46','#0d3d68','#0b5490','#1270b8','#2e90d8','#72b8ef','#b5d9f8'].map((c,i)=>(
+          <span key={i} style={{display:'inline-block',width:16,height:8,background:c,borderRadius:1}}></span>
+        ))}
+        <span style={{fontSize:10,opacity:.55,whiteSpace:'nowrap'}}>0″ → 3″+</span>
+      </div>
+      <div className="legend-item">
+        <svg width="10" height="10" viewBox="0 0 10 10" style={{marginRight:4,flexShrink:0}}>
+          <circle cx="5" cy="5" r="3.5" fill="none" stroke="rgba(255,255,255,0.72)" strokeWidth="1.2"/>
+        </svg>
+        <span className="en">CoCoRaHS</span><span className="es">CoCoRaHS</span>
+      </div>
+      <div className="legend-item">
+        <svg width="10" height="10" viewBox="0 0 10 10" style={{marginRight:4,flexShrink:0}}>
+          <rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="rgba(255,255,255,0.72)" strokeWidth="1.2"/>
+        </svg>
+        <span className="en">USGS</span><span className="es">USGS</span>
+      </div>
     </div>
   );
   if (view==='track') return (
