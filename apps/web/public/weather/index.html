@@ -982,16 +982,49 @@ function createIsohyetLayer(map, container, stations) {
     });
   }
 
-  // Redraw only after pan/zoom ends — avoids blocking animation frames
-  const onEnd = () => render();
-  map.on('moveend', onEnd);
-  map.on('zoomend', onEnd);
-  map.on('resize',  onEnd);
+  // During pan: shift canvas via CSS transform (GPU, zero compute).
+  // On moveend/zoomend: full re-render at new position.
+  // During zoom: skip transform (scale changes), let moveend handle it.
+  let anchorLng = null, anchorLat = null, anchorX = null, anchorY = null, anchorZoom = null;
+
+  const onMoveStart = () => {
+    const c = map.getCenter();
+    anchorLng = c.lng; anchorLat = c.lat;
+    const p = map.project([anchorLng, anchorLat]);
+    anchorX = p.x; anchorY = p.y;
+    anchorZoom = map.getZoom();
+  };
+
+  const onMove = () => {
+    if (anchorX === null || canvas.style.display === 'none') return;
+    if (Math.abs(map.getZoom() - anchorZoom) > 0.01) return; // zoom in progress — skip
+    const p = map.project([anchorLng, anchorLat]);
+    canvas.style.transform = `translate(${p.x - anchorX}px,${p.y - anchorY}px)`;
+  };
+
+  const onEnd = () => {
+    canvas.style.transform = '';
+    anchorLng = null; anchorX = null;
+    render();
+  };
+
+  map.on('movestart', onMoveStart);
+  map.on('move',      onMove);
+  map.on('moveend',   onEnd);
+  map.on('zoomend',   onEnd);
+  map.on('resize',    onEnd);
 
   return {
     show()    { canvas.style.display = ''; render(); },
     hide()    { canvas.style.display = 'none'; },
-    destroy() { map.off('moveend', onEnd); map.off('zoomend', onEnd); map.off('resize', onEnd); canvas.remove(); },
+    destroy() {
+      map.off('movestart', onMoveStart);
+      map.off('move',      onMove);
+      map.off('moveend',   onEnd);
+      map.off('zoomend',   onEnd);
+      map.off('resize',    onEnd);
+      canvas.remove();
+    },
   };
 }
 
