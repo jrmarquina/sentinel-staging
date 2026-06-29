@@ -362,23 +362,46 @@ function formatAST(sent: string): string {
 
 function parseNWSDetail(raw: string): string {
   if (!raw) return ''
-  const STOP = /^(PRECAUTIONARY|DETAILED BULLETINS|&&|LAT\.\.\.LON|\$\$)/i
-  const BULLET = /^\*\s+[A-Z][A-Z\s\/]*\.\.\.(.*)/
+  const STOP   = /^(PRECAUTIONARY|DETAILED BULLETINS|&&|LAT\.\.\.LON|\$\$)/i
+  const BULLET = /^\*\s+[A-Z][A-Z\s\/,0-9]*\.\.\.(.*)/
+  // Lines to skip in paragraph mode: header markers, zone codes, boilerplate
+  const SKIP   = /^\.{3}|^[A-Z\s\/&]{8,}\.{3}|^\d{3}\s+[A-Z]|^FOR THE LATEST|^STAY TUNED|^ADDITIONAL DETAILS/i
+
   const values: string[] = []
-  let buf = ''
+  const paras:  string[] = []
+  let buf  = ''
+  let para = ''
+
   for (const line of raw.split('\n')) {
     const t = line.trim()
     if (STOP.test(t)) break
+
+    // Empty line = paragraph boundary
+    if (!t) {
+      if (para.length > 30) { paras.push(para); para = '' }
+      continue
+    }
+
     const m = t.match(BULLET)
     if (m) {
+      // Bullet-format advisory (WHAT/WHERE/WHEN…)
       if (buf) values.push(buf.replace(/\s+/g, ' ').trim())
       buf = m[1].trim()
-    } else if (buf && t) {
+    } else if (buf) {
       buf += ' ' + t
+    } else if (!SKIP.test(t)) {
+      // Free-form paragraph (Special Weather Statement, etc.)
+      para += (para ? ' ' : '') + t
     }
   }
   if (buf) values.push(buf.replace(/\s+/g, ' ').trim())
-  return values.filter(Boolean).join(' ').trim().slice(0, 400)
+  if (para.length > 30) paras.push(para)
+
+  // Prefer bullet values; fall back to prose paragraphs
+  const result = values.length
+    ? values.filter(Boolean).join(' ').trim()
+    : paras.filter(p => p.length > 30).join(' ').trim()
+  return result.slice(0, 500)
 }
 
 function asArray(v: unknown): unknown[] {

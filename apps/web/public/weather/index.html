@@ -897,7 +897,7 @@ function createIsohyetLayer(map, container, stations) {
           const dx = px - p.x, dy = py - p.y;
           const d2 = dx*dx + dy*dy || 1e-9;
           if (d2 < nd2) nd2 = d2;
-          const w = 1 / (d2 * d2);
+          const w = 1 / d2;  // d² (not d⁴) — avoids sharp craters around dry stations
           sw += w; sv += w * p.v;
         }
         const gi = r * cols + c;
@@ -982,9 +982,10 @@ function createIsohyetLayer(map, container, stations) {
     });
   }
 
-  // During pan: shift canvas via CSS transform (GPU, zero compute).
-  // On moveend/zoomend: full re-render at new position.
-  // During zoom: skip transform (scale changes), let moveend handle it.
+  // During pan+zoom: shift/scale canvas via CSS transform (GPU, zero IDW compute).
+  // Unified formula: translate(newPx - anchorPx*scale, newPy - anchorPy*scale) scale(scale)
+  // with transform-origin:0 0 so math is straightforward.
+  // On moveend/zoomend: clear transform, full re-render at new viewport.
   let anchorLng = null, anchorLat = null, anchorX = null, anchorY = null, anchorZoom = null;
 
   const onMoveStart = () => {
@@ -993,13 +994,16 @@ function createIsohyetLayer(map, container, stations) {
     const p = map.project([anchorLng, anchorLat]);
     anchorX = p.x; anchorY = p.y;
     anchorZoom = map.getZoom();
+    canvas.style.transformOrigin = '0 0';
   };
 
   const onMove = () => {
     if (anchorX === null || canvas.style.display === 'none') return;
-    if (Math.abs(map.getZoom() - anchorZoom) > 0.01) return; // zoom in progress — skip
+    const scale = Math.pow(2, map.getZoom() - anchorZoom);
     const p = map.project([anchorLng, anchorLat]);
-    canvas.style.transform = `translate(${p.x - anchorX}px,${p.y - anchorY}px)`;
+    const tx = p.x - anchorX * scale;
+    const ty = p.y - anchorY * scale;
+    canvas.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
   };
 
   const onEnd = () => {
