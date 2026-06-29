@@ -1112,32 +1112,7 @@ function PRMap({ view, hurricane }) {
         const dry = maxMm < 2.5;
         stateRef.current.rainfallDry = dry;
         setRainfallDry(dry);
-        locs.forEach(loc => {
-          const mm = loc.daily?.precipitation_sum?.[0] ?? 0;
-          const inches = mm / 25.4;
-          const label = inches >= 0.1 ? `${inches.toFixed(1)}"` : '<0.1"';
-          // Size 28–56px based on rainfall
-          const sz = Math.round(28 + Math.min(mm / 40, 1) * 28);
-          // Color intensity based on mm
-          const alpha = Math.max(0.18, Math.min(0.88, 0.18 + (mm / 40) * 0.70));
-          const el = document.createElement('div');
-          el.style.cssText = `display:none;flex-direction:column;align-items:center;gap:2px;cursor:default;`;
-          el.innerHTML = `
-            <div style="
-              width:${sz}px;height:${sz}px;border-radius:50%;
-              background:rgba(30,60,120,${alpha.toFixed(2)});
-              border:1.5px solid rgba(30,60,120,0.55);
-              display:flex;align-items:center;justify-content:center;
-            ">
-              <span style="font-family:JetBrains Mono,monospace;font-size:9px;font-weight:800;color:rgba(255,255,255,0.95);">💧</span>
-            </div>
-            <div style="font-family:JetBrains Mono,monospace;font-size:10px;font-weight:800;color:#0a1828;background:rgba(255,255,255,0.88);padding:1px 4px;border:1px solid rgba(30,60,120,0.25);">${label}</div>
-          `;
-          const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-            .setLngLat([loc.longitude, loc.latitude]).addTo(map);
-          s.rainfallMarkers = s.rainfallMarkers || [];
-          s.rainfallMarkers.push(marker);
-        });
+        // QPF HTML markers removed — isohyet canvas renders station data instead
       } catch (e) { console.warn('Rainfall QPF failed:', e); }
       // ── Rain gauge stations (CoCoRaHS + USGS) — isohyet canvas ──────────
       s.isohyetLayer = null;
