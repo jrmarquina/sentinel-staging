@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS weather_cache (
   id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  cache_key    TEXT NOT NULL UNIQUE,   -- 'alerts' | 'conditions' | 'storm' | 'forecast'
+  cache_key    TEXT NOT NULL UNIQUE,   -- 'alerts' | 'conditions' | 'storm' | 'forecast' | 'rainfall_stations'
   payload      JSONB NOT NULL,
   source_url   TEXT,
   fetched_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),

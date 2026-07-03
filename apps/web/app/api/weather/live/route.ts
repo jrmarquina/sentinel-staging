@@ -1,8 +1,9 @@
 // GET /api/weather/live
 // Public endpoint — no auth required.
-// Reads from weather_cache (populated by edge function cron every 5 min).
-// When cache is cold/stale, fetches live from NWS + Open-Meteo + NHC and
-// updates the cache so subsequent requests are fast.
+// Reads from weather_cache (single writer: the weather-sync cron, every 5 min).
+// When cache is cold/stale, fetches live from NWS + Open-Meteo + NHC/CoCoRaHS/USGS
+// to answer this request, but does NOT write back to the cache (see the cron for
+// that) — keeps weather_cache to one writer so concurrent requests can't race it.
 
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
@@ -56,18 +57,17 @@ export async function GET() {
     const cacheFresh = cacheComplete && byKey.alerts.fetchedAt > staleThreshold
 
     // ── 2. Refresh when cold ───────────────────────────────────────────────
+    // weather_cache has a single writer: the weather-sync cron (see
+    // supabase/functions/weather-sync/index.ts). This route only reads the
+    // cache; on a miss it fetches live data to answer *this* request but does
+    // not persist it, so a slow request here can never race the cron and
+    // overwrite fresher cached data with stale data.
     if (!cacheFresh) {
       const live = await fetchLive()
-      await Promise.allSettled([
-        upsert(supabase, 'alerts', live.alerts),
-        upsert(supabase, 'conditions', live.conditions),
-        upsert(supabase, 'forecast', live.forecast),
-        upsert(supabase, 'storm', live.storm),
-        upsert(supabase, 'rainfall_stations', live.rainfallStations),
-      ])
-      return NextResponse.json(buildPayload(live.alerts, live.conditions, live.forecast, live.storm, live.rainfallStations, now), {
-        headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', ...CORS },
-      })
+      return NextResponse.json(
+        buildPayload(live.alerts, live.conditions, live.forecast, live.storm, live.rainfallStations, now, live.allFresh),
+        { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', ...CORS } }
+      )
     }
 
     // ── 3. Return cached data ──────────────────────────────────────────────
@@ -85,7 +85,7 @@ export async function GET() {
     // Last resort: return live data without saving to cache
     try {
       const live = await fetchLive()
-      return NextResponse.json(buildPayload(live.alerts, live.conditions, live.forecast, live.storm, live.rainfallStations, new Date()), {
+      return NextResponse.json(buildPayload(live.alerts, live.conditions, live.forecast, live.storm, live.rainfallStations, new Date(), live.allFresh), {
         headers: { 'Cache-Control': 'no-store', ...CORS },
       })
     } catch {
@@ -107,12 +107,18 @@ async function fetchLive() {
     fetchRainfallStations(),
   ])
 
+  const allFresh = alerts.status === 'fulfilled'
+    && weatherData.status === 'fulfilled'
+    && storm.status === 'fulfilled'
+    && rainfallStations.status === 'fulfilled'
+
   return {
     alerts: alerts.status === 'fulfilled' ? alerts.value : [],
     conditions: weatherData.status === 'fulfilled' ? weatherData.value.conditions : fallbackConditions(),
     forecast: weatherData.status === 'fulfilled' ? weatherData.value.forecast : fallbackForecast(),
     storm: storm.status === 'fulfilled' ? storm.value : null,
     rainfallStations: rainfallStations.status === 'fulfilled' ? rainfallStations.value : [],
+    allFresh,
   }
 }
 
@@ -312,7 +318,8 @@ async function fetchStorm(): Promise<StormData | null> {
 
 function buildPayload(
   alerts: AlertItem[], conditions: Conditions, forecast: ForecastDay[],
-  storm: StormData | null, rainfallStations: RainfallStation[], fetchedAt: Date
+  storm: StormData | null, rainfallStations: RainfallStation[], fetchedAt: Date,
+  dataFresh = true
 ) {
   const now = new Date()
   const seasonStart = new Date(`${now.getFullYear()}-06-01T00:00:00-04:00`)
@@ -322,7 +329,7 @@ function buildPayload(
   const mode = hasActiveStorm ? 'storm' : hasTropicalAlert ? 'watch' : 'normal'
   return {
     mode,
-    dataFresh: true,
+    dataFresh,
     lastSync: fetchedAt.toLocaleString('en-US', {
       timeZone: 'America/Puerto_Rico', hour: 'numeric', minute: '2-digit', hour12: true,
     }) + ' AST',
@@ -339,13 +346,6 @@ function buildPayload(
       totalAlerts: alerts.length,
     },
   }
-}
-
-async function upsert(supabase: ReturnType<typeof db>, key: string, payload: unknown) {
-  await supabase.from('weather_cache').upsert(
-    { cache_key: key, payload, fetched_at: new Date().toISOString() },
-    { onConflict: 'cache_key' }
-  )
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -408,9 +408,17 @@ function asArray(v: unknown): unknown[] {
   return Array.isArray(v) ? v : []
 }
 
+// NOTE: mirrors wmoDescription() in supabase/functions/weather-sync/index.ts
+// (Node route vs Deno edge function — kept in sync manually). Update both if
+// the WMO weather-code table changes.
 function wmoDescription(code: number): string {
   if (code === 0) return 'Clear'
   if (code <= 3) return 'Partly Cloudy'
+  if (code <= 9) return 'Fog'
+  if (code <= 12) return 'Drizzle'
+  if (code <= 19) return 'Rain'
+  if (code <= 29) return 'Thunderstorm'
+  if (code <= 39) return 'Blowing Snow'
   if (code <= 49) return 'Fog'
   if (code <= 59) return 'Drizzle'
   if (code <= 69) return 'Rain'
@@ -418,7 +426,7 @@ function wmoDescription(code: number): string {
   if (code <= 84) return 'Rain Showers'
   if (code <= 94) return 'Thunderstorm'
   if (code <= 99) return 'Heavy Thunderstorm'
-  return 'Partly Cloudy'
+  return 'Unknown'
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
