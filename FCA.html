@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FCA Demo — Sentinel Public Works</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sidebar-w: 240px;
+    --topbar-h: 52px;
+    --accent: #1e40af;
+    --accent-light: #dbeafe;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+    --green: #166534; --green-bg: #dcfce7; --green-border: #86efac;
+    --amber: #854d0e; --amber-bg: #fefce8; --amber-border: #fde047;
+    --orange: #9a3412; --orange-bg: #fff7ed; --orange-border: #fdba74;
+    --red: #991b1b; --red-bg: #fef2f2; --red-border: #fca5a5;
+    --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+
+  html, body { height: 100%; overflow: hidden; font-family: var(--font); background: var(--gray-50); color: var(--gray-800); font-size: 14px; }
+
+  /* TOP BAR */
+  #topbar {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+    background: #0f172a; color: white; display: flex; align-items: center;
+    padding: 0 16px; z-index: 100; gap: 12px; border-bottom: 1px solid #1e293b;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  #topbar .logo { display: flex; align-items: center; gap: 10px; }
+  #topbar .logo img { height: 30px; width: auto; display: block; }
+  #topbar .topbar-title {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    font-size: 14px; font-weight: 600; letter-spacing: 0.2px; color: #e2e8f0;
+    white-space: nowrap; pointer-events: none;
+  }
+  #topbar .badge { background: #1e40af; color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; letter-spacing: 0.5px; text-transform: uppercase; }
+  #topbar .save-ind { margin-left: auto; font-size: 11px; color: #94a3b8; }
+
+  /* LAYOUT */
+  #layout { display: flex; height: 100vh; padding-top: var(--topbar-h); }
+
+  /* SIDEBAR */
+  #sidebar {
+    width: var(--sidebar-w); flex-shrink: 0; background: white; border-right: 1px solid var(--gray-200);
+    display: flex; flex-direction: column; overflow: hidden; height: 100%;
+    position: fixed; top: var(--topbar-h); left: 0; bottom: 0; z-index: 50;
+  }
+  #sidebar-scroll { flex: 1; overflow-y: auto; padding: 8px 0; }
+  .sbar-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    cursor: pointer; border-left: 3px solid transparent; transition: background 0.1s, border-color 0.1s;
+    user-select: none;
+  }
+  .sbar-item:hover { background: var(--gray-50); }
+  .sbar-item.active { background: var(--accent-light); border-left-color: var(--accent); }
+  .sbar-badge {
+    width: 26px; height: 26px; border-radius: 6px; background: var(--gray-100); border: 1px solid var(--gray-200);
+    display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+    color: var(--gray-600); flex-shrink: 0;
+  }
+  .sbar-item.active .sbar-badge { background: var(--accent); border-color: var(--accent); color: white; }
+  .sbar-label { font-size: 12px; color: var(--gray-700); flex: 1; line-height: 1.3; }
+  .sbar-item.active .sbar-label { color: var(--accent); font-weight: 600; }
+  .sbar-score { font-size: 11px; font-weight: 700; margin-left: auto; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+  .score-green { background: var(--green-bg); color: var(--green); }
+  .score-amber { background: var(--amber-bg); color: var(--amber); }
+  .score-orange { background: var(--orange-bg); color: var(--orange); }
+  .score-red { background: var(--red-bg); color: var(--red); }
+  .sbar-footer { padding: 12px; border-top: 1px solid var(--gray-200); text-align: center; }
+  .watermark { font-size: 10px; color: var(--gray-400); font-style: italic; letter-spacing: 0.3px; }
+
+  /* CONTENT */
+  #content { margin-left: var(--sidebar-w); flex: 1; overflow-y: auto; height: 100%; }
+  #content-inner { max-width: 860px; margin: 0 auto; padding: 28px 24px 80px; }
+
+  /* SECTION HEADER */
+  .section-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+    padding-bottom: 14px; border-bottom: 2px solid var(--gray-200);
+  }
+  .section-id { width: 36px; height: 36px; border-radius: 8px; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; flex-shrink: 0; }
+  .section-title { font-size: 18px; font-weight: 700; color: var(--gray-900); }
+  .section-score-badge { margin-left: auto; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
+
+  /* INTRO BANNER */
+  .intro-banner {
+    background: var(--accent-light); border: 1px solid #bfdbfe; border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 20px; font-size: 13px; color: #1e3a8a; line-height: 1.6;
+  }
+  .intro-banner strong { display: block; margin-bottom: 4px; font-size: 14px; }
+
+  /* PROFILE FIELDS GRID */
+  .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+  @media (max-width: 600px) { .profile-grid { grid-template-columns: 1fr; } }
+  .field-label { font-size: 12px; font-weight: 600; color: var(--gray-600); margin-bottom: 5px; }
+  .field-input {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--gray-300); border-radius: 6px;
+    font-size: 13px; font-family: var(--font); color: var(--gray-800); background: white;
+    transition: border-color 0.15s;
+  }
+  .field-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px #dbeafe; }
+
+  /* FEATURE PROFILE LIST */
+  .profile-list-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; padding: 10px 14px; background: var(--gray-100);
+    border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--gray-700);
+  }
+  .profile-counter { font-size: 12px; color: var(--gray-500); font-weight: 500; }
+  .feature-row {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+    border: 1px solid var(--gray-200); border-radius: 8px; margin-bottom: 8px;
+    background: white; transition: border-color 0.15s;
+  }
+  .feature-row.answered-yes { border-color: #86efac; background: #f0fdf4; }
+  .feature-row.answered-no { border-color: #fca5a5; background: #fff5f5; }
+  .feature-question { flex: 1; font-size: 13px; color: var(--gray-700); line-height: 1.4; }
+  .yn-group { display: flex; gap: 6px; flex-shrink: 0; }
+  .yn-btn {
+    padding: 5px 14px; border-radius: 6px; border: 1.5px solid var(--gray-300);
+    font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.1s; background: white;
+    color: var(--gray-600);
+  }
+  .yn-btn.yes.active { background: #16a34a; border-color: #16a34a; color: white; }
+  .yn-btn.no.active { background: #dc2626; border-color: #dc2626; color: white; }
+  .yn-btn:hover:not(.active) { background: var(--gray-100); }
+
+  /* UNLOCKS HINT */
+  .unlock-hint { font-size: 11px; color: #1e40af; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 6px 10px; margin-top: 12px; line-height: 1.5; }
+
+  /* COMPONENT CARD */
+  .comp-card {
+    border: 1px solid var(--gray-200); border-radius: 10px; margin-bottom: 16px;
+    background: white; overflow: hidden; transition: border-color 0.2s;
+  }
+  .comp-card.rated-low { border-color: #fca5a5; }
+  .comp-card-header {
+    display: flex; align-items: flex-start; gap: 10px; padding: 14px 14px 10px;
+  }
+  .comp-num { background: var(--gray-800); color: white; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 5px; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
+  .comp-label { flex: 1; font-size: 13px; color: var(--gray-800); line-height: 1.5; font-weight: 500; }
+  .scale-btn {
+    font-size: 11px; color: var(--accent); border: 1px solid #bfdbfe; background: var(--accent-light);
+    padding: 3px 9px; border-radius: 5px; cursor: pointer; flex-shrink: 0; font-weight: 600;
+    white-space: nowrap; transition: background 0.1s;
+  }
+  .scale-btn:hover { background: #bfdbfe; }
+
+  /* RATING BUTTONS */
+  .rating-row { padding: 0 14px 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .rating-btn {
+    flex: 1; min-width: 80px; padding: 7px 6px; border-radius: 7px; border: 2px solid;
+    font-size: 12px; font-weight: 700; cursor: pointer; text-align: center;
+    transition: all 0.12s; opacity: 0.55;
+  }
+  .rating-btn:hover { opacity: 0.8; }
+  .rating-btn.active { opacity: 1; box-shadow: 0 0 0 2px rgba(0,0,0,0.15); }
+  .rating-btn.na-btn {
+    background: var(--gray-100); border-color: var(--gray-300); color: var(--gray-500);
+    flex: none; min-width: 50px;
+  }
+  .rating-btn.na-btn.active { opacity: 1; background: var(--gray-200); }
+
+  /* INLINE GUIDE */
+  .guide-panel { margin: 0 14px 12px; border: 1px solid var(--gray-200); border-radius: 8px; overflow: hidden; }
+  .guide-title { padding: 8px 12px; background: var(--gray-100); font-size: 11px; font-weight: 700; color: var(--gray-600); border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center; }
+  .guide-note { font-size: 10px; color: var(--gray-500); font-weight: 400; font-style: italic; }
+  .guide-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--gray-100); font-size: 12px; }
+  .guide-row:last-child { border-bottom: none; }
+  .guide-row.current { background: #eff6ff; }
+  .guide-level { font-size: 11px; font-weight: 800; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+  .guide-text { color: var(--gray-700); line-height: 1.5; }
+
+  /* DEFICIENCY PANEL */
+  .deficiency-panel { margin: 0 14px 14px; background: var(--red-bg); border: 1px solid var(--red-border); border-radius: 8px; padding: 14px; }
+  .def-title { font-size: 11px; font-weight: 700; color: var(--red); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .def-field { margin-bottom: 12px; }
+  .def-field:last-child { margin-bottom: 0; }
+  .def-label { font-size: 12px; font-weight: 600; color: var(--gray-700); margin-bottom: 5px; }
+  .def-textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--gray-300); border-radius: 6px;
+    font-size: 13px; font-family: var(--font); color: var(--gray-800); background: white;
+    resize: vertical; min-height: 64px;
+  }
+  .def-textarea:focus { outline: none; border-color: #dc2626; box-shadow: 0 0 0 3px #fecaca; }
+
+  /* STOPLIGHT */
+  .stoplight-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .stoplight-btn {
+    flex: 1; min-width: 100px; padding: 8px 10px; border-radius: 7px; border: 2px solid;
+    cursor: pointer; text-align: center; transition: all 0.12s; opacity: 0.55;
+  }
+  .stoplight-btn:hover { opacity: 0.8; }
+  .stoplight-btn.active { opacity: 1; box-shadow: 0 0 0 2px rgba(0,0,0,0.12); }
+  .stoplight-btn .sl-label { font-size: 13px; font-weight: 700; display: block; }
+  .stoplight-btn .sl-sub { font-size: 11px; opacity: 0.8; display: block; }
+
+  /* COST FIELD */
+  .cost-input {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--gray-300); border-radius: 6px;
+    font-size: 13px; font-family: var(--font); color: var(--gray-800); background: white;
+  }
+  .cost-input:focus { outline: none; border-color: #dc2626; box-shadow: 0 0 0 3px #fecaca; }
+
+  /* OVERALL ASSESSMENT FIELDS */
+  .oa-field { margin-bottom: 16px; }
+  .oa-label { font-size: 13px; font-weight: 600; color: var(--gray-700); margin-bottom: 6px; }
+  .oa-input, .oa-textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--gray-300); border-radius: 7px;
+    font-size: 13px; font-family: var(--font); color: var(--gray-800); background: white;
+  }
+  .oa-textarea { min-height: 80px; resize: vertical; }
+  .oa-input:focus, .oa-textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px #dbeafe; }
+
+  /* NAV BUTTONS */
+  .nav-row { display: flex; gap: 12px; margin-top: 28px; }
+  .nav-btn {
+    padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+    border: 1.5px solid var(--gray-300); background: white; color: var(--gray-700);
+    transition: all 0.12s;
+  }
+  .nav-btn:hover { background: var(--gray-100); }
+  .nav-btn.primary { background: var(--accent); border-color: var(--accent); color: white; margin-left: auto; }
+  .nav-btn.primary:hover { background: #1d3fa3; }
+  .nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* EMPTY SECTION */
+  .empty-section { text-align: center; padding: 48px 24px; color: var(--gray-500); }
+  .empty-section .empty-icon { font-size: 36px; margin-bottom: 12px; }
+  .empty-section p { font-size: 14px; line-height: 1.6; }
+  .empty-section a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+  /* GENERAL INFO FIELDS */
+  .gi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 600px) { .gi-grid { grid-template-columns: 1fr; } }
+  .gi-field-full { grid-column: 1 / -1; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 3px; }
+
+  /* MOBILE */
+  @media (max-width: 720px) {
+    #sidebar { width: 52px; }
+    .sbar-label, .sbar-score, .sbar-footer { display: none; }
+    #content { margin-left: 52px; }
+    #content-inner { padding: 20px 16px 80px; }
+    .rating-btn { min-width: 60px; font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="logo"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAB9AAAAJYCAYAAAA6431rAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAbvtJREFUeNrs3f11Gzf2MGBwz/6/SgVhKohcgakKIlcQugLbFViuQE4FYiqwU4GYCqRUYKaCn94K5p1rggnj+EOUhiSAeZ5z5ijZTeIRZgZfF7hICQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAELXddP+etlf1/31ofvbTX9dxv+vlAAAAAAAAABoVtd1sxw0v48IpJ8oNQAAAAAAAACasWPgvPtkR7ogOgAAAAAAAAB1i+B33kn+GO+UJAAAAAAAAADVyrvOP3TDmClRAAAAAAAAAKrTdd1FNyy70AEAAAAAAICDmSgCHiufVx7B7tngL2hPCQMAAAAAAACH8B9FwGN0XXfa//iQ9hA8z//9mVIGAAAAAAAADkEAnQfrum7e/7jprxOlAQAAAAAAANROAJ0H6brusv9xpSQAAAAAAACAVvxXEbCLfN55BM7PlQYAAAAAAADQEgF07q3rumn/411/nSoNAAAAAAAAoDVSuHMvXdfN0vq8c8FzAAAAAAAAoEkC6HxT13Uv+x/X/XWiNAAAAAAAAIBWSeHOF+Xzzi/7a640AAAAAAAAgNYJoPNZOXgeu86lbAcAAAAAAABGQQp3/qXrugiaf0iC5wAAAAAAAMCICKDzD13XzfsfN8l55wAAAAAAAMDISOHOX7quu0rOOwcAAAAAAABGSgAd550DAAAAAAAAJCncR8955wAAAAAAAABrAugj5rxzAAAAAAAAgL9J4T5SzjsHAAAAAAAA+CcB9JHJ552/66+Z0gAAAAAAAAD4mxTuI5LPO4+U7TOlAQAAAAAAAPBPAugjkc87v+6vqdIAAAAAAAAA+Dcp3Eeg67rL/sdLJQEAAAAAAADwZQLoDXPeOQAAAAAAAMD9SeHeqHzeeaRsnykNAAAAAAAAgG8TQG9Q13XnaR08P1UaAAAAAAAAAPcjgN6Yrusu0jpt+4nSAAAAAAAAALg/Z6A3Ip93ftVf50oDAAAAAAAAYHd2oDdg67xzwXMAAAAAAACAB7IDvXJd182SlO0AAAAAAAAAj2YHesW6rnuZ1jvPBc8BAAAAAAAAHskO9Arl884v+2uuNAAAAAAAAACGIYBema7rpmmdsv1UaQAAAAAAAAAMRwC9Il3XRdBcynYAAAAAAACAPXAGeiW6rpv3P26S4DkAAAAAAADAXtiBXoGu666S884BAAAAAAAA9koAvWBd18Vu80jZ7rxzAAAAAAAAgD2Twr1Q+bzzD0nwHAAAAAAAAOAgBNALlM87j53nzjsHAAAAAAAAOBAp3AvTdd1l/+OlkgAAAAAAAAA4LAH0QuTzzt/110xpAAAAAAAAAByeFO4FyOed3yTBcwAAAAAAAICjEUA/sq7rztP6vPOp0gAAAAAAAAA4HgH0I+q67iKt07afKA0AAAAAAACA43IG+hHk886v+utcaQAAAAAAAACUwQ70A8vnnUfKdsFzAAAAAAAAgILYgX5AXdfNkpTtAAAAAAAAAEWyA/1Auq57mdY7zwXPAQAAAAAAAApkB/qe5fPOL/trrjQAAAAAAAAAyiWAvkc5eB67zk+VBgAAAAAAAFCTruum/Y9pIbdzO5lM7vb9hwig7+9liqC5lO0AAAAAAABAreb99bqQeznrr+W+/xBnoO9B13XxIt0kwXMAAAAAAACAatiBPrCu666S884BAAAAAAAAqiOAPhDnnQMAAAAAAADUTQr3AeTzziNlu+A5AAAAAAAAQKUE0B8pn3ceO8+nSgMAAAAAAACgXlK4P0LXdZf9j5dKAgAAAAAAAKB+AugPkM87v+qvc6UBAAAAAAAA0AYp3HeUzzuPlO2C5wAAAAAAAAANEUDfQdd1ETSP4Pmp0gAAAAAAAABoiwD6PXVdd9H/eNdfJ0oDAAAAAAAAoD3OQP+GfN75ZX/NlQYAAAAAAABAuwTQv6Lrumla7zqXsh0AAAAAAACgcVK4f0HXdbP+x00SPAcAAAAAAAAYBQH0z+i6bt7/uE7OOwcAAAAAAAAYDSncP9F13VVy3jkAf7cL0/5HXLGoapOV5Pv8v22cpscvulp+8ver/vpz669X+a9vJ5PJnScDAAAAAADDE0DPuq6LwEfsOpeyHWB8bcAmAD5LfwfHN9ehzHa43/ix2roi0H7bX3eTyWTpiQIAAAAAwMMIoKe/AidStgO0X99vdpHP0jpQfprqXTg1TZ8J8H8SXP89rQPrsWt95Q0AAAAAAICvG30APZ93fuVVAGiyjt8Ey39MdQfLdzXN12yrLCLtewTTN0H1pVTwAAAAAADwT6MOoHddd9n/eOk1AGimXt8EzJ/mnzKL/G2Ton62VV4fA+lpHVQXUAcAAAAAYPRGGUDPKXzfpR3OmwWgyPp8muvyn5KA+UNsduW/zOUZAfXf+uv9ZDK5VTwAAAAAAIzN6ALoeXdiBM+nHj9AtfX4z2kdMD9VIoPaBNRf9+W8Suvd6b9NJpP3igYAAAAAgDEYVQC967rztD7v3A5FgLrq703QPOrxqRI5iCjneVz5/PQIov86mUyWigYAAAAAgFaNJoDedd1F/+O1Rw5QTb097X+8SILmJYiFZ/O0Dqav+p+/9tdiMpmsFA0AAAAAAC35T+u/YJx33l+Rsl3wHKCOejuCtNf9X35I67O5p0qlKNPcpn6I5xTPS5EAAAAAANCKpgPoOeVvBGHOPWqAouvraX9d9tf/pfVRGzOlUoV4Tlf9c4tg+kUsWlMkAAAAAADUrNkAetd1s7QOnp96zADl1tU5S8hmt7kAbJ2m6e9d6Vc5/T4AAAAAAFSnyQB613URhInguUAMQJn19HlO0y5LSFs2Z6ULpAMAAAAAUKWmAuj5vPNI/Xvp0QIUWU/H+eax2zx2nc+USNPmSSAdAAAAAIDKNBNAz5PzsZNx7rECFFdHR6r2m7Q+33yqREYl2mWBdAAAAAAAqvDfFn6JruvinHMp2wHKq59naX029kxpjN68vyJ1/y/9z7eTyeROkQAAwOjGiDGHF9e0v55+4R+77a8/42c/blgqNQAADq36AHqkA07rHY0AlFM3T9M6cD5XGmw5ye/Fi/4deTOZTN4qEgAAaH58GAHzn/vrPN0vI9ls69+NhbfL/vq1Hz+8V5oAABxC1Snc83nngucAZdXNF/2PSNc+Vxp8QQTSL/t35UPOUgAAALQ3NowMVNd5fPgyPew4rxg7ROD9XR4/XPSXDJQAAOxVlQH06Cjns3TnHiFAMXVznHP+Ia13GJvQ4D6m/XXdvzfvnI8OAADNjA1Pc+D8XRr2OK9pHm/eRHBeSQMAsC/VBdBz2qcI0Jx6fABF1MuxqCkmRmKCZKpEeICY/LrJ2QsAAIB6x4fRp49NL7M9/jEx7oxFuNd2owMAsA9VBdDzeecRoNE5BiijXo7AZyxqsvqfx/p4PnpkmMmL5QAAgHrGhtOcLfL1Af/YWYxHHQsFAMDQqgmg953hy7Q+71zwHOD4dfJm1/k79TIDi+B5BNEv7SYBAIAqxocf+/DpONkiY8xwnTfdAADAIIoPoOcgTew6f+lxARRRL8+SXefsX7T713ajAwBA0ePDGBeWkC3yqr+XK08EAIAhFB1A31rBOvOoAIqoly+SozQ4nM1u9AtFAQAAxY0PZ6msrGTznMESAAAepdgA+tZ551OPCeDodfLJEc6zg43N2ej6BAAAUMYYMRa7vivw1l5K5w4AwGMVGUB33jlAUXXyLK1TtkulzTFtdqM7OgAAAI47Roz5upJ2nn/qylFQAAA8RlEBdOedA5RlKxuIBU2U4ONEnbSMAABwVLHpZVr4Pb7LgX4AANhZMQF0550DlKWvl2NS5EpJUKBIy3htQgwAAA4+Tpz1P2rICjVNNugAAPBARQTQnXcOUI6tbCBzpUHBZmmd0l1qRgAAOJyaskG97scLU48MAIBdHT2A7rxzgHLkHb0RPJ8pDSowjfc1L8QDAAD2O16Mnee1LWB97ckBALCrowXQnXcOUJa8kzfqZTt6qUks+rgSRAcAgL17UeE9nzv6CQCAXf33GH9oDtK8S1K2AxRhK3huYuHbVvm6668/8v8Wf327439n+kk7+PQL/zv3E0H0p5PJ5LmiAACAwceMMUaZVXjrMcaNnfMLTxEAgPs6eAA97xC7UvQAZRA8/6IIiK/SOki+7K+7yWRye8DnEs8jns00X0+T4Pq3zPtyS4LoAAAwuPOK7/2nJIAOAMAODhZAz4GAOO98rtgByiB4/pfYQb5MOVg+mUyWx76h/h429/S59jSe26y/fsw/LX74myA6AAAM72nF9z7z+AAA2MVBAug5zVOkbHeuLkAhct085uD5+/76Pa0D5re13PRWYH259Sw3AfWnSUA9CKIDAMCwap7TO4kxU03jPgAAjmvvAXS7GwHKk3cxvxtZ3RyB5wia/zaZTN639IvliaC43ubnG+kVI5geP6cjfc0F0QEAYDjTBu5fAB0AgHv5zz7/43kCX/AcoCA5eB518xiygkTQfNFfzyaTyXcRTG0teP458Tv216v++qH/2ye5DO5G+LpHEP3KVw8AAI8aQ84a+DVkxQQA4N72FkDvO9fzNL7djQA1GMORGsv+ej6moPmXxO70XAbfRZmkz5yr3jhBdAAAAAAA7m0vAfQcPDdZDVCYHEicNfrrbXab/zCZTM76a+GJ/1OUSZRNlFEuq7GIIPqFNwAAAEbrf4oAAID7GjyALngOUKZcP88b/NUicP4mrQPnsdN65Wl/XZRRPhv8u1x2Y0jv/jp/AwAAwPhI4Q4AwL0NGkDvui46o5eKFaAs+cy61hY3bQfOL/rrzpPeTZRZlF1a70gfQyD9KvdVAACAcTFeBADg3gYLoHddN+1/XCdnngMUpa+fo15+19CvJHA+sK1A+pPUfmr36/xNAAAA4/GHIgAA4L4GCaBvBWdMSAOUp6X6eZEEzvdmK7V7BNKXjf6a8S1ce9oAAAAAAHzOUDvQI227lKgAhem67qL/MWvgV7ntryf5jHOB8z3ry/i2v876v4xgeovlfZq/DQAA4NtWfgcAAMbk0QH0ruvm/Y+5ogQoSz73/HXlv0YEb19NJpMInt96qofVl/kirc9Hf9vYr3bb4O8EAAD7GhesGvg1Vp4kAAD39agAej73/FIxApQlH61xVfmvsUzrXecCnUeUz0d/1f9l7EhfNfArLfKCDJkMAABgt/FZzeOapUcIAMB9PXYHegRnnHsOUJ6on6cV33/sOj9rZKdDE/KEU5yNXvOChuf5jHcAAGA3v1d877KZAQCwkwcH0LuuO09tnKsL0JRcP59XevurZNd5sbZ2oz9LdZ2Nfpffq4WnCAAAD/K+4nv/1eMDAGAXDwqg59TAUrcDFKby1O0xIeOs8wr0z+jjs0p17OSIe/zBewUAAI8aA0R/elXxWBMAAO7toTvQX6a6UwMDtOp1qvNojTeTyeSZc6nrEen14yzxVHZKd+edAwDAcH6p8J6XjgYDAGBXOwfQ8+7GF4oOoCx9/TxL6wVOtYlzqS88wTrllO5xrvhdge+V884BAGA4i1TXUU7hjccGAMCuHrIDPYIzJ4oOoDi1Ha3hXOpG5Gd4lsqYTIt7OPNeAQDA4P3+6GvXtAs9dp8vPTkAAHa1UwDd7nOAMvX187z/cVrRLW+CnM6lbkR+lj+k456LHn/2E5NkAACwt37/xZH7/LuQkQoAgAfZdQf6PNl9DlCUvLippt3ngueNyjtSYif6MZ7tIr9XK08CAAD2qobA9CtjAwAAHmrXALrd5wDlqeloDcHzxkUQvb+epHVA+1Bicux5DuADAAD77fPHeK7kIPr7/h7felIAADzUvQPoXdfN+h9TRQZQjr5ujnq5lsVNgucjEgHttP8g+uadMjkGAACH7e8v0mEXzd5X6cF9AAAqsMsO9J8VF0BxXqd6dp8/Fzwflz0H0eNdOnPeOQAANNnff8wYQWYqAAAe5b87/LPniovadV0X7/Fpfz3N/9Oqv/7or6XAHhW+z9P+x7yS243g+XtPbXxiUq1/V9PA7+r7/E6ZGAMAgOP396Nf/vLItyJ4DgDAYO4VQM9BxxPFRa36d/girdNcn3zln1mm9Tm6AunU4nUl97nI6f0YqYGD6G/6/96FUgUAgGL6+6/6/n5sTrg64phT2nYAAAZz3xTuPykqatQP4E766ybdL831rL9u+n/+Mv49pUfp73aqIzPIrYkMQn4PHrNAKXaSPBM8BwCAIvv7i/7Hk0f2+R8yRnhuzAkAwNDuG0CfKSpqkwOMETw/3fFfjbRjEUj33lOyeE9LX+jxMeDpUbHlLD1sQm2TjtExAAAAUKic0S/6/G8O8Mct++uJbGcAAOzDNwPo+YzdqaKiQu8e8e7Gv3dtNzoF+7mCe4ydACuPio18HmFMqO1yLuEyrYPnjtcAAIAK+vw5a9QP/bXYwx+xGR+cGW8CALAv99mBPlNM1KbruvlA727s8v3Q//fOlSoFvd/xPk4Lv82F3cJ8zo5B9Ld5YuxOyQEAQFX9/lVOrR6B9Ldpt0W0nx1jpr8D50slDADAPt0ngP5UMVGhFwP+t2IH+ruu697ZjU4hSt99vuqvVx4TX5J3k3/tHdmcZeg9AgCAuvv+EUh/1V/fpb/Tuy/TtwPq8c9E4D2OBfsugvEC5wAAHMp/7/HPnComapKPHdjHexu7fmf9f/+VM7Y48vtdekaEV3YM8y1Rj/bv849pnelj26q/nknZDgBQ/NjkOhWStbDvO048kSrGAMu0Dox/Osad5r+9Mw4AAKAE99mBLoBObaZ7/G/HDvSrmCjIgzw4tNKD5++lbue+8g7z7QmyZX89MWkGAACjGRPEDvVlvowDAAAowlcD6F3XzRQRFZod6M+46b+Rl4qbAys5fXvsOpdym109y++O884BAAAAADi6b+1Anyoi+KLYjX5pNzqHssfjCYbyS+we8KTYRX5nfnDeOQAAAAAAJRBAh8eb9deHrusuFAV7VnL69lV/vfWIeAi7zgEAAAAAKMW3AujfKyK4t9dd10Va91NFwZ6UnL79jSAoAAAAAABQOzvQYVgRPL+xG52h9e/USSo3fftqMpksPCUAAAAAAKB2/1EEsBexGz3Sus8UBQMpOX37G48HAAAAAABowbcC6DNFBA827a/rrusu8+5heIynhd5XpG1/7/EAAAAAAAAtsAMd9u9lWqd1nykKHqHU92fh7HMAAAAAAKAVAuhwGNNkNzoP1L8z0/wOlegXTwgAAAAAAGiFADocVuxGj7PRzxUFO5gVel+3k8lk5fEAAAAAAACtEECHw4sd6O+6rntnNzr39GOh92X3OQAAAAAA0BQBdDie2IVuNzr3cVrofb33aAAAAAAAgJYIoMNx2Y3OfcwKvKflZDK582gAAAAAAICWCKBDGTa70eeKgm39O1Hq7vPfPB0AAAAAAKA1AuhQjtiBftV13XV/TRUHWanvwtKjAQAAAAAAWiOADuWZ9ddN13UvFQWpzPPP7yaTya1HAwAAAAAAtEYAHcoUu9Ev7Uan932B97T0WAAAAAAAgBYJoEPZZmm9G32uKEZrWuA9/eGxAAAAAAAALRJAh/JtzkZ/118nimN0SkzhvvRYAAAAAACAFgmgQz3O+0tK9/EpcdGE888BAAAAAIAmCaBDXWI3cqR0P1UU7Sv0Od9NJpM7TwcAAAAAAGiRADrUJ3YkXwuij+ZZl8bucwAAAAAAoFkC6FCnCKw6E30cz7k0K48FAAAAAABolQA61GvaX1eKoWklZhn402MBAAAAAABaJYAOdTvvum6uGDiglSIAAAAAAABaJYAO9XutCDiglSIAAAAAAABaJYAO9Zvahd6s7xUBAAAAAADA4QigQxteKIImTQu8p5XHAgAAAAAAtEoAHdpw2nXdVDGwb5PJZKUUAAAAAACAVgmgQztmigAAAAAAAAAeTgAd2jFVBAAAAAAAAPBwAujQjqeKAAAAAAAAAB5OAB0AAAAAAAAAkgA6AAAAAAAAAHwkgA4AAAAAAAAASQAdAAAAAAAAAD4SQAcAAAAAAACAJIAOwA66rjtRCgAAAAAAQKsE0AHYxakiAAAAAAAAWiWADgAAAAAAAABJAB2gZL8XeE9SuAMAAAAAAM0SQAdgF1K4AwAAAAAAzRJAB2AX/1MEAAAAAABAqwTQAcp1V+A92YEOAAAAAAA0SwAdoFy3Bd7T1GMBAAAAAABaJYAOwC6migAAAAAAAGiVADpAuUrcgZ66rpt5NAAAAAAAQIsE0AEKNZlM7gq9NeegAwAAAAAATRJAByjbqsB7euqxAAAAAAAALRJAByjbqsB7mnksAAAAAABAiwTQAcpW4jnoJ13XSeMOAAAAAAA0RwCd0q0UASP3/wq9r3OPBgAAAAAAaI0AOkWbTCYrpcDILQu9r588GgAAAAAAoDUC6JRspQig2O/gtOu6qccDAAAAAAC0RACdkt0qAsYuZ2G4K/T25p4QAAAAAADQEgF0Svb7A/+9/yk6GlPqYpKfPRoAAAAAAKAlAuiU7P0D/71TRUdjfi/0vqZd1809HgAAAAAAoBUC6JTqfU5d/RAnio/GlHycgV3oAAAAAABAMwTQKdWbR/y7dqDTmmXB9zbrum7mEQEAAAAAAC34ryKgQG8nk8mDdtwK5NGi/nu469/t+CZKXRzyOpUd5AcYzFZfI+rkyHrzv0/q52m+HurT+nRzjMddyhlJ+nZBnQvt1i8nW3XK063/e1Pn7GqVL3UKABy3nZ9ujRWmn4wjTtLD53y22/Fo3//If32b/371iCyfwPBzCJ/28x87h7D51r/Y34+fMb/sacBuBNApzaKvzF894t+fKUIatUzlBtBjF/p5/+2+95iARga401znxvV9Hsweqo8x+1bfpr+/TwfKMUBepfXk2NIThOLrmE398uNWXbOvY6im6Z8Tcl+qUzYTbFGX/Jn7nibcAWD3dn4TDJ/ltn4ztjjU+OH8C239Kl+/b9p9YwcYdA5hM2/w/dZ3f4ijZk+/NYewVQ9szyFs+v+C6/AFk298+J0i4oAieP78kY3Vh/S4FVs1W/bld+Y1arYjFgOgdwXfYgzCnuhwAZUOdGOAuQlkzRr4tVZ5IBy7T5YGxHDUOuYk1ytRvzytsI7ZTKz9rj7hM+/3dSnvdP9eTjwR4MjjiU07P63sV7jdHjs8NCsojOyb3/Tt970Y9pBzCCt9fr7x7l+kdSbaEpwdYhGYADqlePvIneebdCjXIy5DAfT2G6mu9e8Y4AB16SZIvpngOhnJr76ZGPs99xlW3gbYaz1znuoMmN+3PllGfSID0ejfdQF0YIx132Zx3E+pzoD5t9xt2vkkoA4tLJJ5qNUndYE5BN/CRRJA/0eBCKBzCM/7l33R0uD9SATQ22+kYgf6eeG3+cTgCiis7mx9gusxg+EIfAmAwTB1zfmI65moQ36Ln3aqjO69F0AHxjSm2LT15yP79Y0b0LdnUxcsc79/qd8/yu/iIgmg/6NABNDZp6hkXw0UPJ/3P65GXp4C6O03UjW857e5AdOJAo5ZX455guuhBMBg97omdpr/3F/RRztRIuqSEX4DAuiAMcW43OW2/lfnp+N71+/X7x/dd3KRBND/USAC6Oyzw3U2xE7VnEblJpm0EkAfR2fu/yq4VancAQNeA2HK/E5KyGaz6N+r55XXNfP+epHsRvnms04m2L/2Lo09gxp7cujFBIUdp/em//UvRl63lDCXe1Zz3Z8XyL3IfSYL5L5sFe187tutFAfmEMwhmENo/puJPtaoAuj/8dg5giGD59HQvdOhZQxyB6SGdFkvc6ojgEN04M/7K7JzxAKjKwPfQZznsvwQZZsnxmnDHwXcw7TSuma2VddcJsHz+5j313VfblGXvMxjNwAosZ0/iax//RUbdG6S7DL37dO9Nmag4n79B3MIg88h/J/6gJYIoHNoETT/YcDgeaxyPlWsjMhvldznVc4OAbCPAW9McF1EUCatF9LNlcpebHbabgJgcwEwRljfzPNO4Wt1zYNFnzAWHXzIdbd6BKBt1czTbcYV6e9AmjnGh9mMGa7z8YNQ4rf+Ms8hbPr1+qT7rQ8soqV6Augc0mBnIwueM1b997NI6ywOpfuYHUInCRh40Hu6tQM0djtMlcrBRFlvdqVfWiTFI8wqqW/meYLtKkmzPWT/cLNTTSAdYD+WhdT3pbfz00/GFdqk4fp5V5vFt4qDwr51WaQOP4ewWURroxVVEkDnUBZJ8ByG8r6S+4xv9MrjAgZo+8/zDtBNOkWOJ/phLw2Cq7VUBN+sb7YD597v/dUjAukAHKOdn26lbjau2J/oQ8VY4UYqZ470rc/yHIJvvYy+/zz3/d+pE6iJADqHsJhMJs8HCp5HQE7wnLF7U9G9bs4mBnhIuz/fStNukFWezSD42iCYHb/tkwLvSeD88LYD6XPFAdCMpyX2PQTOj+LjPG4eL+hfcYhv/Xzr+CVj1PKcb9UJng/FE0Bn315F8HygBlDwHNLHNO6rVNcOsnk+Uwzgvm2+QFZdZsnEGLsppj+fd6fcqG+OKgLpV7kOMdYDeJyVIvhHO799xvlciRx1vCDzDIeYQ7D4vr45BM+LYgmgs0+x6/ztQI3gx9VJyZlEsPGmsvt9bWcRcJ/2XuC8+kGw1O5lu1MEf9U3kcL1XbJAt7Q65MbCS4BH+VMR/D22SOsjoJxxXo7Xua2fKQoG+s43qdrNIdTb/7/Oqd09P4ojgM4+xMTcs8lkshioIZyn9eoxnV3I+u9r2f+4rey2rwTRgW8Met8Z9DYh6no7TMrsP9wqhY91zkVaT6ifK40ivc5nplrYAFCn2ZHb+amxRdHimUTA7NJYgUd856dStTflPM8hqBcoigA6Q4vg+dlkMnk/UGN4mdYryIB/e1PhPUcQ/aVHB+R2fnsHqEFve5xtzJcc5XvPi3U+JDvRahDB8xv9RgB2bOsv0jpdu7FF+aKNd3wLu37jcSxDxApufOfN1gsfjAEohQA6Q4odLWdD7WzJjaHKEr4gL1RZVnjrl/n7BsY98L1IdoCOgbONKaG+OckLc2OxzlSJVNdvfGcnCsC9rUba1sdu1E26duoR44NrC27ZYQ4hFsh4X9qfQ7iUkYoSCKAzlMGC53mC61pjCPfyptL7nuczck2GwvgGvXaAjtMsOdu4FKM6Bz2fsRkT6hbm1isWWlmEA3A/q0La3+kB/6yL3NZrJ+q0WXBrowVfm0O4MYcwOpuMVNK6czQC6AxhmdbB80dPxuXKUBpXuKd8Fvqy0tufp/Vk6NSThFEMek+20rX77sfL2cbHV8I56P87UL1zoc5pxmaHmqwlAHXYe9tr13lz5jlrlUAZ23MImyxSxo/jFQuhb/LCaDgoAXQeazGZTIYKnn9cVaRBhJ29qvjeT3WCYBQD3wh4xK5zgQ+26/4LRTHqd2Cfdc7UhHqTYkL9nTSvAOS2QFCtPbNkowXprzkEWaTYmOa6wW50DkoAncd4O5lMng/UKJ4mu0PgQfLRCYuKf4WT3Am68DShuUHvZtf5uyTVGv+22Y2u/8eQ9c4sWZTbukjzajIVYLxtfaT6vjK+aNZmsa2+3Di/782u85hDME7kUzEGcLQTByOAzkM9n0wmg+x63Vo1quMLDxffY+1nmr7O6bp0kKGNge8s2XXOt20myOaKggHqnZfGFaNx6axUgH/Lx7yVYPBxfQ6sxSI5/cb2bTZaCJKNbw7BrnPuO4fgPWHvBNDZVQToIni+GKhhjE6vVaPw+EFyfJtvGvhVZjpB0MTAd3NOmfad+4j35Eow7GBWjdY78f5ceryjMldvABRrOnA7HwGTWJwroDquMYIg+kjkrJSy07KLjwtqpXRnnwTQ2UUE6M4GDJ7HBJcJDxhI/22+7X/cNjJIurQbHaoc9G7OHbYIhoeY55TuBsD79WcB9zAbsN6xG029YUwJ0PYYI9p4i3PHSRC9/e87+vLxfb9WGjxkLKCOYJ8E0LmvTfB8kOBcnuQwuQ7De97Q7zJL693oFx4rVDHwjVTtzh3msT7uLjIA5p71zjStJ9S9L+M2dwwEQLNtfdTvMleOmyB6u9/3LK0zS8yUBo9wmusI7xGDE0DnPiJo/sMQwfOtVWVzxQrDy9/pm4Z+pRgovc47EnWEoNyB70X/410yscVwdb9z0flWvfPx7LskeM7alToDoLm2Pup1WUbYjA+kam7r+46NdTJLMGQdcW08wNAE0PmWCMad5fOVH9swnuSGcaZYYX/67/UitZHKfdtmNeE7ad2hqEFvLIyLwLl0a+zDVZ5YgU/rntNkwo3P1xnGmgBlzAd8/8i2PgLnguds28wL6f/V35ePb/tSSbCn8YC2g8EIoPM1i8lk8mSg4LkdInBYkcr9rsHfK1JER2rfS4MmOPqgd7Mw7lxpsEeXBsB8ZlwheM6XvJPiFaCIuYDpI9r66PvNPUY+I9p4gdd6+/GxAP/G982ezc0hMBQBdL4kgueDnKW8Nck1VaxwGDmV+6uGf8XYkRiB9AuBdDjKwPfjOdXJwjgMgGu0LKQemT7g3xE851ukeAWoe5wRY/25kuAbYwNZqur7tjf9eHMIHKqeeGdMwGP9VxHwGc8nk8lioMYxOr2xMlBlBQcW33H/DT5tePD58Xz0/nrR/56/9D/fDpExA/hm2z5LzjvfFvXOJk3m71v/+/IBddr2ZMLT/HOaLELcDIDTUAs8KUK816sd6p5N1otW6p7V1vXnA+qN7brhf1v1x8yr9bEsYtHNM0UBUNU4Y57a2l28/GSMsNql7/NJm/5j7gMZG6xFlqrbfmywVBRVfNsWwX67fjCHMLzIljjt378z88U8lAA6nxo6eG63EBzXq9yZanmF5yaQ/rqvd6L+etPXYyuPHvYy8B1z274JlMcAN+qY1R4mbN5/pew3g+Coz7/PP2cjewbzXA7PDIBHV/fUHjyPuiPqiz/2VHd8rrxOR15fnMfutL6s3/qCAIwzDjhOiJ+3A81JLL9SXqe5XxTt+4+5rZ+O7LWJ3aU/GBcU/22f5297rMHzZa4X9jUOMIfwdR8Xbwii81AC6Gx39p4NVYlHWuW0DmgBRxSdg/57jN16Y1npGYPuCLBEB/IXq5Fh0IHvPI0reL7Kg92PE2H5aIxj1uerrXvafi6bINnTPBieNv5c4neMnUl2oo9Lbeke41t9n+uP5aEna/Kft/xMfTHbqi/OR/DexO605bHrbwC+Oc44rXCcEW3sb7mdP3g7s/VnLrfKcRNQ34wLWk+VHb9vZEY78xWZQyjE3dYcwrKCOYQfR1JXCKLzYALobCr3s6Eq9XxG5VyxQhni285B9Hcj+rVjUjh2HkVHMdK7L3SSwMD3HqIv9GsJg91d6vh834v8rKbp74mzqAtbXDwlnfu46p+oe2qY1NnUH+9LzYSTFxbG9TaXbdQRPzVcV4Qrk2XACJVQ592rXcl91+tKyjUWx/2W2/ri2pV8T+/ztSnb89T2wrlZbOLqf/cLn705BHMIO88hbJ7VySd1RYvjAkF0HuQ/imD0orJ8MkQFH5Vtf0WAbq5YobjOUQygxhhoiAFj7FT8v6if8kQxsFv7/rLxge9trh+/6+vK6BO9rXm3YgTu4jieCC7313dpfQbwIpUxkTqkeQ6s0nb9My98bLFK62D0D1v1x6qm/uEndcX7Bl+jmCyTGQ0Ymz8KqX+/1c5vdhCXHKxZbo0VnuV+dhX96jwuiL5JtPE/pPURf6sG3/fXeUctZfXhW59DePXJGKDmOYS7T+YQnuQxTmv1RdQTl75QdiGAPm5RsZ8NMcmzdS6h4BSU2yFapLxDcaSifoogegTTLw2w4F7t+0WjA4zo+7zZGvA2m6XiMwGyltqBCKIbALdb/5ScznXZX/FdRR3yqqag+Tfqis0Ee9SPLdWJL3P6egDKEv24Esfl0QZuFsidtTBW2AqmRzt/lr5yvnqlLKwtpw8/b/R5bNcL1S2c3bG+uM1jnB8anUNQX3D/7+EbFV6niJr1cTfqEB3ArcktwajjilQxzv3hPt+sYxb+Fp3dSLW0aLXjCwa+/2wr45vPC4rG/Gxj4WNkFvg5tXFm+vOxP9MHvAMljPNiUubtV97RmwLfz3jPfhnDmdpb9cSL1EYax+jnPSkpAJLH0bWXbUnBL2PhLB/XcMh3eZbKScH9RirnvxbBvi7gXZxUNtbYzA+8HUOK35ziPd6TeSO/ku/fHMI+3Ob+vzmEdV3xopE5BPVFxf2LTd//EH1eAfRxWgx1ZmQe9F+nds/Mq4kAOrt8u/HdzpTEvzrFm2C683Aw8G1r4LtIIwl6PfBZv25gEPwsH1fC/Z57CeO8L05a5GOhSspstcj3uxrhu9JSID0CIq/UAG2OKb4WqGPv70G8AwLoZT2Ti1RwAD0Hbm8Kaldi/P9qrAGy/A2/Tm3MEf1gc4Q5hIEsc5uy9HQ/+6x/bqDOsBC/0v5FdpAAuhTu4/NmwOD5eRI8h1pFCh6BpH/anIWzOS99nieNwcC3XjEY+iGnMFfnfUZOSRmp2aJ/uKr4V7lyNEdTdVApwfMYkD/JdchqpHXEXQ5GxVmItS9SeameAChCKeeeR+B8c6zTYsTjgc2GnGep/jOPpWY2hzDUHMKZ4PlX5xCizqj9OAhzCHyTAPq4PB9qJW5uGEvp8AK7d3buckdHQOnzznPnP4LpV3nBEIxh4HveyMB3M+h9bgfCToPgmgPp0Sd9Z+FT9XXQNK0Xsx1bfAPP8sSZvlL66+zUZ7n/WHO9eulpAhy1rb9IZRz9EIvCYpHchQx0f7X1H8skrc95rtUsz1lzuG/6tJH+1dIcws51RguLb67NIfA1AujjEB3BZ0OtpsydXSv6oP6OjiD6/cTgK4IygumMYeBbe/seg94zg95HtQ3RX4yJszcV3v40rRd4Uq+YfDv2BEZMGj9xJMAX64hlriMWlf4KJtYBjjfeiL7asVO/rvJ44Znxwmfb+bt83EnNC+ZeC4gddA6h9uy0mzmEM3XCg+uN93kxfswh1LYg6SSVcwwNBRJAb99dbgQGmQCK4FEq55wDYJjBUc2ToIfuVM3T38H0S6l+aGjgO6184BsD3WfSrA3aNlz0f/lDqi8l2ywv9qS+eigWqB1zkVrUIxE4f2Un2r3qiMhW8TzVN0kWTKwDHMexF+tuFskZL3y7rY8yqvX4lhjbvvQU9953/5gBrOI5hOjDPjeHMGi9cVFpvXEac7yeIJ8jgN622FU6SNrBaBRz8HyuWKHJTk5MgC6UxL2d5AHZTV83fhBMx8D3qGKVs92i+2kbVjkl26tUV5AsgmMzT7C6euiYkxaLXI/IyrNbHRHlVmM2o2kysQ60bVlgWz/vfxyrf7bJzGmR3G7t/F0+vuVVhbf/wmK5vffdr3OfqkaxmOaHobL18q85hKg3nlU2h/BSxlE+RwC9XYMGz3OjOFes0HQnJ4Lob5TEzmLAIJhOzWKBXI3vbPRxnFt4mPbh426dVFeQzHnodXmZjjMBt9l58lw98uD64eO4M9WXrcLEOsCe5SxXm3nFY2Wz3IwZLLZ93FjgLNUVDDv24szWXVY8h3BmMc1B6o33eQ6hpjHC1abdgg0B9DYtc2Pw6IZgK6WrYBCMo4NzkepNx1mCqDMF06lGTlNV4yrbN3H8hN2iB20fVvnIj7eV3PImswLl10PRdr44wh+9mUBbeAqPrh/ucraKmspyk00IgP2Oj1M63kK5RR4zrDyKR7f1y1RfEH0uGLaXvnt8z/MKb/1trg+WnuJB5xCi3qhls5Y5BP5FAL09i3x2xxDB8wj63CTBcxhbB2dR4cCo1MkCwXRKHvjOU33Bg1XKu849waO1EZHCsZaFVrM8wcO/LQu6l9iRdnKE3//MIpzB64fajgSyCx1g/2OOqGePsVDueW6XGK6d32SdqepoJ09u0O95lurb2b/K/f5XnuDR6o6LVE9K9zgP/cJTY0MAvS1vh+oc5gYxdp6bUIDxDox+SPWl4yzVNAmmU9bA97TCge8iOaO4lDYinkUtk2ev7Twpui6KZzM/dF0y1IJjPls/1BREtwsdYP9epsPOLW7OO18o+r2087UF0e1CH7bfXtvu3Pd5DmHpCR697nif644a5nNem7NlQwC9Hc+HWkmVd6QJnoPOzSYd51ulMahpEkznuAPfaN+vKmvnnVFcXhuxWWhV+gB4875TnqdHeDYLu9EOUj/UFES3Cx1gf35Oh919HmOFM+edH2QcUFMQ/YWnNoh3lc0hxDnnz8whFFl31BBEN4fARwLo9YtG4PlQKytz8FwFAWx3cGJxTi2pdmozTYLpHF7sPK/lPYt654kdJMW2D3eVDIClci/0ueTrUF4Jnh+0foiyXlZwqzERfO6JAezFPB0u4LYJnstWdZh2vqYg+txiuceJuarK5hCiLrAZqOw5hNLHCVK585EAet02DcJioMYwAueC58DnOjixgltK9/2aJsF09j/wjSDBvJLb/bjD2SRYNQPg0p+TVO7j9twk2lE8S5WkafSoAKomeH6ccUCUdw3nSp9UNAYucQ5hluo58ibeSSnbK5hDyBlPFxXMIZiXHTkBdJ3DTWN4pTMB3LOD80pp7N00/TOY/lLghwHa+niHalkot8j9HJkvKmkfUvlB9Jg4u/S0Rum5LBZHrRuep/J3p03zAjMA6iN4fty2PvpYNSxSlMb9YXMIMYaq5dzzZa4LVp5cNfVHDcc+mUMYOQH0Og22Iysawv66SYLnwP07ODE4epLq2FHUgmnusEUg/UYwnUeo5dzzhfPOq2wbagiinwuSjc5C8PzodUMtu9N+9rQAqiN4XkZbH+38svDbtFiu/TkEC/DrrD+eFz6HMMtHHjNSAuj1uU0D7cjKq8iuUz1nmADldHBu+yuC6G+UxkFFfb0Jpl9HJ85ZXtyzzY+MBrMKbvWNM4qrbhtqCKJbQT4eC/VJMXXDIpW/u+TcAkWAqgiel6WGjDMWy+02hxALDmpYdKDPX7/i5xDMvY6XAHpdokF4MlDwPIIwH5LgOfAIfX10kZyNfiyztF4N/H99nf7Oamq+0uZPUx3nuz7PdQp1twvRT41zj0udQIvdJ96z9i1NpBUndqetCr/HuccEUE+7Inhe1Bgg2vjS+14Wy91TDhbWcPyb4Hk7cwhnBY8V4nt47UmNkwB6PQZrEHLw/DrVkYIFqGCglM9Gr2HFcasieB5B9AimX/XXTJGwpYa0a84obqxdyAPgUtuEF1aQNy0m058phuLqhagPSk/lbmca0FJb2LJXxg5FtvXvU/mbK2w8aGcOQfC8vbFCyQvxHac5UgLodXg+YPB83v+4SYLnwPCdnRjAxm70t0rjaKJuj3o+0rtHmvdLHbxxy+3+rIJ+zsLTaq5NKPnc46grpXJv012uUyzoK7NeiIn19wXf4tQiRKCR+rbldjCCZuYcCh7bpbI3Vlgs9+05hBpStwuetzuHUPJCaLvQR0gAvYKOx1CTynkS/UqRAvscqPdXBEykdT++aX/FudcRSL+JM7DtuBzdwLeGIOEbwfOm24R4tqVOcM4tMGp27CSda9min2hiHYCHKHmBJumvTFS/FHyLpzkzK59RyRyC4Hnbdciy4Hp+brHt+AiglysmFZ4MGDyPxk/wHDjYoCmndY9rqUSOP0jMgyDnpY9LPPOSF00snHk+ivbgVcHtgBXkbXmbdzhTeB8xlT2xro8EUCZZZirqk6VyzzIOFst9WWzCmBZ8f4Ln4xgvRB1S6rjOHMLICKCX2yk8G2r3RJyHmxtAgEN3epZbgfSVEinC9nnpl1Zftymvip0b+FKIUs8yswu9Hbd5sQZ1eJvK3YV+YqEhQJHeyDJTh7zI4U3Bt6id/4w8Lio5OLg0hzAq8axXBd7XzC70cRFAL090Bp8M0SmMtCv9dZ3KnkAHxjGAio7uDwV3gMYodibH4qqbnOJ9LsV7U0oe+Eq9OL424C7X/74V9qHk94sv1wklT6z/5CkBFOW9c8+ra+sXqdy5n6mNBJ9Vcuba0s/GZj/jhVKfuTmEERFAL68xOMtp7R4lB0EieD5TrEBJg6gcSJfavSynebAU56Vf2ZFZt1gMUXD7v8p9HakXx1f/Rwq2Eic+7UKvnx1pddYJJad3NYYGKIeFchX30Qq+N239lryjdlZwHfDMHMIoxwu3hdYjdqGPiAB6ORZpoAnlvIougudW0wGldoK2U7svlEgxYvHVPK0D6dc6hNUqdTWsgS8x+F35ZhjQ0o60qv1a6H3ZmQZQDueeV6rwXejOQf+nknefD7LZkGrrkYu03nRamheezjgIoJfh4zmggufACDtCmzOMYld6yedhjtEs2pO+XfmQdzRTgf5ZxeBiWujtvbJLdPR1fqk7iOxCr5fjIOpWct9v5vEAHN0yZzGiXqXuQj91hN1anu8pdSxkDoFQ4hzCuTmEcRBAL6MhGKQS6D/a87QOnusAAFWJ1aT9FfXhd7ljtFQqxYgO4ZVAehUD32j/S10F+zbvQEB9H/V7kancPZ3qSN1ef30QwfNS2wbnoAMcn9Tt9YsFEBbLla3UbFzvZZoijxlKTeUuk90ICKAfuSM4VEOQgxrvkuA5UH/HaJHTuz9J60lVu9LLME0C6aV7WWg/4DYWyHg8bHlTYN3+wi6UqqxSmQsx2N0vhd7XzKMBOG5/Udrm+lksV7aCM9jFt28BDdvepvKOhJibQ2ifAPpxROfhbKidWLmxu1KsQGMDrdut9O52pZcjBlcC6eUNfEvdfV5qym6OW7/He1Haoor4hs49nWq8cR5qM/XBqtQ+Xt+2zjwhgKONISyUa4fFcmX2c0rOYPdMX59PxgwlziGEl55O2wTQj9MJPMvpK4do7CJwLl0E0HQnaWtXurPSyzFNAumlddpLXPkqxTJfqtsX/Y/S3o0XnkwVbh0J0ZxfC72vmUcDcBSvBM+a6vevCuz3h+nIzzA2h0BtdUkcCbEs7LZ+9mTaJoB+WFH5PxmiEYhVYjl4PleswJgGXltnpT9L6/O0OPKgM60D6dd2ah1HwSvHl84s4xtKW0F+2n9Ppx6L94aD9+8WqczFkU89HYCDW1ko16RSd6GPue9f4hxCLJS98LlQ0VgwFuLIZNcwAfQDNgBpvfN89dj/UJ4ov06C58CIxcrD/oog+ne5A2WF6nHNom2KxV0jX8V9DCWuHJe6nfvU48tU3gpyu9DLthwqkxfFKXFR5MxjATi4N4pAO39Ao1wsl7MIlrj73BwCX5U3pi4Kuy270BsmgH4Y8VGfDZF+KAclInhudwxA+ivF+9v+etL/bVyx43WlZI4mBmI3fXt1oSgOMvAtdff5myEWDTIKpU2SnufvCu8Lh/Vboe2scTfA4dh93qg8J15iEH2s7XyJx8FK3U6tY0JzCA0TQN+/OLf3+UDB82jUb5LgOcCXBmW3OcV7nJUeu9Nj8O3stMOLjuPrvt26kdZ9/x31VN7K8Vup29mh3l6msibTTvJ3RXnsPm+7LnhfaJ9NPwbgcCyUa1uJi+VG187n3efTwm5rJXU7O4wbVqm8XehzT6ZNAuj7FUGcQVKP5ABE7Dy3mgXgfh2q93kBU6R4j7rYeemHFwu+Iq37pdWYe1PiynHnE7Or0s5E/MkjKZJJ9fYtC7ynHz0WgIOw+1w7fxQjzDZTYgY7qdupfWwojXujBND3WPEPtfsqrwwTPAd4oBiIb52XLph+eHFGt93oww/0Y5fstLDbWtghygPq6HhnSnpvzvOxSZRjpW4ZhRJ3pqkLAA7DQrn2+/yr/keJKbpHE0DPczKl/b6yTPHQ+mRRUj1iDqFNAujDi7RzZ0OtmszB8yvFCjBIB+tOMP1ooiNpN/qwSls5Hn0gE188VHHnmHkk3g8OblngPc08FoD9jyPsPh8Ni+WOq8Rdsnaf81ClZbJ74ZG0RwB94A5fWgfPBxn4d10XgXPBc4A9EEw/GrvRh+kjxCC/tDL8Ja8ChofUydF/Lun9kYKtoDGWSfXR1ANRBxS3M22EqV0BDj6OUASjsSzwnp6OoeDzHMK8sNtamEPgEWOH28LqFIvwGySAPpz4YJ/kD3eIRu2qwEYNoNVO16fB9Pi5SOuFUQwvBm6xG/1CUTxYibvP33osPFJJu4ylYCuHSfVxWRZ4TzLnAOzXQhGMQ6GpusfS558Xdj8y2DGEX0uqSyy8bY8A+jAiaH42xIqpSGvbXzdJ8BzgWAO6CKa/76/n/SWYvl+v+zbvWkr3Jga/sfvcN8JjvS+srp15JEVYKIJR+b3Ae1IXAOyx/2cH6ugsC7uf6UjKvbQMWzLY8Wg5U5k5BPZGAP3x4iM9G2LSOAcQrvvLShWAcjpjgun771x+kNJ9p/7CPJW1G87uc4aqb+NdKukojZ88laMzqT4+twXe0/ceC8De/KoIRqe4xXKtz0f0v1+klp4WdEvmEBjSoqB7cRRcYwTQH/lx5qDKEMHzCJrHznPBc4BCCabvzccFZH1b+FJRVNkht/ucIZU0iXouQ4b3gYP3tVb9j1VhtzX1ZAD2YhVjbMUwOiUulmu9z1/awuD35hBodMzoKLjGCKA/XARQng/xH8rB82sDc4B6CKbvxWXfJl4phq/2GaKvMCvolqwcZ+i6dZnKCp7NPJXj1S8m1UertIl1i9wB9kM7r53X1u9ZXhA8L+y2nH3OYPox421h9crMU2mHAPrDPM/nKwzRiEUDFsFzu1sA6u2sCaYPZ963jTd2fX7ReWH3Y+U4e3mvCroXadyPZ6EIRuuPwu5HnwRgP35RBOOTs82UNob8X8NFXtocwsIRTexBSbvQzSE0RAB9N9G4Pxk4eH5lQA7Q1GBQMP3xPmZmyRla+KfS0rdbOU7rg9+Zx+E94OCK25kmFSPA8HW9IJq2viAtzz2UFszTx2cfSlqEP/M42iGAfn8R/DjLKSGGGIBfpHXwHIBGCaY/egAriP7PvsO0sIH90qQXe6o7o79dyrs1FTg7itVQ4y6qVOKzVw8ADEsQbdx+VwT7lzP7lbQD/TYf2QWDynNTpYwhTsxltkMA/X6GDp5H4Py1YgUYVWfu02C6897u0elMgujbSku9JuUi+2QFuefPePtMq0L7JABo6xlGaW19q/19cwiMyW/qFIYmgH4/z4cInseqrxw8nytSgPHKwfQIokcw/XkyefA1guh/Kyl9+128xx4Je1TSrpSnHsfB2ZXGsrD70Q8BGI707Xj+h1FS+vbYoGgOgX1679tjaALo3/ZmiAninDLlOgmeA5D17UsEIRefBNOlrP230QfRC0zfvvBasuf60Q708bqTvp1kYh2gZb8pgtH39ZcFjrmbyjZTYPr22EjiSEP2Wa/EGLKUd8zi20YIoH9drIi8GKDBmqZ18NyHA8CXOnqbYPqT/m9/6K9XSTB929iD6KWlXrM7lENYFnIfzkE/LDtTCH8Wdj//80gAtPUMqrRgamtzDaXNIVg4wyEsC7kP56A3QgD961499j+QP5SbJHgOwD1FOrv+epuD6XG9TXZifeyApvEG0UtKIb2yO5QDKSmNu778OJ87x1NaO6MOABiGTDOU2ta35mlh372FM4xtLDnzOOongP5ly8emk+m6Lj6S2Hl+ojgBeIiYXOivV/0Vu9Ij1fvYBx3Rpr5rLb3aPRSVes2XyaH64wXdi3PQ1TEclhSfAPp3tG2lCPbKHALamOP60eOonwD6lz0qNWnXdfMkeA7AgGLFbj4vPYLpb9J4J5enab0TfRRtbF6Q10wfCXao80oa/Np9ehi3zkakwO8fgOFI48xGace1NNPfz1n7Tnz3jHAM4Rx0BiWA/mUPXhmVg+dXihCAPXUII4X2RX991//t8zTO1GenI2prfyroXqRv59BKed9mHsVBLBUBhZoqAgBtPcOOLQu7n5YW6Bc1dpG+nQMrZQ5BAL0BAuhf+MgeuvOh67oYWF8qQgAONBBZ5LPSz9L4JiPO+3Z3DG1uSYPfpa+Osb5zeScH++X8c/4xLi/oXqYeB8CjxTnIK8VA5l3Yn5KOnxI8Z7RjygIzSrIjAfThB+qxG07adgAOKlKd9lcE0SO9+2JEv/rLnPmlSTlNfUlBO8EtDu2Pgu5l6nEUPQ6jPdL5A7RlqQjQzh/ErKB7MYfAmMeUFuFXTgD98x50BkvelTJTfAAcS07vHmndxxRIv2x4Z2hpv5fV4xzayvc4nmdtVxoFf/8APN4fioANR4PtR4Hnny89FQ6spLrle4+jbgLow1bsPys6AAoZjG4C6U9GMGCJweFV3q3dmllB97J66BE38Ii6rKT660dPZK9MovKpPxUBQFOWigD2blbQvdxZKMGhFbYo2yL8ygmgD+tcEQBQWMfxNqd2j6vlgUt0Sls8D72ks8uWviiOpJQB8NSj2Cu70gCgbQJplPxOtLJT1BwClPPuCaBXTgB9IHnX21RJAFCifEZ67EaPXemt7iKe9+1xa4vZnH8O5QTQDX73a6kI8E4AtNufk82KzyjpnZg2UqYljVkskOVobU4h93HSaLbM0RBA/4wHpoo0oQZADW3cIq3PR3/b6K/YTCr3As8us2OEY/m9sO+S/VgpAgDQzgMPHquUtsFv6alwJCUdBWUOoWIC6D4EAEYmVv7316u0Ph+9taDox/PQ9S328t4IoENZi1paa5tWSgEAmiWbFZ9jjDmsU88Xinv3ph5HvQTQh2MyDYCq5PPRI4gewfSW0umdN5LKvaROtoEvx7Qs6F4smm3/GaPtAWB4K0XAZ/w/RTCoWUH3cufYBo75/hV0L1OPo14C6AAwcv2gJtK5t7YbvYVU7k8LupeVLwU+smhWHcPh+icmXQG09cD9/VjQvVgIiTZn7XuPo14C6MN5qggAqFWkzs270d808itFkOuy8t+hpJ2uf/hKOGL9tCzodn70RPbiT0UAAPpzwKNMC7oXAXSO2easfJcMQQAdANjuZF70P85SGzsE5l3XzWq88bx7vqSdritfB3xkB/p+mGADANAH5HFKWoQvPT+smUOomAA6APAPeXdA7EZfNvDr1LoLvbRzlle+DI6slFTOU4+i6eeLdwOA4S0VAdr5/eq67tR3D0W+g6ceRb0E0AGAf4lzR/srdqIvKv9VTvuB5LzC+54Wdj8mNji2W9+m54t3AwCAz7LLFWBgAugAwBdNJpPn/Y/nlf8alzklek2mhb0HAhjAPusYi3QAoF2/KwLYu1lh97PySGCt67qpUqiTADoA8FWTyWTR/3iW6t2FHMHzl5Xd84/ePCh28CsF27BWigAAAB7lfyXdzGQy0cfn2EraCDL1OOr0X0UAANxj8PO+67oYAF2nOlODvejv/21FuxyLKuO+7C58BRhwlvl9NmClCACgabJZwf4VtcjXHAK+CVoggA4A3Euk8e4HQXEueo1B9M0u9FoGcaV19F/7AgAAgAdwVAuMjzkE+JtF+JWSwh0AuLd8FnYE0WucBHlR0VnoOtfAWNiVBgAwTitFMJiZIoBi2Q1fKQF0AGAnFQfRIyg9L/0mu66besugaDNFMKj/pwgAoGkWy/FZzskGoGQC6ADAQwa6MQnyqsJbf1HBPU69YQAAQCNjx//P3v2ftXFsDQDe5cn/l6+CK1dgqMCigkAFgQpiKjBUYFKBlQpCKrBcgUkFUSq43Ar07YHZaxnzQxIraWb3fZ9HD07i2MvsMntmzswZJdxhg+bzud2tABsggQ4ArKWu60nz5aywyx41g8tjdw8gGybVAQBgfY6AA9gACXQAYG0piT4p7LJ/yfz6rB4HhkRZVwAAACArEugAwKvUdR270EtKgBxnfs641eMAAEAfWCgHm2cRPuTtnSYokwQ6ANCFo6qsMrzKuAMAAGyWo1pg8yzCB9gACXQA4NXquo6JkZOCLjnnMu7/8kQBAAAAAOyGBDoA0Im6rqfNl6tCLvcg4zLuyq8BAAAAAOyIBDoA0KXL5jMr5FqVcQcAAABK9lYTAHRPAh0A6Ewq5X5WyOX+7I4B7Py9MdUKAACwNmegA2zASwn0G00EAKyioFLu4/l8bqAJAAAAAMD/SKADAJsQpdxvC7jOsVsFAAAAAEDrpQT6F00EAKwqlXI/L+BS37lbAAAAAAC0XkqgX2siAGAddV1Pmi+zzC9z7E4BAAAAANB6NoGedo9NNBMAsKbLzK/vIMNz0MceGwAAAACA3dhb4vdcaiYAYB2F7EI/cKcAAAAAAAgvJtDrup5VkugAwPpyjyPGbhEAAAAAAGGZHeiRRL9ovtxoLgBgDdfN5zbj63uX2fXcemQAAAAAAHZjb4Xfe1KZ0AUAVlTXdcQP1xlf4iiz67FoEQAAAABgR5ZOoKdS7keVJDoAsLrfMr620Xw+33eLAAAAAIAOzTRBmVbZgR5J9NgRJYkOAKwkxRA5B4wH7hIAAAAA0KF/NEGZ9lb9HxaS6MqLAgCrUMYdAAAAAICs7a3zPy0k0SeaEABY0u8ZX9vI7QGWNNMEAAAAAP21t+7/WNf1bfM5a355UinpDgC8HDvcZBwzvHOHgCXNNAEAAJAJlYLBzygbsPfaP6Cu6yjH+qbKuywrAJCHqSZ4kYWJAAAAwDL+qwkga+b5CvVTF39I7EZvvpzM5/Pj5uun5rOvaQGAR3xpPscZXtc4o2v5K7M2mlR5l9+HrWrGPlOtAAAA8KhJZQ4BFtmBXqifuvzDYjf6fD6fVvdJ9GPNCwA8MNUExflHwhAAAABYgjkEoBf2uv4D09nocS66s9EBgIdxQrarLufz+cgdAgAAAApidyvABuxt6g9eOBt9opkBgAXTTK9rZPALAAAAFCS3TYz/ckuAPtjb5B+edqOfNb88aj4zzQ0AiAkMfgEAAIBeOtAEQB/sbeMvSWdeHDafK00OAIP3T6bXNXJrDH4BAACgIKrYAWzA3rb+orQb/byyGx0Ahm6a6XWNcriItPAQAAAA4FmRd8nskvbdFaAP9rb9F9qNDgCDd6sJijLSBAAAAJCtWUbXoood0At7u/hLF3ajRyJdiRHohp8loAhNDKC/KqtPH7kdAAAAkK2ZJgDo1t4u//KYQG8+kUS/dCvg1f6rCQB6I6td+vP5XAk2AAAAyNMsp4uZz+djtwQo3V4OF1HX9UVlNzoADEmO7/y3GV3Ll8zaRgk2AAAAyNM/mgCgW3u5XMiD3ejORoXVWYAClCTHd/2+9nnSyCMLAAAAWcptXnjslgCl28vtghZ2o0/dHliJhScABr+bMnJLAAAAIEu5zQv/2y0BSreX40XVdT1rPkfNL88rSUFY1kwTAOjTN+SdWwIAAAD5qet6mtkljdwVoHR7OV9c0/FfVXajw7I/LzOtABTkiyYoqk83+AUAAIB8zTK6lrHbAZRuL/cLXNiNflLZjQ5PmWoCAH37Bo3m8/m+WwIAAABZmuV0MfP5fOSWACXbK+VC67q+br68aT7XG/6rJOkRIAGQg9zOQT9wSwAAACBLuVX6M4cAFG2vpIut6/q2+cRO9E3uRp96LCjQX5oAoHf+yex6xm4JAAAAZCm3Rfjv3BKgZHslXvTCbvSrDfzxf3osECABoG//wVu3BAAAALKkih1Ah/ZKvfC0G/28+WWcjz7r6I+N89YnHgsK/HmYagUAffuGjd0VAAAAyE9d17Mqr+Npx+4KULK90r+BNLl8WHWzG/3EI0GBppoAoBM5VvPIqY/fn8/nVpADAABAnqY5Xcx8Ph+7JUCp9vrwTSzsRo9E+rqT32fNn6EMNiVy7ABQohzLgf83w2vKLTYx+AUAAIA8/ZXZ9YzdEqBUe336ZiIB3nwiiX65wv8WZU2OlG6nYFNNABRoXxMs5Utm1/POLQEAAIAsTTO7np/dEqBUe338puq6vmi+vGk+k+rpcz9m1X2i/Y3zoynYTOUEAIPfLTp2SwAAACA/GeY5DubzuQ0UQJH2+vqNNS+LSCxGWfb/a/7xqPmcVfcJ8zjn/LD595E4v4jy7x4DCnatCYBC5TiAyi4mSHFKVgulmsGvJDoAAADkaZrZ9ZhDAIr00xC+STvM6bHfNAFQqIMMrynXih7TzNorSrBZwAUAAAD5iaPgxhldT8whTNwWoDR7mgCKdROVFjQDwCAGvzmxehwAAADyNM3sesZuCVAiCXQol93nQJHm83mug6dcj3XJbfC7n/E9BAAAgMFK1Xhzmt/YdxQcUCIJdCjTbRMMTTQDUKgczz+PQeZNptcVA99pZpf1i8cYAAAAsjTN7HrMIQDFkUCHMtl9DpTsQBOs7M/MrsfqcQAAAMhTdnMI8/l8320BSiKBDuWJnYhXmgEo2NsMr2maeZtdZ3Y9UYLt1KMMAAAA2bnO8JosxAeKIoEO5fktlfMFKJUd6Ctq+v1Z8yW3EvM/uzMAAACQl0yPgvvVnQFKIoEOZbH7HChaKtk1yvDSvhTQfLkNfqME28hTDQAAANnJrYz7wXw+t6ECKIYEOpTl0u5zoHDjTK+rhL719wyvyQpyAAAAyE+OZdzNIQDFkECHctzUdW33OVC6d7n2sbk3XPMOuMnwOk9TVQEAAAAgE+kouGlml2UOASiGBDqU40wTAD0wzvS6bgppv9x2ocfA99hjDQAAANnJsZLde7cFKIEEOpThMu08BChWOi87x/Oubgs6HiPHEmwfPN0AAACQnSzLuNuFDpRAAh3yF6XbLzQD0APjXPvZUhow0xJso2bwe+rxBgAAgHykzQKTzC5LJTugCBLokLcIck40A9ATP2d6XV8Ka8ccS7DZhQ4AAAD5+TPDazKHAGRPAh3ydpZ2GwIULZVvz3WFcVFHZDTvhUl1v8AqJ3ahAwAAQGbquo4y7rPMLsscApA9CXTI13kKcAD6IOfyXNMC23OS4TVZQQ4AAAD5ybKSnbPQgZxJoEOeJnVdX2kGoEd+zfS6ZulMsNL8luE1WUEOAOxEE4OMtQIAPCnHeeZR83nv1gC5kkCH/ETy/EwzsAnz+fyg+fydymnDtp67cRoY5WhaYpum4z1yvPaPVpADAABAPtLGgUmGl/arOQQgVxLokBfJczamCUhjVefX6j6R+UmLsM0BUcbX9qXgdr3M8Jpi4GsFOQAAAOQlx0p2MYfw0a0BciSBDvmQPGcjYiVn8/n8ICAdp4Q6bPr5G1XOP9+I5p0R1z7L8NI+qHLBht5ldiYAAACsoa7rmyrPOZDTqJjpDtE1cwi8lgQ65EHynE0FCuPmy9/NZ/zIf5bkYhs+ZHxtN6kUeskuM70uVS7YRF/y2cQKAADA2n7L9LrMIdCp+Xx+0Xz5ag6B15BAh907kzxng4FC7Dx/arXdvgCVDT+Do+bLacaXOC29jZv3x6TKcxd6VLk49lNAR33JuLo/GiAGvp89WwAAAKur6/q6ynMO4UClTLqSkuaxCH9U3c8hnGoV1iGBDrtz23yOUvIDugwS2pLty+z8VcqdTcp9gcbvPWnnXL+PT8pl0cU77UFfEv/8R/PvnZMHwCK7iwBgOblWslMpk648nEOI+SmbyFiZBDrsRpw5c5jOr4XOvFCy/bkA1YQTm3gWxxlf4m06/6sPrqr7RVm5UeWCLrSrxh96H4vFLNIAYCHuAABekHElO3MIvFqqyPrYPPdp89++mkNgFRLosH0RpBz14Nxd8gwQnivZ/myAKoCgY7kPeq57NPiN5Hmu55gdK7fNK95r8ew8VyVlXDnTDAAAYFW57kJXKZO1pc08z1VkjbmDv9PvgxdJoMN23Z13npId0FVwMIoVdNVyJdufCyCUw6WrZ/KienzHaE5+71mz57oLPXxSho113m3Vcgtx4vd9daYZwOC91QQAsJyMd6GHjxZJs6q0MeyPJX5r/L7PFmqwDAl02I4ISA6dd84GgoPYnRfJ8y4Cy1PBAx08k6PqdYs5ttIn9+0Ijcx3oS87iIGHA99VKqM40wxg+75kFm8AAMu7zPjaVMpkVavOIcRCjT88ZzxHAh02b1rdJ89vNAVdal7wH9cIDpYJHsZal9cMcgq4xuuetn3Ou9APUp8FS72LqvUWhrVnmo00IcDg6PsBYAWZ70JXKZOlpfmm8Rr/a2xM+6ziAU+RQIfNumqCkSMl2+k4KGhLtm9qt/gfAgfWfDbfrxmwbttvfWz/9K45z/gS3yuzzZL9yGuek3h/fbUYDGBwRpoAAFaW8y50lTJ5UZpnes1zEnMIn1OVV/iOBDpsRiQx4qzzc01Bx0FBlyXbnxI72pVKYtVns5TVwdOmb5719T5kvoI8OMuMlwa+XfQjzjQDGG48CgAsKc0hTDO+RJUyeSn266IS5t0xcion8pAEOnRv1nyOnHdOxwHB/oZKtj+lXX0nic5Sz2dVRun28NsAbslZxte2r2/hmYFv14NVZ5oBDMtIEwDAyi4zvz6VMvlBeiY+d/zHRuVEc1b8jwQ6dGtaOe+czQUE295J19UqPvpv3fOKt23W9M/Xfb8Zzfc4rfJeQS6JzlPvuU08E840AxgOfT0ArCjNIUwyvkSVMvlOHG9abW4OYVzdHwsnrkQCHTrkvHM2ERCcpoBgVy/t4+YaJNF56Rk9LeRyfxvQrTnL/Pos0KHtQzaZPF983j6n/gqA7uS2cPydWwIAa4ld6DnPaauUyZ30DGy6Quuouk+in2rxYZNAh24475zOg4GUuP5Ubadk+3NOJdF54jktKQkaA8HJUO5NOuf9KvPLtEBHH7KN5Hmr3bXgTDOAbuOrnIzdEgBYXZpDyH3TgYX4A5eS59vcaPbJvNWwSaDD68SEwaHzzuk4GGgTCqcZXZYkOk89p6X4bYAVQmIF+Szza9S3DLsP2fSq8cc40wyg/+8XAGBFdV1fVPnPIViIP9wYb9vJ81bMW31NZeMZGAl0WF+Uq3vjvHM6DgZOq92WbH8pYBCk0gatOVRHWFYkzq+Gdp/SgoESqqPoW4bXh7QLcHY1AB03n78lWQA6GRPnZuy2AMDazgq4RnMIA7PD5Hkr/t5IooszB0YCHdYzqev60HnndBkINJ/YiZd7UlKQ6lndddC6jt+G2l833/d18+XaAJiM+pBtlm1/zn7lTDOA18YZOcZXv7gzALD2u31albEBwRzCQKQ5hK/V7uch7+ZDm+u5cFeGQwIdVhfnnZ9pBjYQCBwXcslt6Rrlb4eptOT5IHefP3xvVfmdUWoAPNz3XQ7J80V3Z5p5pwGsbZbZ9Rzo0wHgVeI4uGLmELz3+yuD6nWP+RCb4Dx3wyCBDstz3jmbCATeV/fJ81Fhl34XwAgWBve8fqrKSp6H86FXC0nf/2Uhl2sA3N/+4zS973K8t6fpnTZypwBWNsu0XwcA1pDmEErZPNaO5cwh9ExzT2OjWW4L8FvH6blzLFzPSaDDcpx3TtdBQFuy/WPB30YECc6QHc7z+qkqbzJyZtHT/wbAsQv/upDLNQDuXx9yUd0fUZL7O82ZZgBrxFsZXpMy7gDwCuk4uEkhl2uTT8+kBfgxb75fwHN36o71lwQ6vCyChSPnndOxWEF33IPvoz3/5dgt7W3Q2p55XmJA6LiNH9ujlHdZOxCxQKfw/iMtvvlQ0DvtozsHsJJ/cowjxBAA8GrnVZ4L5R5991c2+fRCmkMo5Xi/mEP44K71lwQ6vBAoxHnnkudsKAjtiwgW/kg7DOlX0Nomz0scgFw3fffUXfymsDJs7QDYAp1y+49RVd7im9J+RgBykGu89atbAwDrK3AOod3kc+rulSctwI9j30q6f/EzcuLu9ZcEOjzd+R2lkrewiSB0WpVzJvGyPkRZeiWTehO43pUzrspMnkcffu4uPtr3RBm2kt5tFuiU2X8cF9p/nDmuB2Bls0yv6zQt5gIA1lTg/GXMIXxqYgCVxQqSjlL7uypvDuHcHEK/SaDDj6LTO7RzkS0EoRdVOWcSL+suaaJkUvGBa9zH2Dk6KvRb+K35+Zq5k0/2PefpXVcSC3TK6T9ioiL3s8qeGvheu4MAK8cVEXPlWrFNSU0AeP27/qLKt+LMU943Y1PnohcgbZiIOcjS7tVV87MxcQf7TQIdvhcTp0cSL2xRlELq2/M2qu6T6Bdub7GBa4nJr9ZNGtzxct9T2vEksbDj77Qymfz6jlEqt/a+wMufqDoE8Lr4K9PrOrWwFwA6EWWqS5tDGFf3cwiOhctQKtkeifMSFzxep80p9JwEOnxz2XR8J847Z5vS81ZiELqMD2m158idLiZw/aMqf6eO84uX63tuCm2r9kwz5djy6j9Oq3KPfIhFN/oNgNf5kvG1iRkA4JUW5i9L0x4L99Fu9HykRQ1Rsn1c4OWXOp/GGiTQ4T5xeWLHIjsMQvv84o1A6GtKrpBv4DpOgWvpq3IvnT20Ut9T2nnoi6Icm+Midt93tAtvPlVlVq2I/uLInQR4tWnO45HmXfXeLQKA10nHnZa66zZiga8q2u3WwhxCqZUvI490ZAPmcEigM3Q3qdNz5iW7DkKvCw5CXxIB0ad0fvHI3c4ucI1dOSWeNfRDf24h1Fp9T/Q7pb4DD9IA2Ery3fQf7YrxUhfetAsoDXwBXh9PTDO/xI8W3QFAJ+/8WIQ/KfTyR1WqaGcOYfvSHEJUrit5DkHyfGAk0Bmyaer07FZEELodd4GSHSDZBK7jFLj24X5E8Kp80vqi7Up+F7YryZ1rtp2+Y1T4ivHFge/MHQXoTO4L8hwtBQDdiIX4pc8h/K1a5nY82HVeciwmjzRAEugM1VXT4VkxRHbSOazTHn+LkWz5qPTyzgPXdtf5qCffltLtr+t32gUIJb8T41mOKhef9S0b7T8uqrJXjLdO9BkAnfuzgHHIH3acAcDrpDmEOAqr5DmEtlrmZ2XdNydtourDkZFn5hCGSQKdoblNHd65piBjJ1XZKzmX0ZZe/mQSa6uB62kKXPtUBeA6VW/gdQPgmx4MgMN4oW8ZubOd9R1xfmz0HR+q8o97OCug1DBAiUroW2MM0svFduldPfYYArANPUmih3GKDcwhdB+XxOL72MDThzmEibs6TBLoDElbrlOHRylB6BBWtp1W92WTLiTSNx64RvLrUw8C10WzSun2Lvue6HP6ssBM39Jd3xHVKvpSscLAF2BzcUTEZdMCLrVNoo97+K7+1ZMIwJbnEE56Nocgkf66uORgIS7pw4JFcwgDJ4HOUMQL/Y1SGxQUhPZlJecyIrn1oZLs2kTg2rfk16L42ThxFEfnfU8MDPq0KGGxbzEIXq/vGPfk2zLwBdi83wsaf3xOR5OU+J6OI5nepwWyi+9q4ygAtj2HMO3ZHMJpJZG+TmwSifPYtPO1R3MIV+YQkEBnCCZNZ3coyUKBQeiQkuhBIr27wLWPya+Hzi2K2ljfEwOEy572LQbBz/cdxz3tOyTPAbbjurCxy4coL1rKbvT0no7J6f9U9yVRxTQA5DKH0LfqgKcLcwgH7vKTsUk7//g1tVlfTBwBTJBAp+9iwlR5X0oOQvtyLvEqFpNdHyW7VgpcT9MZQ31OnAerQDff91zEgKGH31o7CI5dZ8fu9A+72P7oYd8heQ6wvfghxizXhV12W9I9y7LubdK8+fwnvadPPWkAZBgDxJirj3Pw8d79muIE7+Bvcwinj1TC6YuJfBItCXT6KgbuhyZM6UkQOsQkeohE+vvqPtn1h2TXk4HrKC00iEm12JHS95WxVoFur++JAUNf36MxwIt+ZbDl3Qeyi03yHGD7Sq1iE7HB57Qj/f2uYoMU25+m8c9i0lx1LgByn0OY9HwO4W5B21A3+6Td5jGHEInzTz2dQ5A85zs/aQJ6KJKNcS7uTFPQoyD0pglSIokeK/uGOHkSyfNI9sTPdexq+X3I5btTeftok1+r/ifMH/bvkufb7XvOmuctfnna028xBnxR8SJKuMbzFWe3Xvc1hkgLkd5Vw5iIlzwH2E3sMGveN5OCY4eD9PmYYoNp8/kScegm4oO06z3+vrfV/eT86BV/3NgTCIA5hI1qN/u8H8gcQsQov1T3c5Cjnj++Vzbs8JAEOn0TA/Vz553T0yC0TaIPYZfxU0YLgWoEp4NJpi8kzX9OX4fmrhKD/t0AeIMeTpj/mQbCNwX3G9Fnjqv7pPlxNZwFWJLnALt12ZO4oY0N3qf3anyZNp8Yh/yTvs4W49XFWDW9h0cL/32cvr5L72RnqgLQ1zmE2/b9OaA5hIgR/my+/2nBcwjt3KM5BKgk0OmXSJxfaQZ6HoQu7kQf+oTLqPo+mX4XqMbXviRZ046U+Pw88Psd91PyfPcD4Pjl6UC+5XYg/CEN/KN/+ZL6l5uM+4xR6jPaXWxD7DcMfAF2HzeUvgv9OeMX3sUeAADEAnV93rwT/6ruNwENaQ7h/YM5hJucE+ppDiGu+505BPiRBDp9cJs6umtNwUCC0FtJ9B9EwHeaPtU2yi1uKHAdPwhcnXUoeZ5T33OWBsAfB/attyuwj9PPaZX6l+hnoj1m1YMdZ1voK9pda9H3vV0YrO8PvK84KXm1P0DP9GUXOgCw3hzCJI2fPw3sW39uDuGf9HWXcwjxeWcO4Y7kOc+SQKd0N6mju9EUDCwIjSDrsAmAIgg91SI/eFhucVZ9S3bF19mu+42FZPm/09ex2/aDNnmuj8+n77lKq6k/Dbwpxg9/ZlO7tM/ql/R1Vn1f2rV6KsGb+oTH/p7wr+rbgil9hb4CoISYIXahX1X9L98KADwdDww1ib7MHEJ8mb5iDuGxBLg5BHMIdEgCnZLFjvMzuxIZeCA6lHOFXmuUPscPAtU2MI2A6b8pgGqDp9lrdq4vJMPav7sNXtt/RjBb8gC4TaKrkvDN/sLAdPxM36CluhV9xEkplUYABqbdhS5e2JIYg6jGAkBO0hxCjNs+iwl+MH7w9bF3u1bq1qy6n0Mw38iLJNApdiDedHIXmgEGea5Ql0bpM14ySJ1VD1aCJm0pJLoheZ5/v3OdKjsYALNL0zTwtZgSIM94IY6eOjdOAYDBxwQ36TjKiAnMn7ErMc/omEiWtqcJKEx73vmFpoDvAtFJ8+Uw/YywOaPqW9mlxY/gv/tgVvK8gAFw8+VN9a1qA2zTVfMMGvgClDFOmWoJABh8THA33yMuYEcmzTN4aA6BVUigU5JZdZ9UmWgKeDIQlcyiZJLn5fU7t2kA7N3MtrSLKc81BUAxzioLfQFg8GIOIRZCN7+80hps0Xkcg6oZWJUEOqWYNp9DSRVYKhA9FIhSaD9vN2m5/U4MRCQ02bRZZTElQImxwkycAAAsxAYRF1hgx6a1R0SaJ2ctEuiUYKJEJ6wViJ4IRNHPs8V+JwYksYBnpjXYgOvKYkqAkuOESaVizTaMNQEABcUGsRvdGI9NmDafN81zNtUUrEsCndydKa8Baweid8kGgSj6ebbY79ykfudaa9ChKLd2YpENQPn9ubEJANBaOBd9ojXo0KWNOnRBAp1cRed2qEQnvDoQnaWS7pdaA/08W+p3oqR7VMA4r1TB4HVmqZ9Qbg2gJzFCpUoWAPAgPkgbK8QIvNasui/ZfqEp6IIEOjmKlWdvlOiEToPRCByOKqWVycNUPz+Ifqct6e4+s46750c/AdC7+GCWxiUmyAGAxRihraQ51RqsoT32zfNDZyTQyU2cg3uovAZsJBCdpkDUTj52SRmlYfU7qmCwqll1v2L8XD8B0Nv4IBZHnWuJjfiXJgCg4Bgh5hCOKhXtWN5dhSPHvrEJEujk5Nw5uLDxQDTKIkUQajc62xbPmzJKw+174r6/qawk53ntrnPPCUD/Y4NJ88X4v3sHmgCAHsQJbUU7Y0OeE7vO36TqBdA5CXRyECuDjpxvCVsNRKcpELUrlG0FtJJi+h0ryXnKrLLrHGCIscGkkkQHAB6PE9o5BGej89Csup9DsOucjZJAZ9eidJukCuwmEL21K5QNU0aJx/qeq9TvTLSGPqK6P9bhjVgQYLBxQcQDzkQHAJ6KFe52GVeOpORebAaTT2IrJNDZpXj5xUqhmaaAnQaiiys6/TzSlbskqTJKPNHv3KZjW5RkG65JGvReaAqAwccFEQs4YgoAeCpWaI+ktAlouNpy7Rc26bAtEujsyqUdiZBdMHpXZru6X8nnZ5N1RWURpZhZtt+5sYBncKapjziziBKAxZigsrCuC/uaAIAexwvtJiAL74YjYsO2XLt7zlZJoLNtbTnfC00BWQaii2XdJ1qEFfv3WByljBLr9D3XUca7uj8H1YCon2Zp0HukjwDgmbFITIhfao21HWgCAAYQM0zNIfRe3NczcwjskgQ629TuSlTOF/IPRNvyyhLpLCOekTcWR9FB3xPPkkoY/Rz0OuccgGXjgYgp7SwDAF6KGSYS6b0T97GdQ5hoDnZJAp1tmVb3yfMbTQFFBaIziXRe6NvfpFLMkp101e8sVsIwCC67fzgx6AVgzXgg3iOxqO5KawAAL8QNEunli7yRxDlZkUBnG65SqQ3JFSg3EJVIZ9G0+laK2cCETfU7twbBRbpe6B9UHQLgtbHAeeVsdABgudhhcQ5B7FCGuE9H6UjIieYgJxLobFIkzM/SgBfoRyC6mEi/qpRYHmpQ6/whdjUIjnKukrJ5xnzxToiV4if6BwA6jgNu0tnoFtS9TNU/AMQO93MIETvEZ6JFsnNbfTsO0hwj2ZJAZ1NiUHtk1RD0NhCdpcUxkdA6r0xk9d2kkjgnj75nGgnayiKeXER/EIsl/y/eCSpSALDhOEBlmsfNUlwUO7cONQcA/C92mC5sBLoUP+zcTYrj2uMg3Q+yJoHOpjrCQ+edwyAC0SireJUmsiKpZWdofyyuBj2TOCezvmeWErb/lwZf+p7tiQFuu9vcYkkAdhEHTBbGH0ONUdv38WE6K/TcHAwAPDuHcGH+cucxy2GK42yGoAg/aQI6NkmruoDhBaMRfF7P5/NR8/W0+fzSfEZapsjANlblXgtoKaTvmUT8kfqe49T3HGiZTkVfEH387xbTAGD8sTPxDv4zvkqWA8Cr44f9hfjBHEK32jmEP1N7Q5Ek0OnSmV1IQCq/cxGfJhgdp0A0klr7Wif7wFZyjNL7nljVfCWZ3oloz6kBb29JvOBZpa/jj4MUA7xrPuPCv7Vp+hn4kvm7+LbKpxLAzE/Ed8+PfhzPqmeVp+OHW3MInccDkub9Nsuoz97Kpq/aPe9G08l+7sHg7DUP65EV0MAzfeR+CkR/Tl/Jw11gW9ltTr/7n3Yg/E7/86KbhT5BXAdAH+KAcXU/VxNxQEyI57qo9yZ9/oqvFrUCwM5ih1GKHX5OX20Iej5+iZjld3MI9JEEencd61AT6NExHkm8ACv0l4vJdIHo9kmaM/Q+aHFX2tBXlreD3S/VfTlYfQIAfY8DRtV9mfeIA/6dfr2txHq8d+NdO2s+/6R/nplwBoCsY4dx9W0x3njgzRExzLS6n0Mwr0jvSaB315EOMYE+aT7nOkrglf3n4s7QkRbpXFtCSXALP/Y/MVl+UJWxM60L7UD3LnGuPwCA7+KCcfrl6MG45N/PjFPinfrfR+Lv/yXF7SYHgN7FC/EZyhzC3XEylTkEBkgCvbuOc2gJ9EicX7nzQMd96aj6/sxCu9PXD3DbhLkdLbBaPxQD4FEaCL+rfpxEL8Esfb6krzf6AgAAAOhWmss8qMwhQO9IoHfXUQ4lgR6rjE6soAa21Lcu7gyNrxLqj4s+2YpQ2Gx/1PZB0S+1O9Haf96Ftgxsu/Pt7p/FaAAAALBbD+YQ/lV9262+6zmEWfXtKBlzCPAMCfTuOsQhJNCjU43k+cwdB3bU145SX/u2+lZ2eWhmqT/+q7pPlgt0IY/+abF026h6fMX5u2f+iNv0c/3UIPfu518cBgAAAGV7MIfwVGL9bfX8ZqIvj/y7WfqEWzvJYX0S6N11eH1PoMf5uWd2NQKZBpyjFGi+Xfh1H9ykT6wMnVb3JZT0wwAAAAAAsCES6B3peQL9sq7rC3cZKKxfbldytn1zu/Mzt776YRnmaWWXKQAAAAAA7MRPmoBnREIndp1fawqgNAsliqaP/fcHpZLGC/+pPdv4odET/761WGZ50ZfHfo/S6wAAAAAAkB8JdJ4SSZ4zZ2QAffWgf5tqEQAAAAAAQAKdx0ybz4lzdgEAAAAAAIAh2dMEPHBV1/WR5DkAAAAAAAAwNHag04qE+Xld1xNNAQAAAAAAAAyRBDphVt2XbHfeOQAAAAAAADBYSrgzbT6HkucAAAAAAADA0EmgD9vEeecAAAAAAAAA95RwH64z550DAAAAAAAAfCOBPjyx2/xIyXYAAAAAAACA7ynhPiyRNH8jeQ4AAAAAAADwIwn04Yjzzg+ddw4AAAAAAADwOCXch8F55wAAAAAAAAAvkEDvN+edAwAAAAAAACxJCff+iqT5oeQ5AAAAAAAAwHIk0PtpUt3vPJ9pCgAAAAAAAIDlKOHeP+d1XV9pBgAAAAAAAIDVSKD3R5x3flLX9VRTAAAAAAAAAKxOCfd+aM87n2oKAAAAAAAAgPVIoJdvUjnvHAAAAAAAAODVlHAvm/POAQAAAAAAADoigV6mOO/8rK7ra00BAAAAAAAA0A0J9PLMms9JXdc3mgIAAAAAAACgOxLoZYmkeZx3fqspAAAAAAAAALq1pwmKManr+lDyHAAAAAAAAGAzJNC782WDf3acd36miQEAAAAAAAA2Rwn37mziTPLYbX7kvHMAAAAAAAAAijKfz/8z784fzWdfqwIAAAAAAABQnPl8ftFB4jyS8O+1JgAAAAAAAABFm8/nX1+RPP/cfEZaEQAAAAAAAIDiRdn1NZLofzefsdYDAAAAAAAAoFdSEv1iyXPOj7UYAAAAAAAAwO7VmmBzIpHefIkE+dvmc5D+9ZfmM2s+13Vd32olAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAuvb/AgwABYoZxgxOt1oAAAAASUVORK5CYII=" alt="Sentinel"></div>
+  <div class="topbar-title">Sentinel Infrastructure Management System</div>
+  <div class="badge">FCA Demo</div>
+  <div class="save-ind" id="save-ind">All changes saved</div>
+</div>
+
+<div id="layout">
+  <div id="sidebar">
+    <div id="sidebar-scroll"></div>
+    <div class="sbar-footer">
+      <div class="watermark">DEMO — Not for official use</div>
+    </div>
+  </div>
+  <div id="content">
+    <div id="content-inner"></div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ─────────────────────────────────────────────────────────────────────
+
+const FIELDS = [
+  {id:"fp_00a",label:"Inspector name",type:"TEXT"},
+  {id:"fp_00b",label:"Inspection date",type:"TEXT"},
+  {id:"fp_01",label:"Does the facility have parking areas, driveways, or bus lanes?",type:"YES_NO"},
+  {id:"fp_02",label:"Does the facility have a playground or outdoor recreation equipment?",type:"YES_NO"},
+  {id:"fp_03",label:"Does the facility have athletic courts or sports fields?",type:"YES_NO"},
+  {id:"fp_04",label:"Does the facility have a swimming pool (indoor or outdoor)?",type:"YES_NO"},
+  {id:"fp_05",label:"Does the facility have a kitchen or food preparation area?",type:"YES_NO"},
+  {id:"fp_06",label:"Does the facility have a cafeteria or dining hall?",type:"YES_NO"},
+  {id:"fp_07",label:"Does the facility have an auditorium, stage, or event hall?",type:"YES_NO"},
+  {id:"fp_08",label:"Does the facility have a gymnasium or covered indoor sports court?",type:"YES_NO"},
+  {id:"fp_09",label:"Does the facility have laboratory or specialized rooms?",type:"YES_NO"},
+  {id:"fp_10",label:"Does the facility have an HVAC or air conditioning system?",type:"YES_NO"},
+  {id:"fp_11",label:"Does the facility have a central heating system?",type:"YES_NO"},
+  {id:"fp_12",label:"Does the facility have a gas distribution system?",type:"YES_NO"},
+  {id:"fp_13",label:"Does the facility have water storage tanks or cisterns?",type:"YES_NO"},
+  {id:"fp_14",label:"Does the facility have an elevator or accessibility lift?",type:"YES_NO"},
+  {id:"fp_15",label:"Does the facility have a laundry facility?",type:"YES_NO"},
+  {id:"fp_16",label:"Does the facility have an emergency generator or backup power system?",type:"YES_NO"},
+  {id:"fp_17",label:"Does the facility have a fire sprinkler suppression system?",type:"YES_NO"},
+  {id:"fp_18",label:"Does the facility have security cameras or a perimeter alarm system?",type:"YES_NO"},
+  {id:"fp_19",label:"Does the facility have locker rooms or shower facilities?",type:"YES_NO"},
+  {id:"fp_20",label:"Does the facility have a loading dock or service entrance?",type:"YES_NO"},
+  {id:"gi_01",label:"Facility name and address",type:"TEXT"},
+  {id:"gi_02",label:"Year of original construction",type:"NUMBER"},
+  {id:"gi_03",label:"Building use and occupancy type",type:"TEXT"},
+  {id:"gi_04",label:"Gross floor area (sq ft)",type:"NUMBER"},
+  {id:"gi_05",label:"Number of stories",type:"NUMBER"},
+  {id:"gi_06",label:"Construction type (e.g. masonry, reinforced concrete, wood frame)",type:"TEXT"},
+  {id:"gi_07",label:"Most recent renovation (year and scope)",type:"TEXT"},
+  {id:"gi_08",label:"Outstanding code violations or open permits",type:"TEXT"},
+  {id:"si_01c",label:"Parking lot, driveways, and bus lanes are in acceptable condition (no significant cracking, potholes, or drainage issues)",type:"RATING_5",show_if:{field:"fp_01",answer:"YES"}},
+  {id:"si_01d",label:"Describe the parking or paving deficiency",type:"TEXT"},
+  {id:"si_01u",label:"Parking or paving repair urgency",type:"STOPLIGHT"},
+  {id:"si_01e",label:"Estimated parking or paving repair cost",type:"TEXT"},
+  {id:"si_02c",label:"Pedestrian sidewalks, crosswalks, and on-site pathways are in acceptable condition with no trip hazards or erosion",type:"RATING_5"},
+  {id:"si_02d",label:"Describe the sidewalk or pathway deficiency",type:"TEXT"},
+  {id:"si_02u",label:"Sidewalk or pathway repair urgency",type:"STOPLIGHT"},
+  {id:"si_02e",label:"Estimated sidewalk or pathway repair cost",type:"TEXT"},
+  {id:"si_03c",label:"Site drainage and stormwater management function acceptably with no ponding or erosion",type:"RATING_5"},
+  {id:"si_03d",label:"Describe the site drainage deficiency",type:"TEXT"},
+  {id:"si_03u",label:"Site drainage repair urgency",type:"STOPLIGHT"},
+  {id:"si_03e",label:"Estimated site drainage repair cost",type:"TEXT"},
+  {id:"si_04c",label:"Perimeter fencing, gates, and access control elements are in acceptable condition",type:"RATING_5"},
+  {id:"si_04d",label:"Describe the fencing or gate deficiency",type:"TEXT"},
+  {id:"si_04u",label:"Fencing or gate repair urgency",type:"STOPLIGHT"},
+  {id:"si_04e",label:"Estimated fencing or gate repair cost",type:"TEXT"},
+  {id:"si_05c",label:"Landscaping, exterior furniture, shade structures, and vegetation are in acceptable condition",type:"RATING_5"},
+  {id:"si_05d",label:"Describe the landscaping or exterior furniture deficiency",type:"TEXT"},
+  {id:"si_05u",label:"Landscaping or exterior furniture repair urgency",type:"STOPLIGHT"},
+  {id:"si_05e",label:"Estimated landscaping or exterior furniture repair cost",type:"TEXT"},
+  {id:"si_06c",label:"Playground areas (equipment, surfacing, edging, canopies, and fencing) are safe and in acceptable condition",type:"RATING_5",show_if:{field:"fp_02",answer:"YES"}},
+  {id:"si_06d",label:"Describe the playground deficiency",type:"TEXT"},
+  {id:"si_06u",label:"Playground repair urgency",type:"STOPLIGHT"},
+  {id:"si_06e",label:"Estimated playground repair cost",type:"TEXT"},
+  {id:"si_07c",label:"Athletic courts, fields, bleachers, and sports equipment are in acceptable condition",type:"RATING_5",show_if:{field:"fp_03",answer:"YES"}},
+  {id:"si_07d",label:"Describe the athletic court or field deficiency",type:"TEXT"},
+  {id:"si_07u",label:"Athletic court or field repair urgency",type:"STOPLIGHT"},
+  {id:"si_07e",label:"Estimated athletic court or field repair cost",type:"TEXT"},
+  {id:"be_01c",label:"Roof system is in acceptable condition with no active leaks, blisters, or significant membrane deterioration",type:"RATING_5"},
+  {id:"be_01d",label:"Describe the roof system deficiency",type:"TEXT"},
+  {id:"be_01u",label:"Roof system repair urgency",type:"STOPLIGHT"},
+  {id:"be_01e",label:"Estimated roof system repair cost",type:"TEXT"},
+  {id:"be_02c",label:"Roof drainage (drains, gutters, downspouts, and scuppers) function acceptably with no blockages or ponding",type:"RATING_5"},
+  {id:"be_02d",label:"Describe the roof drainage deficiency",type:"TEXT"},
+  {id:"be_02u",label:"Roof drainage repair urgency",type:"STOPLIGHT"},
+  {id:"be_02e",label:"Estimated roof drainage repair cost",type:"TEXT"},
+  {id:"be_03c",label:"Exterior walls, soffits, and sealants are in acceptable condition with no cracking, spalling, or water infiltration",type:"RATING_5"},
+  {id:"be_03d",label:"Describe the exterior wall or soffit deficiency",type:"TEXT"},
+  {id:"be_03u",label:"Exterior wall or soffit repair urgency",type:"STOPLIGHT"},
+  {id:"be_03e",label:"Estimated exterior wall or soffit repair cost",type:"TEXT"},
+  {id:"be_04c",label:"Windows, glazing, louvers, and vents are in acceptable condition with no broken panes, failed seals, or operation problems",type:"RATING_5"},
+  {id:"be_04d",label:"Describe the window or glazing deficiency",type:"TEXT"},
+  {id:"be_04u",label:"Window or glazing repair urgency",type:"STOPLIGHT"},
+  {id:"be_04e",label:"Estimated window or glazing repair cost",type:"TEXT"},
+  {id:"be_05c",label:"Exterior doors, frames, and hardware are in acceptable condition and operate correctly",type:"RATING_5"},
+  {id:"be_05d",label:"Describe the exterior door or hardware deficiency",type:"TEXT"},
+  {id:"be_05u",label:"Exterior door or hardware repair urgency",type:"STOPLIGHT"},
+  {id:"be_05e",label:"Estimated exterior door or hardware repair cost",type:"TEXT"},
+  {id:"be_06c",label:"Covered walkways, canopies, and exterior shade structures are in acceptable condition",type:"RATING_5"},
+  {id:"be_06d",label:"Describe the covered walkway or canopy deficiency",type:"TEXT"},
+  {id:"be_06u",label:"Covered walkway or canopy repair urgency",type:"STOPLIGHT"},
+  {id:"be_06e",label:"Estimated covered walkway or canopy repair cost",type:"TEXT"},
+  {id:"st_01c",label:"Foundation, footings, and slab-on-grade show no significant settlement, cracking, or water intrusion",type:"RATING_5"},
+  {id:"st_01d",label:"Describe the foundation or slab deficiency",type:"TEXT"},
+  {id:"st_01u",label:"Foundation or slab repair urgency",type:"STOPLIGHT"},
+  {id:"st_01e",label:"Estimated foundation or slab repair cost",type:"TEXT"},
+  {id:"st_02c",label:"Load-bearing walls, columns, and beams show no significant cracking, spalling, or structural distress",type:"RATING_5"},
+  {id:"st_02d",label:"Describe the structural wall or beam deficiency",type:"TEXT"},
+  {id:"st_02u",label:"Structural wall or beam repair urgency",type:"STOPLIGHT"},
+  {id:"st_02e",label:"Estimated structural wall or beam repair cost",type:"TEXT"},
+  {id:"st_03c",label:"Floor framing and subflooring are in acceptable condition with no deflection, bounce, or deterioration",type:"RATING_5"},
+  {id:"st_03d",label:"Describe the floor framing or subfloor deficiency",type:"TEXT"},
+  {id:"st_03u",label:"Floor framing or subfloor repair urgency",type:"STOPLIGHT"},
+  {id:"st_03e",label:"Estimated floor framing or subfloor repair cost",type:"TEXT"},
+  {id:"st_04c",label:"No significant structural cracking, distress, or deformation is observed throughout the building",type:"RATING_5"},
+  {id:"st_04d",label:"Describe the observed structural cracking or distress",type:"TEXT"},
+  {id:"st_04u",label:"Structural cracking or distress repair urgency",type:"STOPLIGHT"},
+  {id:"st_04e",label:"Estimated structural cracking or distress repair cost",type:"TEXT"},
+  {id:"hv_i1",label:"HVAC system type, manufacturer, and approximate age",type:"TEXT",show_if:{field:"fp_10",answer:"YES"}},
+  {id:"hv_01c",label:"Cooling equipment (AC units, chillers) is in acceptable condition and operating properly",type:"RATING_5",show_if:{field:"fp_10",answer:"YES"}},
+  {id:"hv_01d",label:"Describe the cooling equipment deficiency",type:"TEXT"},
+  {id:"hv_01u",label:"Cooling equipment repair urgency",type:"STOPLIGHT"},
+  {id:"hv_01e",label:"Estimated cooling equipment repair cost",type:"TEXT"},
+  {id:"hv_02c",label:"Air distribution, ductwork, and registers are in acceptable condition with no significant leakage or blockage",type:"RATING_5",show_if:{field:"fp_10",answer:"YES"}},
+  {id:"hv_02d",label:"Describe the ductwork or air distribution deficiency",type:"TEXT"},
+  {id:"hv_02u",label:"Ductwork or air distribution repair urgency",type:"STOPLIGHT"},
+  {id:"hv_02e",label:"Estimated ductwork or air distribution repair cost",type:"TEXT"},
+  {id:"hv_03c",label:"Thermostats, HVAC controls, and building automation are in acceptable condition and functioning correctly",type:"RATING_5",show_if:{field:"fp_10",answer:"YES"}},
+  {id:"hv_03d",label:"Describe the HVAC controls or thermostat deficiency",type:"TEXT"},
+  {id:"hv_03u",label:"HVAC controls or thermostat repair urgency",type:"STOPLIGHT"},
+  {id:"hv_03e",label:"Estimated HVAC controls or thermostat repair cost",type:"TEXT"},
+  {id:"hv_04c",label:"General ventilation and exhaust systems (restroom, general building exhaust) are in acceptable condition",type:"RATING_5",show_if:{field:"fp_10",answer:"YES"}},
+  {id:"hv_04d",label:"Describe the ventilation or exhaust system deficiency",type:"TEXT"},
+  {id:"hv_04u",label:"Ventilation or exhaust system repair urgency",type:"STOPLIGHT"},
+  {id:"hv_04e",label:"Estimated ventilation or exhaust system repair cost",type:"TEXT"},
+  {id:"hv_05c",label:"Kitchen exhaust hood, grease duct, and Ansul fire suppression are in acceptable condition and compliant",type:"RATING_5",show_if:{field:"fp_05",answer:"YES"}},
+  {id:"hv_05d",label:"Describe the kitchen exhaust or Ansul system deficiency",type:"TEXT"},
+  {id:"hv_05u",label:"Kitchen exhaust or Ansul system repair urgency",type:"STOPLIGHT"},
+  {id:"hv_05e",label:"Estimated kitchen exhaust or Ansul system repair cost",type:"TEXT"},
+  {id:"pl_01c",label:"Domestic water supply piping is in acceptable condition with adequate pressure and no visible leaks",type:"RATING_5"},
+  {id:"pl_01d",label:"Describe the water supply piping deficiency",type:"TEXT"},
+  {id:"pl_01u",label:"Water supply piping repair urgency",type:"STOPLIGHT"},
+  {id:"pl_01e",label:"Estimated water supply piping repair cost",type:"TEXT"},
+  {id:"pl_02c",label:"Drain, waste, and vent system is in acceptable condition with no blockages, slow drains, or odors",type:"RATING_5"},
+  {id:"pl_02d",label:"Describe the drain, waste, or vent deficiency",type:"TEXT"},
+  {id:"pl_02u",label:"Drain, waste, or vent repair urgency",type:"STOPLIGHT"},
+  {id:"pl_02e",label:"Estimated drain, waste, or vent repair cost",type:"TEXT"},
+  {id:"pl_03c",label:"Water heaters are in acceptable condition with no corrosion, leaks, or inadequate capacity",type:"RATING_5"},
+  {id:"pl_03d",label:"Describe the water heater deficiency",type:"TEXT"},
+  {id:"pl_03u",label:"Water heater repair urgency",type:"STOPLIGHT"},
+  {id:"pl_03e",label:"Estimated water heater repair cost",type:"TEXT"},
+  {id:"pl_04c",label:"Restroom fixtures (water closets, urinals, lavatories, and accessories) are in acceptable condition and ADA-compliant",type:"RATING_5"},
+  {id:"pl_04d",label:"Describe the restroom fixture deficiency",type:"TEXT"},
+  {id:"pl_04u",label:"Restroom fixture repair urgency",type:"STOPLIGHT"},
+  {id:"pl_04e",label:"Estimated restroom fixture repair cost",type:"TEXT"},
+  {id:"pl_05c",label:"Water storage tanks or cisterns are in acceptable condition, clean, and properly sealed",type:"RATING_5",show_if:{field:"fp_13",answer:"YES"}},
+  {id:"pl_05d",label:"Describe the water tank or cistern deficiency",type:"TEXT"},
+  {id:"pl_05u",label:"Water tank or cistern repair urgency",type:"STOPLIGHT"},
+  {id:"pl_05e",label:"Estimated water tank or cistern repair cost",type:"TEXT"},
+  {id:"pl_06c",label:"Kitchen plumbing (sinks, grease traps, dishwasher supply and drain) is in acceptable condition",type:"RATING_5",show_if:{field:"fp_05",answer:"YES"}},
+  {id:"pl_06d",label:"Describe the kitchen plumbing deficiency",type:"TEXT"},
+  {id:"pl_06u",label:"Kitchen plumbing repair urgency",type:"STOPLIGHT"},
+  {id:"pl_06e",label:"Estimated kitchen plumbing repair cost",type:"TEXT"},
+  {id:"el_01c",label:"Electrical service, switchgear, and main disconnect are in acceptable condition and adequately sized",type:"RATING_5"},
+  {id:"el_01d",label:"Describe the electrical service or switchgear deficiency",type:"TEXT"},
+  {id:"el_01u",label:"Electrical service or switchgear repair urgency",type:"STOPLIGHT"},
+  {id:"el_01e",label:"Estimated electrical service or switchgear repair cost",type:"TEXT"},
+  {id:"el_02c",label:"Panelboards, feeders, and distribution equipment are in acceptable condition with no tripped breakers or overloading",type:"RATING_5"},
+  {id:"el_02d",label:"Describe the panelboard or distribution equipment deficiency",type:"TEXT"},
+  {id:"el_02u",label:"Panelboard or distribution equipment repair urgency",type:"STOPLIGHT"},
+  {id:"el_02e",label:"Estimated panelboard or distribution equipment repair cost",type:"TEXT"},
+  {id:"el_03c",label:"Interior lighting (classrooms, offices, corridors, restrooms) is in acceptable condition and provides adequate illumination",type:"RATING_5"},
+  {id:"el_03d",label:"Describe the interior lighting deficiency",type:"TEXT"},
+  {id:"el_03u",label:"Interior lighting repair urgency",type:"STOPLIGHT"},
+  {id:"el_03e",label:"Estimated interior lighting repair cost",type:"TEXT"},
+  {id:"el_04c",label:"Exterior lighting (parking, walkways, building perimeter) is in acceptable condition and provides adequate security lighting",type:"RATING_5"},
+  {id:"el_04d",label:"Describe the exterior lighting deficiency",type:"TEXT"},
+  {id:"el_04u",label:"Exterior lighting repair urgency",type:"STOPLIGHT"},
+  {id:"el_04e",label:"Estimated exterior lighting repair cost",type:"TEXT"},
+  {id:"el_05c",label:"Emergency and exit lighting meets code requirements and is in acceptable condition",type:"RATING_5"},
+  {id:"el_05d",label:"Describe the emergency or exit lighting deficiency",type:"TEXT"},
+  {id:"el_05u",label:"Emergency or exit lighting repair urgency",type:"STOPLIGHT"},
+  {id:"el_05e",label:"Estimated emergency or exit lighting repair cost",type:"TEXT"},
+  {id:"el_06c",label:"Emergency generator, transfer switch, and fuel system are in acceptable condition and tested regularly",type:"RATING_5",show_if:{field:"fp_16",answer:"YES"}},
+  {id:"el_06d",label:"Describe the emergency generator or transfer switch deficiency",type:"TEXT"},
+  {id:"el_06u",label:"Emergency generator or transfer switch repair urgency",type:"STOPLIGHT"},
+  {id:"el_06e",label:"Estimated emergency generator or transfer switch repair cost",type:"TEXT"},
+  {id:"el_07c",label:"Security camera system and perimeter alarm are in acceptable condition and fully functional",type:"RATING_5",show_if:{field:"fp_18",answer:"YES"}},
+  {id:"el_07d",label:"Describe the security camera or alarm system deficiency",type:"TEXT"},
+  {id:"el_07u",label:"Security camera or alarm system repair urgency",type:"STOPLIGHT"},
+  {id:"el_07e",label:"Estimated security camera or alarm system repair cost",type:"TEXT"},
+  {id:"ls_01c",label:"Fire alarm system, detectors, pull stations, and annunciator panels are in acceptable condition and current on inspections",type:"RATING_5"},
+  {id:"ls_01d",label:"Describe the fire alarm system deficiency",type:"TEXT"},
+  {id:"ls_01u",label:"Fire alarm system repair urgency",type:"STOPLIGHT"},
+  {id:"ls_01e",label:"Estimated fire alarm system repair cost",type:"TEXT"},
+  {id:"ls_02c",label:"Fire sprinkler suppression system is in acceptable condition, properly pressurized, and current on inspections",type:"RATING_5",show_if:{field:"fp_17",answer:"YES"}},
+  {id:"ls_02d",label:"Describe the sprinkler system deficiency",type:"TEXT"},
+  {id:"ls_02u",label:"Sprinkler system repair urgency",type:"STOPLIGHT"},
+  {id:"ls_02e",label:"Estimated sprinkler system repair cost",type:"TEXT"},
+  {id:"ls_03c",label:"Emergency egress routes, exit doors, and stairwell enclosures are unobstructed and in acceptable condition",type:"RATING_5"},
+  {id:"ls_03d",label:"Describe the egress route or exit door deficiency",type:"TEXT"},
+  {id:"ls_03u",label:"Egress route or exit door repair urgency",type:"STOPLIGHT"},
+  {id:"ls_03e",label:"Estimated egress route or exit door repair cost",type:"TEXT"},
+  {id:"ls_04c",label:"Exit signs and emergency illumination are in acceptable condition and functional on battery backup",type:"RATING_5"},
+  {id:"ls_04d",label:"Describe the exit sign or emergency illumination deficiency",type:"TEXT"},
+  {id:"ls_04u",label:"Exit sign or emergency illumination repair urgency",type:"STOPLIGHT"},
+  {id:"ls_04e",label:"Estimated exit sign or emergency illumination repair cost",type:"TEXT"},
+  {id:"ls_05c",label:"Portable fire extinguishers are properly mounted, charged, and current on annual inspection",type:"RATING_5"},
+  {id:"ls_05d",label:"Describe the fire extinguisher deficiency",type:"TEXT"},
+  {id:"ls_05u",label:"Fire extinguisher repair urgency",type:"STOPLIGHT"},
+  {id:"ls_05e",label:"Estimated fire extinguisher repair cost",type:"TEXT"},
+  {id:"in_01c",label:"Wall finishes (paint, tile, paneling) throughout the facility are in acceptable condition",type:"RATING_5"},
+  {id:"in_01d",label:"Describe the wall finish deficiency",type:"TEXT"},
+  {id:"in_01u",label:"Wall finish repair urgency",type:"STOPLIGHT"},
+  {id:"in_01e",label:"Estimated wall finish repair cost",type:"TEXT"},
+  {id:"in_02c",label:"Ceiling finishes (ACT, drywall, exposed structure) are in acceptable condition with no water stains or missing tiles",type:"RATING_5"},
+  {id:"in_02d",label:"Describe the ceiling finish deficiency",type:"TEXT"},
+  {id:"in_02u",label:"Ceiling finish repair urgency",type:"STOPLIGHT"},
+  {id:"in_02e",label:"Estimated ceiling finish repair cost",type:"TEXT"},
+  {id:"in_03c",label:"Floor finishes (tile, VCT, carpet, concrete, wood) are in acceptable condition with no safety hazards",type:"RATING_5"},
+  {id:"in_03d",label:"Describe the floor finish deficiency",type:"TEXT"},
+  {id:"in_03u",label:"Floor finish repair urgency",type:"STOPLIGHT"},
+  {id:"in_03e",label:"Estimated floor finish repair cost",type:"TEXT"},
+  {id:"in_04c",label:"Interior doors, frames, and hardware are in acceptable condition and operate correctly",type:"RATING_5"},
+  {id:"in_04d",label:"Describe the interior door or hardware deficiency",type:"TEXT"},
+  {id:"in_04u",label:"Interior door or hardware repair urgency",type:"STOPLIGHT"},
+  {id:"in_04e",label:"Estimated interior door or hardware repair cost",type:"TEXT"},
+  {id:"in_05c",label:"Stairs, landings, treads, nosings, and handrails are in acceptable condition and meet code",type:"RATING_5"},
+  {id:"in_05d",label:"Describe the stair or handrail deficiency",type:"TEXT"},
+  {id:"in_05u",label:"Stair or handrail repair urgency",type:"STOPLIGHT"},
+  {id:"in_05e",label:"Estimated stair or handrail repair cost",type:"TEXT"},
+  {id:"ad_01c",label:"Accessible parking spaces, signage, and approach path meet ADA requirements and are in acceptable condition",type:"RATING_5",show_if:{field:"fp_01",answer:"YES"}},
+  {id:"ad_01d",label:"Describe the accessible parking or approach path deficiency",type:"TEXT"},
+  {id:"ad_01u",label:"Accessible parking or approach path repair urgency",type:"STOPLIGHT"},
+  {id:"ad_01e",label:"Estimated accessible parking or approach path repair cost",type:"TEXT"},
+  {id:"ad_02c",label:"Accessible building entrance (ramps, level landing, door hardware, and clearances) meets ADA requirements",type:"RATING_5"},
+  {id:"ad_02d",label:"Describe the accessible entrance deficiency",type:"TEXT"},
+  {id:"ad_02u",label:"Accessible entrance repair urgency",type:"STOPLIGHT"},
+  {id:"ad_02e",label:"Estimated accessible entrance repair cost",type:"TEXT"},
+  {id:"ad_03c",label:"Interior accessible routes, restroom facilities, and hardware meet ADA requirements and are in acceptable condition",type:"RATING_5"},
+  {id:"ad_03d",label:"Describe the interior accessible route or restroom deficiency",type:"TEXT"},
+  {id:"ad_03u",label:"Interior accessible route or restroom repair urgency",type:"STOPLIGHT"},
+  {id:"ad_03e",label:"Estimated interior accessible route or restroom repair cost",type:"TEXT"},
+  {id:"ad_04c",label:"Elevator or accessibility lift is in acceptable condition with current inspection certificate",type:"RATING_5",show_if:{field:"fp_14",answer:"YES"}},
+  {id:"ad_04d",label:"Describe the elevator or lift deficiency",type:"TEXT"},
+  {id:"ad_04u",label:"Elevator or lift repair urgency",type:"STOPLIGHT"},
+  {id:"ad_04e",label:"Estimated elevator or lift repair cost",type:"TEXT"},
+  {id:"sp_01c",label:"Kitchen and food service equipment, finishes, and utilities are in acceptable condition and code-compliant",type:"RATING_5",show_if:{field:"fp_05",answer:"YES"}},
+  {id:"sp_01d",label:"Describe the kitchen or food service equipment deficiency",type:"TEXT"},
+  {id:"sp_01u",label:"Kitchen or food service equipment repair urgency",type:"STOPLIGHT"},
+  {id:"sp_01e",label:"Estimated kitchen or food service equipment repair cost",type:"TEXT"},
+  {id:"sp_02c",label:"Cafeteria or dining area finishes, furniture, and equipment are in acceptable condition",type:"RATING_5",show_if:{field:"fp_06",answer:"YES"}},
+  {id:"sp_02d",label:"Describe the cafeteria or dining area deficiency",type:"TEXT"},
+  {id:"sp_02u",label:"Cafeteria or dining area repair urgency",type:"STOPLIGHT"},
+  {id:"sp_02e",label:"Estimated cafeteria or dining area repair cost",type:"TEXT"},
+  {id:"sp_03c",label:"Auditorium, stage, or event hall structure, seating, A/V equipment, and finishes are in acceptable condition",type:"RATING_5",show_if:{field:"fp_07",answer:"YES"}},
+  {id:"sp_03d",label:"Describe the auditorium or event hall deficiency",type:"TEXT"},
+  {id:"sp_03u",label:"Auditorium or event hall repair urgency",type:"STOPLIGHT"},
+  {id:"sp_03e",label:"Estimated auditorium or event hall repair cost",type:"TEXT"},
+  {id:"sp_04c",label:"Gymnasium, sports court, and athletic equipment are in acceptable condition and safe for use",type:"RATING_5",show_if:{field:"fp_08",answer:"YES"}},
+  {id:"sp_04d",label:"Describe the gymnasium or sports court deficiency",type:"TEXT"},
+  {id:"sp_04u",label:"Gymnasium or sports court repair urgency",type:"STOPLIGHT"},
+  {id:"sp_04e",label:"Estimated gymnasium or sports court repair cost",type:"TEXT"},
+  {id:"sp_05c",label:"Swimming pool structure, mechanical systems, deck, and safety equipment are in acceptable condition and current on inspections",type:"RATING_5",show_if:{field:"fp_04",answer:"YES"}},
+  {id:"sp_05d",label:"Describe the swimming pool deficiency",type:"TEXT"},
+  {id:"sp_05u",label:"Swimming pool repair urgency",type:"STOPLIGHT"},
+  {id:"sp_05e",label:"Estimated swimming pool repair cost",type:"TEXT"},
+  {id:"sp_06c",label:"Laundry facility equipment, plumbing, electrical supply, and finishes are in acceptable condition",type:"RATING_5",show_if:{field:"fp_15",answer:"YES"}},
+  {id:"sp_06d",label:"Describe the laundry facility deficiency",type:"TEXT"},
+  {id:"sp_06u",label:"Laundry facility repair urgency",type:"STOPLIGHT"},
+  {id:"sp_06e",label:"Estimated laundry facility repair cost",type:"TEXT"},
+  {id:"oa_01",label:"Overall facility condition rating (Excellent / Good / Fair / Poor / Critical)",type:"TEXT"},
+  {id:"oa_02",label:"Estimated total deferred maintenance cost",type:"TEXT"},
+  {id:"oa_03",label:"Priority recommendations and immediate actions required",type:"TEXT"},
+  {id:"oa_04",label:"Inspector certification, signature, and date",type:"TEXT"},
+];
+
+const SECTIONS = [
+  {id:'0', prefix:'fp', label:'Facility Profile',            isProfile:true},
+  {id:'A', prefix:'gi', label:'General Building Information', isProfile:false},
+  {id:'B', prefix:'si', label:'Site & Grounds',              isProfile:false},
+  {id:'C', prefix:'be', label:'Building Envelope',           isProfile:false},
+  {id:'D', prefix:'st', label:'Structural Systems',          isProfile:false},
+  {id:'E', prefix:'hv', label:'Mechanical — HVAC',           isProfile:false},
+  {id:'F', prefix:'pl', label:'Plumbing',                    isProfile:false},
+  {id:'G', prefix:'el', label:'Electrical',                  isProfile:false},
+  {id:'H', prefix:'ls', label:'Life Safety Systems',         isProfile:false},
+  {id:'I', prefix:'in', label:'Interior Finishes',           isProfile:false},
+  {id:'J', prefix:'ad', label:'ADA / Accessibility',         isProfile:false},
+  {id:'K', prefix:'sp', label:'Special Spaces',              isProfile:false},
+  {id:'L', prefix:'oa', label:'Overall Assessment',          isProfile:false},
+];
+
+const RATING_CFG = [
+  {v:1, label:'Critical',  bg:'#fef2f2', border:'#fca5a5', fg:'#991b1b'},
+  {v:2, label:'Poor',      bg:'#fff7ed', border:'#fdba74', fg:'#9a3412'},
+  {v:3, label:'Fair',      bg:'#fefce8', border:'#fde047', fg:'#854d0e'},
+  {v:4, label:'Good',      bg:'#f0fdf4', border:'#86efac', fg:'#166534'},
+  {v:5, label:'Excellent', bg:'#dcfce7', border:'#4ade80', fg:'#14532d'},
+];
+
+const URGENCY = [
+  {v:'LOW',    label:'Low',    sub:'Can wait',         bg:'#dcfce7', border:'#86efac', fg:'#166534'},
+  {v:'MEDIUM', label:'Medium', sub:'Schedule soon',    bg:'#fefce8', border:'#fde047', fg:'#854d0e'},
+  {v:'HIGH',   label:'High',   sub:'Immediate action', bg:'#fef2f2', border:'#fca5a5', fg:'#991b1b'},
+];
+
+const GUIDE = {
+  'safety-structural': {
+    category:'Structural & Life Safety',
+    note:'Ratings 1–2 require immediate action. Never defer structural or egress deficiencies.',
+    levels:[
+      'Structural failure or imminent collapse risk. Stop use immediately. Emergency repair required.',
+      'Major cracking, spalling, or egress obstruction. Restrict occupancy. Repair within 30 days.',
+      'Visible deficiency (minor cracking, worn hardware) with no immediate safety risk. Schedule within 90 days.',
+      'Minor cosmetic wear or isolated issue. Fully structural. Monitor at next inspection.',
+      'New or like-new. No deficiencies observed. Meets all applicable code.',
+    ]
+  },
+  'safety-equipment': {
+    category:'Safety Equipment',
+    note:'Playground equipment and stair/exit conditions directly affect occupant safety.',
+    levels:[
+      'Unsafe for use. Broken equipment, missing guardrail, or blocked exit. Close area immediately.',
+      'Significant damage, loose hardware, or non-compliant clearances. Restrict use. Repair within 30 days.',
+      'Functional with noticeable wear, fading, or isolated defects. Schedule repair within 90 days.',
+      'Minor surface wear only. Safe and fully functional. Routine maintenance due.',
+      'New or recently inspected. Fully safe. No deficiencies.',
+    ]
+  },
+  'weatherproofing': {
+    category:'Building Envelope & Weatherproofing',
+    note:'Rate based on water intrusion risk, not just visible surface condition.',
+    levels:[
+      'Active leaks causing interior damage. Emergency repair required.',
+      'Multiple membrane failures, failed sealants, or high infiltration risk. Repair within 60 days.',
+      'Localized cracks or sealant failure. No active leaks but vulnerable. Schedule repair.',
+      'Minor surface wear, isolated hairline cracks. No moisture intrusion detected.',
+      'Fully intact. No deficiencies. Recently installed or re-sealed.',
+    ]
+  },
+  'mechanical': {
+    category:'Mechanical / HVAC',
+    note:'Consider both comfort impact and equipment remaining useful life.',
+    levels:[
+      'System non-functional or poses a safety risk. Emergency service required.',
+      'Significantly degraded performance. Equipment near end of life. Repair within 30 days.',
+      'Operational with noticeable issues (reduced capacity, noisy operation). Schedule service.',
+      'Functional with normal wear. Routine service or filter replacement due.',
+      'Fully operational. Recently serviced or installed. Meets design capacity.',
+    ]
+  },
+  'plumbing': {
+    category:'Plumbing',
+    note:'Backflow or cross-connection risks must be treated as Critical regardless of visible damage.',
+    levels:[
+      'Active leaks, sewage backup, backflow risk, or water contamination. Emergency repair.',
+      'Significant leaks, persistent clogs, or major pressure loss. Repair within 30 days.',
+      'Functional with slow drains, minor corrosion, dripping fixtures, or aging water heater.',
+      'Functional with minor wear. Fixtures operational. Routine maintenance due.',
+      'All systems fully functional. No leaks, adequate pressure, code-compliant fixtures.',
+    ]
+  },
+  'electrical': {
+    category:'Electrical Systems',
+    note:'Exposed conductors, overloaded panels, or missing GFCI always rate 1 — take offline.',
+    levels:[
+      'Immediate hazard: exposed wiring, overloaded panel, or missing GFCI in wet areas. Take offline.',
+      'Code violations, tripped breakers not resetting, or inadequate service capacity. Repair within 30 days.',
+      'Functional with aging distribution, insufficient lighting levels, or unlabeled panels.',
+      'Functional with minor wear. Panel labels complete. Plan for future upgrade.',
+      'Fully code-compliant. Recently upgraded or installed.',
+    ]
+  },
+  'site': {
+    category:'Site & Civil Infrastructure',
+    note:'Consider drainage impact alongside surface condition.',
+    levels:[
+      'Impassable or dangerous (severe potholes, undermining, collapsed drainage). Immediate repair.',
+      'Significant cracking, trip hazards, or drainage failure. Repair within 60 days.',
+      'Noticeable wear, surface cracking, or localized damage. Functional. Schedule repair.',
+      'Generally good condition. Minor surface cracks or isolated wear. Seal coat or patch due.',
+      'New or recently resurfaced. No deficiencies. Drainage functioning as designed.',
+    ]
+  },
+  'interior': {
+    category:'Interior Finishes',
+    note:'Water staining on ceilings indicates a leak — rate the stain source, not just the finish.',
+    levels:[
+      'Major damage, mold growth, or safety hazard. Repair immediately.',
+      'Widespread damage, staining, or surface failure. Replace or remediate within 60–90 days.',
+      'Noticeable wear, isolated damage, or staining. Functional. Schedule repair.',
+      'Minor cosmetic wear. Surfaces intact and cleanable. Touch-up maintenance due.',
+      'New or recently renovated. No deficiencies.',
+    ]
+  },
+  'accessibility': {
+    category:'ADA / Accessibility',
+    note:'Any condition that blocks or discourages accessible use is at minimum a rating 2.',
+    levels:[
+      'Accessible route completely blocked or non-existent. Immediate remediation required by law.',
+      'Significant non-compliance (slope, clear-width, reach-range, hardware). Correct within 60 days.',
+      'Route functional but with notable defects (surface gaps, worn detectable warning strips).',
+      'Compliant with minor surface wear. Maintain to prevent further deterioration.',
+      'Fully ADA-compliant. Recently inspected or upgraded. No barriers.',
+    ]
+  },
+  'special-spaces': {
+    category:'Special-Use Spaces',
+    note:'Rate the space as a whole system — equipment, finishes, utilities, and code compliance together.',
+    levels:[
+      'Space unsafe or closed. Major equipment failure or code violation. Immediate repair required.',
+      'Operational with significant deficiencies affecting safety or function. Repair within 30–60 days.',
+      'Functional with noticeable issues (worn equipment, aging finishes, minor utility defects).',
+      'Good condition with minor wear. Routine maintenance or equipment service due.',
+      'Excellent condition. Fully functional, recently maintained, and code-compliant.',
+    ]
+  },
+};
+
+function getGuideKey(compKey) {
+  const prefix = compKey.split('_')[0];
+  if (prefix === 'st' || prefix === 'ls') return 'safety-structural';
+  if (compKey === 'si_06' || compKey === 'in_05') return 'safety-equipment';
+  if (prefix === 'be') return 'weatherproofing';
+  if (prefix === 'hv') return 'mechanical';
+  if (prefix === 'pl') return 'plumbing';
+  if (prefix === 'el') return 'electrical';
+  if (prefix === 'in') return 'interior';
+  if (prefix === 'ad') return 'accessibility';
+  if (prefix === 'sp') return 'special-spaces';
+  return 'site';
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let responses = {};
+let currentSection = 0; // index into SECTIONS
+let guideOpen = new Set();
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+function fieldVisible(field) {
+  if (!field.show_if) return true;
+  return responses[field.show_if.field] === field.show_if.answer;
+}
+
+// Build component map: prefix_nn -> {c, d, u, e} field objects
+function buildComponents(sectionPrefix) {
+  const comps = {}; // key -> {c:field, d:field, u:field, e:field}
+  const standalone = []; // fields with no _c grouping
+  FIELDS.forEach(f => {
+    if (!f.id.startsWith(sectionPrefix + '_')) return;
+    const m = f.id.match(/^([a-z]+_\d+)([cdueio]?\d*)$/);
+    if (!m) return;
+    const base = m[1];
+    const suffix = m[2];
+    // 'c' suffix = RATING_5 component
+    if (suffix === 'c') {
+      if (!comps[base]) comps[base] = {};
+      comps[base].c = f;
+    } else if (suffix === 'd') {
+      if (!comps[base]) comps[base] = {};
+      comps[base].d = f;
+    } else if (suffix === 'u') {
+      if (!comps[base]) comps[base] = {};
+      comps[base].u = f;
+    } else if (suffix === 'e') {
+      if (!comps[base]) comps[base] = {};
+      comps[base].e = f;
+    } else {
+      standalone.push(f);
+    }
+  });
+  return {comps, standalone};
+}
+
+function sectionScore(sectionIdx) {
+  const sec = SECTIONS[sectionIdx];
+  const {comps} = buildComponents(sec.prefix);
+  const vals = [];
+  Object.values(comps).forEach(comp => {
+    if (!comp.c) return;
+    if (!fieldVisible(comp.c)) return;
+    const v = responses[comp.c.id];
+    if (v && v !== 'NA') vals.push(Number(v));
+  });
+  if (vals.length === 0) return null;
+  return vals.reduce((a,b) => a+b, 0) / vals.length;
+}
+
+function scoreColorClass(score) {
+  if (score === null) return '';
+  if (score >= 4) return 'score-green';
+  if (score >= 3) return 'score-amber';
+  if (score >= 2) return 'score-orange';
+  return 'score-red';
+}
+
+function profileAnsweredCount() {
+  return ['fp_01','fp_02','fp_03','fp_04','fp_05','fp_06','fp_07','fp_08','fp_09','fp_10',
+          'fp_11','fp_12','fp_13','fp_14','fp_15','fp_16','fp_17','fp_18','fp_19','fp_20']
+    .filter(id => responses[id] !== undefined).length;
+}
+
+// Which section letters are unlocked by current YES answers
+function getUnlockHints() {
+  const hints = [];
+  if (responses['fp_01'] === 'YES') hints.push('Sections B (si_01), J (ad_01)');
+  if (responses['fp_02'] === 'YES') hints.push('Section B (si_06 — Playground)');
+  if (responses['fp_03'] === 'YES') hints.push('Section B (si_07 — Athletic Courts)');
+  if (responses['fp_04'] === 'YES') hints.push('Section K (sp_05 — Pool)');
+  if (responses['fp_05'] === 'YES') hints.push('Sections E (hv_05), F (pl_06), K (sp_01)');
+  if (responses['fp_06'] === 'YES') hints.push('Section K (sp_02 — Cafeteria)');
+  if (responses['fp_07'] === 'YES') hints.push('Section K (sp_03 — Auditorium)');
+  if (responses['fp_08'] === 'YES') hints.push('Section K (sp_04 — Gymnasium)');
+  if (responses['fp_10'] === 'YES') hints.push('Section E — HVAC (hv_i1, hv_01–04)');
+  if (responses['fp_13'] === 'YES') hints.push('Section F (pl_05 — Cisterns)');
+  if (responses['fp_14'] === 'YES') hints.push('Section J (ad_04 — Elevator)');
+  if (responses['fp_15'] === 'YES') hints.push('Section K (sp_06 — Laundry)');
+  if (responses['fp_16'] === 'YES') hints.push('Section G (el_06 — Generator)');
+  if (responses['fp_17'] === 'YES') hints.push('Section H (ls_02 — Sprinklers)');
+  if (responses['fp_18'] === 'YES') hints.push('Section G (el_07 — Security)');
+  return hints;
+}
+
+// Build component numbering label for display
+function compDisplayNum(sectionId, compKey) {
+  const prefix = compKey.split('_')[0];
+  const num = compKey.split('_')[1];
+  return sectionId + '.' + parseInt(num, 10);
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+
+function h(tag, attrs, ...children) {
+  // Lightweight DOM builder via innerHTML strings - we'll use template strings directly
+}
+
+function renderSidebar() {
+  const sbar = document.getElementById('sidebar-scroll');
+  let html = '';
+  SECTIONS.forEach((sec, idx) => {
+    const active = idx === currentSection;
+    const score = sectionScore(idx);
+    const scoreHtml = score !== null
+      ? `<span class="sbar-score ${scoreColorClass(score)}">${score.toFixed(1)}</span>`
+      : (sec.isProfile ? `<span class="sbar-score" style="background:#f3f4f6;color:#6b7280">${profileAnsweredCount()}/20</span>` : '');
+    html += `<div class="sbar-item${active ? ' active' : ''}" onclick="goSection(${idx})">
+      <div class="sbar-badge">${sec.id}</div>
+      <div class="sbar-label">${sec.label}</div>
+      ${scoreHtml}
+    </div>`;
+  });
+  sbar.innerHTML = html;
+}
+
+function renderContent() {
+  const ci = document.getElementById('content-inner');
+  const sec = SECTIONS[currentSection];
+  let html = '';
+
+  if (sec.isProfile) {
+    html += renderProfileSection(sec);
+  } else if (sec.prefix === 'gi') {
+    html += renderGISection(sec);
+  } else if (sec.prefix === 'oa') {
+    html += renderOASection(sec);
+  } else {
+    html += renderComponentSection(sec);
+  }
+
+  // Nav
+  html += `<div class="nav-row">`;
+  if (currentSection > 0) {
+    html += `<button class="nav-btn" onclick="goSection(${currentSection-1})">&#8592; Previous</button>`;
+  }
+  if (currentSection < SECTIONS.length - 1) {
+    html += `<button class="nav-btn primary" onclick="goSection(${currentSection+1})">Next &#8594;</button>`;
+  }
+  html += `</div>`;
+
+  ci.innerHTML = html;
+  // Re-attach event listeners for inputs (they survive innerHTML via event delegation on ci)
+}
+
+function renderProfileSection(sec) {
+  const answered = profileAnsweredCount();
+  const score = sectionScore(currentSection);
+  let html = `<div class="section-header">
+    <div class="section-id">${sec.id}</div>
+    <div>
+      <div class="section-title">${sec.label}</div>
+    </div>
+    ${score !== null ? `<div class="section-score-badge ${scoreColorClass(score)}" style="margin-left:auto">${score.toFixed(1)} / 5.0</div>` : ''}
+  </div>`;
+
+  html += `<div class="intro-banner">
+    <strong>How this form works</strong>
+    Answer YES for each feature your facility has. The form will automatically show or hide relevant inspection components in Sections B through K. Unanswered features default to NO — you can return here at any time to adjust.
+  </div>`;
+
+  // Text fields grid
+  html += `<div class="profile-grid">
+    <div>
+      <div class="field-label">Inspector Name</div>
+      <input class="field-input" type="text" value="${escHtml(responses['fp_00a']||'')}"
+        oninput="setResponse('fp_00a', this.value)" placeholder="Full name">
+    </div>
+    <div>
+      <div class="field-label">Inspection Date</div>
+      <input class="field-input" type="date" value="${escHtml(responses['fp_00b']||'')}"
+        oninput="setResponse('fp_00b', this.value)">
+    </div>
+  </div>`;
+
+  // Feature list
+  html += `<div class="profile-list-header">
+    <span>Facility Features</span>
+    <span class="profile-counter">${answered} / 20 answered</span>
+  </div>`;
+
+  const featureFields = FIELDS.filter(f => f.type === 'YES_NO');
+  featureFields.forEach(f => {
+    const val = responses[f.id];
+    const rowClass = val === 'YES' ? 'feature-row answered-yes' : val === 'NO' ? 'feature-row answered-no' : 'feature-row';
+    html += `<div class="${rowClass}">
+      <div class="feature-question">${escHtml(f.label)}</div>
+      <div class="yn-group">
+        <button class="yn-btn yes${val === 'YES' ? ' active' : ''}" onclick="setResponse('${f.id}','YES')">YES</button>
+        <button class="yn-btn no${val === 'NO' ? ' active' : ''}" onclick="setResponse('${f.id}','NO')">NO</button>
+      </div>
+    </div>`;
+  });
+
+  const hints = getUnlockHints();
+  if (hints.length > 0) {
+    html += `<div class="unlock-hint">
+      <strong>Components unlocked by your YES answers:</strong><br>
+      ${hints.map(h => '&#8226; ' + escHtml(h)).join('<br>')}
+    </div>`;
+  }
+
+  return html;
+}
+
+function renderGISection(sec) {
+  const score = sectionScore(currentSection);
+  let html = `<div class="section-header">
+    <div class="section-id">${sec.id}</div>
+    <div><div class="section-title">${sec.label}</div></div>
+    ${score !== null ? `<div class="section-score-badge ${scoreColorClass(score)}" style="margin-left:auto">${score.toFixed(1)} / 5.0</div>` : ''}
+  </div>`;
+
+  const giFields = FIELDS.filter(f => f.id.startsWith('gi_'));
+  html += `<div class="gi-grid">`;
+  giFields.forEach(f => {
+    const isWide = ['gi_01','gi_07','gi_08'].includes(f.id);
+    html += `<div class="${isWide ? 'gi-field-full' : ''}">
+      <div class="field-label">${escHtml(f.label)}</div>
+      <input class="field-input" type="${f.type === 'NUMBER' ? 'number' : 'text'}"
+        value="${escHtml(responses[f.id]||'')}"
+        oninput="setResponse('${f.id}', this.value)"
+        placeholder="">
+    </div>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+function renderOASection(sec) {
+  let html = `<div class="section-header">
+    <div class="section-id">${sec.id}</div>
+    <div><div class="section-title">${sec.label}</div></div>
+  </div>`;
+
+  const oaFields = FIELDS.filter(f => f.id.startsWith('oa_'));
+  oaFields.forEach(f => {
+    html += `<div class="oa-field">
+      <div class="oa-label">${escHtml(f.label)}</div>`;
+    if (f.id === 'oa_03') {
+      html += `<textarea class="oa-textarea" oninput="setResponse('${f.id}', this.value)" placeholder="">${escHtml(responses[f.id]||'')}</textarea>`;
+    } else {
+      html += `<input class="oa-input" type="text" value="${escHtml(responses[f.id]||'')}" oninput="setResponse('${f.id}', this.value)" placeholder="">`;
+    }
+    html += `</div>`;
+  });
+  return html;
+}
+
+function renderComponentSection(sec) {
+  const score = sectionScore(currentSection);
+  let html = `<div class="section-header">
+    <div class="section-id">${sec.id}</div>
+    <div><div class="section-title">${sec.label}</div></div>
+    ${score !== null ? `<div class="section-score-badge ${scoreColorClass(score)}" style="margin-left:auto">${score.toFixed(1)} / 5.0</div>` : ''}
+  </div>`;
+
+  const {comps, standalone} = buildComponents(sec.prefix);
+
+  // Render standalone fields first (like hv_i1)
+  if (standalone.length > 0) {
+    standalone.forEach(f => {
+      if (!fieldVisible(f)) return;
+      html += `<div style="margin-bottom:16px">
+        <div class="field-label">${escHtml(f.label)}</div>
+        <input class="field-input" type="text" value="${escHtml(responses[f.id]||'')}"
+          oninput="setResponse('${f.id}', this.value)" placeholder="">
+      </div>`;
+    });
+  }
+
+  // Count visible components
+  const visibleComps = Object.entries(comps).filter(([key, comp]) => comp.c && fieldVisible(comp.c));
+
+  if (visibleComps.length === 0) {
+    html += `<div class="empty-section">
+      <div class="empty-icon">&#128274;</div>
+      <p>No components apply to this facility for this section.<br>
+      Return to <a onclick="goSection(0)">Section 0 — Facility Profile</a> to enable features.</p>
+    </div>`;
+    return html;
+  }
+
+  visibleComps.forEach(([compKey, comp]) => {
+    const ratingVal = responses[comp.c.id];
+    const isLow = ratingVal && ratingVal !== 'NA' && Number(ratingVal) <= 2;
+    const guideShowing = guideOpen.has(compKey);
+    const displayNum = compDisplayNum(sec.id, compKey);
+
+    html += `<div class="comp-card${isLow ? ' rated-low' : ''}">
+      <div class="comp-card-header">
+        <div class="comp-num">${escHtml(displayNum)}</div>
+        <div class="comp-label">${escHtml(comp.c.label)}</div>
+        <button class="scale-btn" onclick="toggleGuide('${compKey}')">${guideShowing ? 'Hide Scale' : 'Scale'}</button>
+      </div>`;
+
+    // Rating buttons
+    html += `<div class="rating-row">`;
+    RATING_CFG.forEach(r => {
+      const active = String(ratingVal) === String(r.v);
+      html += `<button class="rating-btn${active ? ' active' : ''}"
+        style="background:${r.bg};border-color:${r.border};color:${r.fg}"
+        onclick="setResponse('${comp.c.id}','${r.v}')">${r.v} ${r.label}</button>`;
+    });
+    // N/A
+    const naActive = ratingVal === 'NA';
+    html += `<button class="rating-btn na-btn${naActive ? ' active' : ''}" onclick="setResponse('${comp.c.id}','NA')">N/A</button>`;
+    html += `</div>`;
+
+    // Guide panel
+    if (guideShowing) {
+      const guideKey = getGuideKey(compKey);
+      const guide = GUIDE[guideKey];
+      if (guide) {
+        html += `<div class="guide-panel">
+          <div class="guide-title">
+            <span>${escHtml(guide.category)}</span>
+            <span class="guide-note">${escHtml(guide.note)}</span>
+          </div>`;
+        guide.levels.forEach((lvl, i) => {
+          const rv = i + 1;
+          const cfg = RATING_CFG[i];
+          const isCurrent = String(ratingVal) === String(rv);
+          html += `<div class="guide-row${isCurrent ? ' current' : ''}">
+            <span class="guide-level" style="background:${cfg.bg};border:1px solid ${cfg.border};color:${cfg.fg}">${rv}</span>
+            <span class="guide-text">${escHtml(lvl)}</span>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+    }
+
+    // Deficiency panel - show when rated <= 2
+    if (isLow && comp.d) {
+      const urgencyVal = responses[comp.u ? comp.u.id : ''];
+      html += `<div class="deficiency-panel">
+        <div class="def-title">Deficiency Details Required</div>`;
+
+      // Description
+      if (comp.d) {
+        html += `<div class="def-field">
+          <div class="def-label">${escHtml(comp.d.label)}</div>
+          <textarea class="def-textarea" oninput="setResponse('${comp.d.id}', this.value)"
+            placeholder="Describe the observed condition...">${escHtml(responses[comp.d.id]||'')}</textarea>
+        </div>`;
+      }
+
+      // Urgency
+      if (comp.u) {
+        html += `<div class="def-field">
+          <div class="def-label">${escHtml(comp.u.label)}</div>
+          <div class="stoplight-row">`;
+        URGENCY.forEach(u => {
+          const active = urgencyVal === u.v;
+          html += `<button class="stoplight-btn${active ? ' active' : ''}"
+            style="background:${u.bg};border-color:${u.border};color:${u.fg}"
+            onclick="setResponse('${comp.u.id}','${u.v}')">
+            <span class="sl-label">${u.label}</span>
+            <span class="sl-sub">${u.sub}</span>
+          </button>`;
+        });
+        html += `</div></div>`;
+      }
+
+      // Cost
+      if (comp.e) {
+        html += `<div class="def-field">
+          <div class="def-label">${escHtml(comp.e.label)}</div>
+          <input class="cost-input" type="text" value="${escHtml(responses[comp.e.id]||'')}"
+            oninput="setResponse('${comp.e.id}', this.value)" placeholder="e.g. $12,500">
+        </div>`;
+      }
+
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+  });
+
+  return html;
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ─── EVENT HANDLERS ──────────────────────────────────────────────────────────
+
+function setResponse(fieldId, value) {
+  responses[fieldId] = value;
+  // Flash save indicator
+  const ind = document.getElementById('save-ind');
+  ind.textContent = 'Saving...';
+  setTimeout(() => { ind.textContent = 'All changes saved'; }, 600);
+  render();
+}
+
+function goSection(idx) {
+  currentSection = idx;
+  render();
+  document.getElementById('content').scrollTop = 0;
+}
+
+function toggleGuide(compKey) {
+  if (guideOpen.has(compKey)) {
+    guideOpen.delete(compKey);
+  } else {
+    guideOpen.add(compKey);
+  }
+  render();
+}
+
+// ─── MAIN RENDER LOOP ────────────────────────────────────────────────────────
+
+let renderScheduled = false;
+function render() {
+  if (renderScheduled) return;
+  renderScheduled = true;
+  requestAnimationFrame(() => {
+    renderScheduled = false;
+    renderSidebar();
+    renderContent();
+  });
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>
