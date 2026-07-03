@@ -123,12 +123,6 @@ const TYPE_INK: Record<string, string> = {
   contract:   'var(--ca-ink-muted, #52616a)',
 }
 
-const GANTT_BAR_COLOR: Record<string, string> = {
-  active:   'var(--ca-primary, #565e74)',
-  on_hold:  'var(--ca-amber, #b45309)',
-  planning: 'var(--ca-ink-faint, #a4b4be)',
-  draft:    'var(--ca-ink-faint, #a4b4be)',
-}
 
 const card: React.CSSProperties = {
   background: 'var(--ca-card, #ffffff)',
@@ -471,11 +465,18 @@ function WorkloadWidget({ workload }: { workload: AssigneeWorkload[] }) {
   )
 }
 
+const GANTT_BAR_COLOR: Record<string, string> = {
+  active:   'var(--ca-primary, #565e74)',
+  on_hold:  'var(--ca-amber, #b45309)',
+  planning: 'var(--ca-ink-faint, #a4b4be)',
+  draft:    'var(--ca-ink-faint, #a4b4be)',
+}
+
 function GanttWidget({ projects }: { projects: GanttProject[] }) {
   const today = new Date()
-  const windowStart = addDays(today, -28)   // 4 weeks back
-  const windowEnd   = addDays(today, 84)    // 12 weeks forward
-  const windowDays  = differenceInDays(windowEnd, windowStart) // ~112
+  const windowStart = addDays(today, -28)
+  const windowEnd   = addDays(today, 84)
+  const windowDays  = differenceInDays(windowEnd, windowStart)
 
   function toPct(date: Date): number {
     const days = differenceInDays(date, windowStart)
@@ -488,7 +489,6 @@ function GanttWidget({ projects }: { projects: GanttProject[] }) {
     .filter((p) => p.startDate || p.endDate)
     .slice(0, 10)
 
-  // Month tick marks across the window
   const monthTicks: { label: string; pct: number }[] = []
   const cursor = new Date(windowStart)
   cursor.setDate(1)
@@ -511,7 +511,6 @@ function GanttWidget({ projects }: { projects: GanttProject[] }) {
       </div>
 
       <div className="px-5 py-4">
-        {/* Month ruler */}
         <div className="relative mb-4 flex-shrink-0" style={{ marginLeft: '9rem', height: '16px' }}>
           {monthTicks.map((tick) => (
             <span
@@ -546,21 +545,10 @@ function GanttWidget({ projects }: { projects: GanttProject[] }) {
                     <p className="text-[11px] font-semibold truncate group-hover:underline">{proj.name}</p>
                   </div>
                   <div className="flex-1 relative rounded-full" style={{ height: '12px', background: 'var(--ca-card-high)' }}>
-                    {/* Today line */}
-                    <div
-                      className="absolute top-0 bottom-0 w-px z-10"
-                      style={{ left: `${todayPct}%`, background: 'var(--ca-red, #9f403d)', opacity: 0.7 }}
-                    />
-                    {/* Project bar */}
-                    <div
-                      className="absolute top-0 bottom-0 rounded-full transition-opacity group-hover:opacity-100"
-                      style={{
-                        left: `${left}%`,
-                        width: `${width}%`,
-                        background: barColor,
-                        opacity: isPastEnd ? 0.35 : 0.75,
-                      }}
-                    />
+                    <div className="absolute top-0 bottom-0 w-px z-10"
+                      style={{ left: `${todayPct}%`, background: 'var(--ca-red, #9f403d)', opacity: 0.7 }} />
+                    <div className="absolute top-0 bottom-0 rounded-full transition-opacity group-hover:opacity-100"
+                      style={{ left: `${left}%`, width: `${width}%`, background: barColor, opacity: isPastEnd ? 0.35 : 0.75 }} />
                   </div>
                   {proj.endDate && (
                     <div className="flex-shrink-0 text-right" style={{ width: '3rem' }}>
