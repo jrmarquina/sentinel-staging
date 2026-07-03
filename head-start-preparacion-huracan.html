@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preparación para Huracanes · Centros Head Start Puerto Rico | Sentinel</title>
+  <meta name="description" content="Lista de verificación de preparación para huracanes para administradores de centros Head Start en Puerto Rico. Desarrollado por Sentinel Management Group.">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black: #000000;
+      --white: #ffffff;
+      --gray-50: #fafafa;
+      --gray-100: #f5f5f5;
+      --gray-200: #eeeeee;
+      --gray-400: #aaaaaa;
+      --gray-500: #888888;
+      --gray-700: #444444;
+      --gray-900: #1a1a1a;
+      --font: 'Helvetica Neue', 'Arial', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      color: var(--gray-900);
+      background: var(--white);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    /* ── NAV ── */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--black);
+      padding: 0 48px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1a1a1a;
+    }
+
+    .nav-brand { display: flex; flex-direction: column; text-decoration: none; }
+
+    .nav-brand-name {
+      color: var(--white);
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    .nav-brand-tagline {
+      color: var(--gray-500);
+      font-size: 7.5px;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .nav-right { display: flex; align-items: center; gap: 28px; }
+
+    .lang-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+
+    .lang-toggle a {
+      color: var(--gray-500);
+      text-decoration: none;
+      padding: 3px 7px;
+      border-radius: 2px;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .lang-toggle a.active {
+      color: var(--white);
+      background: rgba(255,255,255,0.12);
+    }
+
+    .lang-toggle a:hover { color: var(--white); }
+    .lang-sep { color: #333; }
+
+    .nav-cta {
+      background: var(--white);
+      color: var(--black);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      padding: 9px 22px;
+      text-decoration: none;
+      border: 1.5px solid var(--white);
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .nav-cta:hover { background: transparent; color: var(--white); }
+
+    /* ── ALERT BANNER ── */
+    .alert-banner {
+      background: #0a0a0a;
+      border-bottom: 1px solid #1e1e1e;
+      padding: 11px 48px;
+      text-align: center;
+    }
+
+    .alert-banner p {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--white);
+    }
+
+    .alert-badge {
+      display: inline-block;
+      background: var(--white);
+      color: var(--black);
+      font-size: 8.5px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 2px;
+      margin-right: 14px;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      background: #080808;
+      padding: 96px 48px 88px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-bg-spiral {
+      position: absolute;
+      top: -120px;
+      right: -120px;
+      width: 680px;
+      height: 680px;
+      opacity: 0.05;
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .hero-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.45em;
+      text-transform: uppercase;
+      color: var(--gray-500);
+      display: block;
+      margin-bottom: 22px;
+    }
+
+    .hero-title {
+      font-size: 58px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: -0.025em;
+      line-height: 0.92;
+      color: var(--white);
+      margin-bottom: 28px;
+      max-width: 720px;
+    }
+
+    .hero-subtitle {
+      font-size: 16px;
+      font-weight: 300;
+      color: #999;
+      max-width: 560px;
+      line-height: 1.75;
+      margin-bottom: 44px;
+      letter-spacing: 0.02em;
+    }
+
+    .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--white);
+      color: var(--black);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      padding: 14px 30px;
+      text-decoration: none;
+      border: 2px solid var(--white);
+      transition: all 0.2s;
+    }
+
+    .btn-primary:hover { background: transparent; color: var(--white); }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: transparent;
+      color: #777;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 14px 30px;
+      text-decoration: none;
+      border: 1.5px solid #2a2a2a;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:hover { border-color: #555; color: var(--white); }
+
+    /* ── CONTAINER ── */
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    /* ── SECTION LABELS ── */
+    .section-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.45em;
+      text-transform: uppercase;
+      color: var(--gray-500);
+      display: block;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-size: 34px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: -0.015em;
+      line-height: 1.0;
+      color: var(--black);
+    }
+
+    /* ── INTRO ── */
+    .intro {
+      padding: 80px 48px;
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .intro-lead {
+      font-size: 15px;
+      color: #555;
+      max-width: 700px;
+      line-height: 1.85;
+      margin-top: 20px;
+    }
+
+    .intro-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 40px;
+      margin-top: 56px;
+    }
+
+    .intro-card { border-top: 2px solid var(--black); padding-top: 22px; }
+
+    .intro-card-number {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.25em;
+      color: var(--gray-500);
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .intro-card-title {
+      font-size: 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--black);
+      margin-bottom: 10px;
+    }
+
+    .intro-card-text {
+      font-size: 13px;
+      color: var(--gray-700);
+      line-height: 1.7;
+    }
+
+    /* ── CHECKLIST SECTION ── */
+    .checklist-section {
+      padding: 80px 48px;
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .checklist-top {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 48px;
+      gap: 32px;
+    }
+
+    .progress-block { text-align: right; flex-shrink: 0; }
+
+    .progress-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--gray-500);
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .progress-bar-wrap {
+      width: 220px;
+      height: 3px;
+      background: var(--gray-200);
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--black);
+      width: 0%;
+      transition: width 0.35s ease;
+    }
+
+    .progress-count {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--black);
+      margin-top: 6px;
+      display: block;
+      text-align: right;
+      letter-spacing: 0.08em;
+    }
+
+    .checklist-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .category-block {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      padding: 28px;
+    }
+
+    .category-label {
+      font-size: 8.5px;
+      font-weight: 700;
+      letter-spacing: 0.45em;
+      text-transform: uppercase;
+      color: var(--gray-500);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .category-title {
+      font-size: 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--black);
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--gray-200);
+      margin-bottom: 16px;
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--gray-100);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checklist-item:last-child { border-bottom: none; }
+
+    .checklist-item input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 15px;
+      height: 15px;
+      border: 1.5px solid #bbb;
+      flex-shrink: 0;
+      margin-top: 2px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      border-radius: 1px;
+    }
+
+    .checklist-item:hover input[type="checkbox"] { border-color: var(--black); }
+
+    .checklist-item input[type="checkbox"]:checked {
+      background: var(--black);
+      border-color: var(--black);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6l3 3 5-5' stroke='white' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 9px;
+    }
+
+    .checklist-item-text {
+      font-size: 13px;
+      color: var(--gray-700);
+      line-height: 1.45;
+      transition: color 0.2s;
+    }
+
+    .checklist-item.is-checked .checklist-item-text {
+      color: #bbb;
+      text-decoration: line-through;
+    }
+
+    /* ── DOWNLOAD SECTION ── */
+    .download-section {
+      padding: 80px 48px;
+      background: var(--black);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .download-spiral {
+      position: absolute;
+      right: -80px;
+      top: -80px;
+      width: 500px;
+      height: 500px;
+      opacity: 0.06;
+      pointer-events: none;
+    }
+
+    .download-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 56px;
+    }
+
+    .download-text .section-label { color: var(--gray-500); }
+
+    .download-text .section-title { color: var(--white); }
+
+    .download-text p {
+      font-size: 14px;
+      color: #777;
+      max-width: 480px;
+      line-height: 1.75;
+      margin-top: 14px;
+    }
+
+    .download-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .btn-download {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--white);
+      color: var(--black);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 16px 28px;
+      text-decoration: none;
+      border: 2px solid var(--white);
+      transition: all 0.2s;
+      min-width: 290px;
+    }
+
+    .btn-download:hover { background: transparent; color: var(--white); }
+
+    .btn-download-ghost {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: transparent;
+      color: #666;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 16px 28px;
+      text-decoration: none;
+      border: 1px solid #2a2a2a;
+      transition: all 0.2s;
+      min-width: 290px;
+    }
+
+    .btn-download-ghost:hover { border-color: #555; color: #ccc; }
+
+    .dl-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .dl-text-block { display: flex; flex-direction: column; gap: 2px; }
+
+    .dl-sub {
+      font-size: 9px;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      opacity: 0.55;
+    }
+
+    /* ── SERVICES ── */
+    .services-section {
+      padding: 80px 48px;
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .services-intro {
+      font-size: 14px;
+      color: #666;
+      max-width: 580px;
+      line-height: 1.75;
+      margin-top: 14px;
+    }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 28px;
+      margin-top: 52px;
+    }
+
+    .service-card {
+      border-top: 2px solid var(--gray-200);
+      padding-top: 22px;
+      transition: border-color 0.2s;
+    }
+
+    .service-card:hover { border-top-color: var(--black); }
+
+    .service-icon {
+      font-size: 22px;
+      display: block;
+      margin-bottom: 14px;
+    }
+
+    .service-title {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--black);
+      margin-bottom: 10px;
+    }
+
+    .service-text {
+      font-size: 12px;
+      color: var(--gray-500);
+      line-height: 1.65;
+    }
+
+    /* ── CTA SECTION ── */
+    .cta-section {
+      padding: 88px 48px;
+      background: var(--gray-100);
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .cta-inner { max-width: 1100px; margin: 0 auto; text-align: center; }
+
+    .cta-inner .section-label { justify-content: center; }
+
+    .cta-inner .section-title {
+      max-width: 580px;
+      margin: 0 auto 16px;
+    }
+
+    .cta-lead {
+      font-size: 15px;
+      color: var(--gray-700);
+      max-width: 500px;
+      margin: 0 auto 48px;
+      line-height: 1.75;
+    }
+
+    .contact-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 64px;
+      flex-wrap: wrap;
+    }
+
+    .contact-item { text-align: center; }
+
+    .contact-item-label {
+      font-size: 8.5px;
+      font-weight: 700;
+      letter-spacing: 0.45em;
+      text-transform: uppercase;
+      color: var(--gray-500);
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .contact-item-value {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--black);
+      text-decoration: none;
+      letter-spacing: -0.01em;
+    }
+
+    .contact-item-value:hover { text-decoration: underline; }
+
+    .contact-divider {
+      width: 1px;
+      height: 40px;
+      background: var(--gray-200);
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--black);
+      padding: 40px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-brand { display: flex; flex-direction: column; }
+
+    .footer-brand-name {
+      color: var(--white);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+    }
+
+    .footer-brand-tagline {
+      color: var(--gray-500);
+      font-size: 7.5px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      margin-top: 5px;
+    }
+
+    .footer-right { text-align: right; }
+
+    .footer-url {
+      color: #555;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-decoration: none;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .footer-url:hover { color: var(--gray-400); }
+
+    .footer-copy {
+      color: #333;
+      font-size: 9.5px;
+      letter-spacing: 0.1em;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 960px) {
+      .nav { padding: 0 24px; }
+      .nav-cta { display: none; }
+      .alert-banner { padding: 10px 24px; }
+      .hero { padding: 60px 24px 56px; }
+      .hero-title { font-size: 40px; }
+      .hero-subtitle { font-size: 15px; }
+      .intro { padding: 56px 24px; }
+      .intro-grid { grid-template-columns: 1fr; gap: 28px; }
+      .checklist-section { padding: 56px 24px; }
+      .checklist-top { flex-direction: column; align-items: flex-start; }
+      .checklist-grid { grid-template-columns: 1fr; }
+      .download-section { padding: 56px 24px; }
+      .download-inner { flex-direction: column; }
+      .services-section { padding: 56px 24px; }
+      .services-grid { grid-template-columns: 1fr 1fr; }
+      .cta-section { padding: 56px 24px; }
+      footer { padding: 32px 24px; flex-direction: column; gap: 24px; text-align: center; }
+      .footer-right { text-align: center; }
+      .contact-divider { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <a href="https://sentinelmgpr.com" class="nav-brand">
+    <span class="nav-brand-name">Sentinel</span>
+    <span class="nav-brand-tagline">Integrity for Infrastructure</span>
+  </a>
+  <div class="nav-right">
+    <div class="lang-toggle">
+      <a href="head-start-preparacion-huracan.html" class="active">ES</a>
+      <span class="lang-sep">·</span>
+      <a href="head-start-hurricane-preparedness.html">EN</a>
+    </div>
+    <a href="#contacto" class="nav-cta">Contáctenos</a>
+  </div>
+</nav>
+
+<!-- ALERT BANNER -->
+<div class="alert-banner">
+  <p>
+    <span class="alert-badge">1 de junio</span>
+    Inicio oficial de la temporada de huracanes en el Atlántico · Puerto Rico y el Caribe
+  </p>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <svg class="hero-bg-spiral" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+    <g fill="none" stroke="#ffffff" stroke-width="7">
+      <path d="M200,200 C200,140 260,110 300,150 C340,190 320,260 260,280 C200,300 140,270 120,210 C100,150 140,90 200,80 C260,70 330,100 360,160 C390,220 370,300 310,340 C250,380 170,370 120,320 C70,270 60,190 90,140 C120,90 180,60 240,60"/>
+      <path d="M200,200 C200,160 240,140 270,165 C300,190 290,240 255,255 C220,270 180,250 170,215 C160,180 185,145 220,140"/>
+    </g>
+  </svg>
+  <div class="hero-inner">
+    <span class="hero-label">Preparación de Emergencia · Centros Head Start · Puerto Rico</span>
+    <h1 class="hero-title">Preparación<br>para Huracanes</h1>
+    <p class="hero-subtitle">Una lista de verificación completa para administradores de instalaciones Head Start en Puerto Rico — confirme que su centro esté listo antes de que llegue la tormenta.</p>
+    <div class="hero-actions">
+      <a href="#lista" class="btn-primary">Ver Lista de Verificación</a>
+      <a href="#descargar" class="btn-secondary">Descargar PDF ↓</a>
+    </div>
+  </div>
+</section>
+
+<!-- INTRO -->
+<section class="intro">
+  <div class="container">
+    <span class="section-label">Por qué importa</span>
+    <h2 class="section-title">La preparación protege<br>a quienes más importan</h2>
+    <p class="intro-lead">
+      El 1 de junio marca el inicio de la temporada oficial de huracanes en el Atlántico. Los centros Head Start en Puerto Rico tienen la responsabilidad única de proteger a los niños más vulnerables de nuestras comunidades. Con instalaciones distribuidas a través de toda la isla, los administradores deben confirmar que cada centro esté preparado para responder, evacuar, y reabrir de forma segura. Esta lista de verificación, desarrollada por el equipo de Sentinel Management Group especializado en gestión de instalaciones públicas y federales, cubre las cuatro áreas críticas de preparación.
+    </p>
+    <div class="intro-grid">
+      <div class="intro-card">
+        <span class="intro-card-number">01</span>
+        <div class="intro-card-title">Seguridad de los niños</div>
+        <p class="intro-card-text">Los centros Head Start atienden a niños en edades tempranas de comunidades de bajo ingreso. Una preparación adecuada garantiza que cada niño pueda ser evacuado de manera segura y rápida ante cualquier emergencia.</p>
+      </div>
+      <div class="intro-card">
+        <span class="intro-card-number">02</span>
+        <div class="intro-card-title">Cumplimiento federal</div>
+        <p class="intro-card-text">Los programas Head Start financiados por el Departamento de Salud y Servicios Humanos (HHS) requieren planes de emergencia actualizados, documentados y distribuidos al personal antes de cada temporada.</p>
+      </div>
+      <div class="intro-card">
+        <span class="intro-card-number">03</span>
+        <div class="intro-card-title">Continuidad operacional</div>
+        <p class="intro-card-text">Una reapertura rápida después de un evento reduce el impacto en las familias que dependen del programa y acelera la recuperación de la comunidad. La planificación previa es la clave.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CHECKLIST -->
+<section class="checklist-section" id="lista">
+  <div class="container">
+    <div class="checklist-top">
+      <div>
+        <span class="section-label">Lista de Verificación · 16 puntos</span>
+        <h2 class="section-title">Verificación de Preparación</h2>
+      </div>
+      <div class="progress-block">
+        <span class="progress-label">Progreso de verificación</span>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <span class="progress-count" id="progressCount">0 de 16 completados</span>
+      </div>
+    </div>
+
+    <div class="checklist-grid">
+
+      <div class="category-block">
+        <span class="category-label">Categoría 01</span>
+        <div class="category-title">Documentación y Comunicación</div>
+
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Plan de emergencia actualizado y distribuido al personal.</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Documentos críticos respaldados y protegidos (físico y digital).</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Información de contacto de empleados, familias y suplidores verificada.</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Procedimientos de comunicación de emergencia probados.</span>
+        </label>
+      </div>
+
+      <div class="category-block">
+        <span class="category-label">Categoría 02</span>
+        <div class="category-title">Instalaciones y Equipo</div>
+
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Inspección de techos, puertas, ventanas y drenajes completada.</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Áreas de juego exteriores inspeccionadas y aseguradas.</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Objetos sueltos retirados o protegidos.</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Equipos informáticos y electrónicos asegurados.</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Generadores inspeccionados y con combustible disponible.</span>
+        </label>
+      </div>
+
+      <div class="category-block">
+        <span class="category-label">Categoría 03</span>
+        <div class="category-title">Suministros y Seguridad</div>
+
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Vehículos y transporte preparados para emergencias.</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Inventario de agua potable y suministros de emergencia actualizado.</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Alimentos protegidos y almacenados adecuadamente.</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Sistemas de alarma y seguridad verificados.</span>
+        </label>
+      </div>
+
+      <div class="category-block">
+        <span class="category-label">Categoría 04</span>
+        <div class="category-title">Personal y Protocolo</div>
+
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Capacitación del personal completada.</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Procedimientos para reapertura definidos.</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span class="checklist-item-text">Inspección posterior al evento planificada.</span>
+        </label>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section class="download-section" id="descargar">
+  <svg class="download-spiral" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+    <g fill="none" stroke="#ffffff" stroke-width="7">
+      <path d="M200,200 C200,140 260,110 300,150 C340,190 320,260 260,280 C200,300 140,270 120,210 C100,150 140,90 200,80 C260,70 330,100 360,160 C390,220 370,300 310,340 C250,380 170,370 120,320 C70,270 60,190 90,140 C120,90 180,60 240,60"/>
+    </g>
+  </svg>
+  <div class="download-inner">
+    <div class="download-text">
+      <span class="section-label">Recurso Descargable</span>
+      <h2 class="section-title">Lleva la lista<br>donde la necesites</h2>
+      <p>Descarga la lista de verificación en formato PDF para imprimirla y usarla durante inspecciones de campo. Disponible en español e inglés para su equipo.</p>
+    </div>
+    <div class="download-actions">
+      <a href="downloads/checklist-huracan-headstart-es.pdf" download class="btn-download">
+        <span class="dl-icon">↓</span>
+        <span class="dl-text-block">
+          Descargar en Español
+          <span class="dl-sub">PDF · Lista de Verificación · Huracanes</span>
+        </span>
+      </a>
+      <a href="downloads/checklist-huracan-headstart-en.pdf" download class="btn-download-ghost">
+        <span class="dl-icon">↓</span>
+        <span class="dl-text-block">
+          Download in English
+          <span class="dl-sub">PDF · Hurricane Preparedness Checklist</span>
+        </span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section class="services-section">
+  <div class="container">
+    <span class="section-label">Sentinel Management Group</span>
+    <h2 class="section-title">Más allá de la lista:<br>evaluación profesional</h2>
+    <p class="services-intro">Sentinel ofrece evaluaciones completas de preparación para instalaciones federalmente financiadas — incluyendo programas Head Start — antes de cada temporada de huracanes.</p>
+    <div class="services-grid">
+      <div class="service-card">
+        <span class="service-icon">🔍</span>
+        <div class="service-title">Inspección de Instalaciones</div>
+        <p class="service-text">Evaluación técnica de estructura, sistemas mecánicos, eléctricos y drenaje pluvial.</p>
+      </div>
+      <div class="service-card">
+        <span class="service-icon">📋</span>
+        <div class="service-title">Plan de Emergencia</div>
+        <p class="service-text">Desarrollo y revisión de planes alineados con los requisitos de HHS y FEMA.</p>
+      </div>
+      <div class="service-card">
+        <span class="service-icon">🛡</span>
+        <div class="service-title">Gestión de Riesgos</div>
+        <p class="service-text">Identificación de vulnerabilidades y priorización de mejoras antes de la temporada.</p>
+      </div>
+      <div class="service-card">
+        <span class="service-icon">📊</span>
+        <div class="service-title">Informes de Cumplimiento</div>
+        <p class="service-text">Documentación para auditorías federales y reportes de preparación ante emergencias.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT CTA -->
+<section class="cta-section" id="contacto">
+  <div class="cta-inner">
+    <span class="section-label">Contáctenos</span>
+    <h2 class="section-title">¿Su centro está listo<br>para la temporada?</h2>
+    <p class="cta-lead">Nuestro equipo puede coordinar una evaluación completa de sus instalaciones antes del inicio de la temporada. Contáctenos para una consulta sin costo.</p>
+    <div class="contact-row">
+      <div class="contact-item">
+        <span class="contact-item-label">Correo electrónico</span>
+        <a href="mailto:info@sentinelmgpr.com" class="contact-item-value">info@sentinelmgpr.com</a>
+      </div>
+      <div class="contact-divider"></div>
+      <div class="contact-item">
+        <span class="contact-item-label">Sitio web</span>
+        <a href="https://sentinelmgpr.com" target="_blank" class="contact-item-value">sentinelmgpr.com</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-brand">
+    <span class="footer-brand-name">Sentinel</span>
+    <span class="footer-brand-tagline">Integrity for Infrastructure</span>
+  </div>
+  <div class="footer-right">
+    <a href="https://sentinelmgpr.com" class="footer-url">sentinelmgpr.com</a>
+    <span class="footer-copy">© 2025 Sentinel Management Group · Confidential · Internal Use</span>
+  </div>
+</footer>
+
+<script>
+  const TOTAL = 16;
+
+  document.querySelectorAll('.checklist-item input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      cb.closest('.checklist-item').classList.toggle('is-checked', cb.checked);
+      const checked = document.querySelectorAll('.checklist-item input:checked').length;
+      document.getElementById('progressBar').style.width = (checked / TOTAL * 100) + '%';
+      document.getElementById('progressCount').textContent = checked + ' de ' + TOTAL + ' completados';
+    });
+  });
+</script>
+
+</body>
+</html>

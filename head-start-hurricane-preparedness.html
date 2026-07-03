@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel | Preparación para Huracanes — Head Start Puerto Rico</title>
+    <meta name="description" content="Lista de verificación de preparación para huracanes para centros Head Start en Puerto Rico. Hurricane preparedness checklist for Head Start facilities in Puerto Rico.">
+    <link rel="stylesheet" href="css/style.css?v=3">
+    <style>
+        /* ── SEASON ALERT BANNER ── */
+        .season-alert {
+            background: #000;
+            border-bottom: 1px solid #1a1a1a;
+            padding: 10px 40px;
+            text-align: center;
+        }
+
+        .season-alert p {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: #fff;
+        }
+
+        .season-badge {
+            display: inline-block;
+            background: #fff;
+            color: #000;
+            font-size: 8.5px;
+            font-weight: 800;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            margin-right: 14px;
+        }
+
+        /* ── PAGE HERO ── */
+        .page-hero {
+            padding: 100px 40px 80px;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-hero-spiral {
+            position: absolute;
+            top: -100px;
+            right: -100px;
+            width: 600px;
+            height: 600px;
+            opacity: 0.05;
+            pointer-events: none;
+        }
+
+        .page-hero-inner {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .page-hero-eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.45em;
+            text-transform: uppercase;
+            color: #666;
+            display: block;
+            margin-bottom: 20px;
+        }
+
+        .page-hero h1 {
+            color: #fff;
+            margin-bottom: 24px;
+            max-width: 700px;
+        }
+
+        .page-hero .sub-headline {
+            color: #888;
+            max-width: 560px;
+            margin-bottom: 40px;
+        }
+
+        .page-hero .cta-container a {
+            border-color: #fff;
+            color: #fff;
+            background: transparent;
+        }
+
+        .page-hero .cta-container a:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        .page-hero .cta-container a.btn-secondary-ghost {
+            border-color: #333;
+            color: #666;
+            background: transparent;
+            display: inline-block;
+            padding: 20px 40px;
+            text-decoration: none;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.2em;
+            font-weight: 700;
+            border: 1px solid #333;
+            transition: all 0.3s;
+        }
+
+        .page-hero .cta-container a.btn-secondary-ghost:hover {
+            border-color: #666;
+            color: #ccc;
+        }
+
+        /* ── SECTION WRAPPER ── */
+        .section-wrap {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 80px 40px;
+        }
+
+        .section-wrap-alt {
+            background: #f9f9f9;
+            border-top: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+        }
+
+        .section-wrap-dark {
+            background: #000;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-wrap-dark .section-wrap {
+            position: relative;
+            z-index: 1;
+        }
+
+        .section-wrap-dark-spiral {
+            position: absolute;
+            right: -60px;
+            top: -60px;
+            width: 460px;
+            height: 460px;
+            opacity: 0.06;
+            pointer-events: none;
+        }
+
+        /* ── EYEBROW + TITLE ── */
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.45em;
+            text-transform: uppercase;
+            color: #888;
+            display: block;
+            margin-bottom: 14px;
+        }
+
+        .section-h2 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+            line-height: 1.0;
+            color: #000;
+            margin-bottom: 0;
+        }
+
+        .section-h2-white { color: #fff; }
+
+        .section-lead {
+            font-size: 1rem;
+            color: #666;
+            max-width: 680px;
+            line-height: 1.8;
+            margin-top: 18px;
+        }
+
+        .section-lead-white { color: #777; }
+
+        /* ── INTRO 3-COLUMN GRID ── */
+        .intro-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 40px;
+            margin-top: 56px;
+        }
+
+        .intro-card {
+            border-top: 2px solid #000;
+            padding-top: 22px;
+        }
+
+        .intro-card-num {
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.25em;
+            color: #999;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .intro-card-title {
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #000;
+            margin-bottom: 10px;
+        }
+
+        .intro-card-text {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.7;
+        }
+
+        /* ── CHECKLIST ── */
+        .checklist-header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            gap: 24px;
+        }
+
+        .progress-block { text-align: right; flex-shrink: 0; }
+
+        .progress-label {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: #999;
+            display: block;
+            margin-bottom: 7px;
+        }
+
+        .progress-bar-wrap {
+            width: 200px;
+            height: 3px;
+            background: #e5e5e5;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #000;
+            width: 0%;
+            transition: width 0.35s ease;
+        }
+
+        .progress-count {
+            font-size: 11px;
+            font-weight: 700;
+            color: #000;
+            margin-top: 5px;
+            display: block;
+            text-align: right;
+        }
+
+        .checklist-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .cat-block {
+            background: #fff;
+            border: 1px solid #eee;
+            padding: 28px;
+        }
+
+        .cat-eyebrow {
+            font-size: 8.5px;
+            font-weight: 700;
+            letter-spacing: 0.45em;
+            text-transform: uppercase;
+            color: #aaa;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .cat-title {
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #000;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 14px;
+        }
+
+        .cl-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 7px 0;
+            border-bottom: 1px solid #f5f5f5;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .cl-item:last-child { border-bottom: none; }
+
+        .cl-item input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border: 1.5px solid #bbb;
+            flex-shrink: 0;
+            margin-top: 2px;
+            cursor: pointer;
+            border-radius: 1px;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .cl-item:hover input[type="checkbox"] { border-color: #000; }
+
+        .cl-item input[type="checkbox"]:checked {
+            background: #000;
+            border-color: #000;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6l3 3 5-5' stroke='white' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 9px;
+        }
+
+        .cl-item-text {
+            font-size: 12.5px;
+            color: #444;
+            line-height: 1.45;
+            transition: color 0.2s;
+        }
+
+        .cl-item.is-checked .cl-item-text {
+            color: #bbb;
+            text-decoration: line-through;
+        }
+
+        /* ── DOWNLOAD SECTION ── */
+        .download-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 48px;
+        }
+
+        .dl-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .btn-dl {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: #fff;
+            color: #000;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            padding: 16px 28px;
+            text-decoration: none;
+            border: 2px solid #fff;
+            transition: all 0.2s;
+            min-width: 280px;
+        }
+
+        .btn-dl:hover { background: transparent; color: #fff; }
+
+        .btn-dl-ghost {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: transparent;
+            color: #666;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            padding: 16px 28px;
+            text-decoration: none;
+            border: 1px solid #2a2a2a;
+            transition: all 0.2s;
+            min-width: 280px;
+        }
+
+        .btn-dl-ghost:hover { border-color: #555; color: #ccc; }
+
+        .dl-icon { font-size: 18px; flex-shrink: 0; line-height: 1; }
+        .dl-label { display: flex; flex-direction: column; gap: 2px; }
+        .dl-sub { font-size: 9px; font-weight: 400; opacity: 0.5; letter-spacing: 0.1em; }
+
+        /* ── SERVICES GRID ── */
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 28px;
+            margin-top: 48px;
+        }
+
+        .svc-card {
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+            transition: border-color 0.2s;
+        }
+
+        .svc-card:hover { border-top-color: #000; }
+
+        .svc-icon { font-size: 20px; display: block; margin-bottom: 12px; }
+
+        .svc-title {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #000;
+            margin-bottom: 8px;
+        }
+
+        .svc-text {
+            font-size: 12px;
+            color: #888;
+            line-height: 1.6;
+        }
+
+        /* ── CONTACT BAND ── */
+        .contact-band {
+            border-top: 1px solid #eee;
+            padding: 80px 40px;
+            background: #f9f9f9;
+            text-align: center;
+        }
+
+        .contact-band-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .contact-band .section-h2 { max-width: 560px; margin: 0 auto 14px; }
+
+        .contact-band .section-lead { margin: 0 auto 44px; text-align: center; }
+
+        .contact-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 56px;
+            flex-wrap: wrap;
+        }
+
+        .contact-item { text-align: center; }
+
+        .contact-item-label {
+            font-size: 8.5px;
+            font-weight: 700;
+            letter-spacing: 0.45em;
+            text-transform: uppercase;
+            color: #999;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .contact-item-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #000;
+            text-decoration: none;
+        }
+
+        .contact-item-value:hover { text-decoration: underline; }
+
+        .contact-sep {
+            width: 1px;
+            height: 36px;
+            background: #ddd;
+        }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 960px) {
+            .season-alert { padding: 10px 20px; }
+            .page-hero { padding: 72px 20px 60px; }
+            .section-wrap { padding: 56px 20px; }
+            .intro-grid { grid-template-columns: 1fr; gap: 24px; }
+            .checklist-header { flex-direction: column; align-items: flex-start; }
+            .checklist-grid { grid-template-columns: 1fr; }
+            .download-row { flex-direction: column; }
+            .services-grid { grid-template-columns: 1fr 1fr; }
+            .contact-sep { display: none; }
+            .contact-band { padding: 56px 20px; }
+        }
+    </style>
+</head>
+
+<body class="lang-es">
+
+    <!-- HEADER (matches site exactly) -->
+    <header>
+        <div class="header-container">
+            <div class="brand-block">
+                <a href="index.html" id="brand-logo">
+                    <img src="assets/img/logo/Logo_Together.png" class="main-logo" alt="Sentinel Logo">
+                </a>
+            </div>
+            <button class="hamburger" id="hamburger" aria-label="Open menu" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
+            <nav class="main-nav" id="main-nav">
+                <ul class="nav-links">
+                    <li>
+                        <a href="federal-facilities.html" class="en active">Facilities Oversight</a>
+                        <a href="federal-facilities.html" class="es active">Supervisión de Planteles</a>
+                    </li>
+                    <li>
+                        <a href="federal-oversight.html" class="en">Federal Programs</a>
+                        <a href="federal-oversight.html" class="es">Programas Federales</a>
+                    </li>
+                    <li>
+                        <a href="institutional-capital.html" class="en">Institutional Capital</a>
+                        <a href="institutional-capital.html" class="es">Capital Institucional</a>
+                    </li>
+                    <li><a href="insights.html" class="en">Blog</a><a href="insights.html" class="es">Blog</a></li>
+                </ul>
+                <div class="language-switcher">
+                    <img src="assets/img/flag-us.svg" id="btn-en" class="flag-icon flag-gray" alt="English">
+                    <img src="assets/img/flag-pr.svg" id="btn-es" class="flag-icon" alt="Spanish">
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+
+        <!-- SEASON ALERT BANNER -->
+        <div class="season-alert">
+            <p>
+                <span class="season-badge en">June 1st</span>
+                <span class="season-badge es">1 de junio</span>
+                <span class="en">Official start of the Atlantic Hurricane Season · Puerto Rico &amp; the Caribbean</span>
+                <span class="es">Inicio oficial de la temporada de huracanes en el Atlántico · Puerto Rico y el Caribe</span>
+            </p>
+        </div>
+
+        <!-- HERO -->
+        <section class="page-hero">
+            <svg class="page-hero-spiral" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+                <g fill="none" stroke="#ffffff" stroke-width="7">
+                    <path d="M200,200 C200,140 260,110 300,150 C340,190 320,260 260,280 C200,300 140,270 120,210 C100,150 140,90 200,80 C260,70 330,100 360,160 C390,220 370,300 310,340 C250,380 170,370 120,320 C70,270 60,190 90,140 C120,90 180,60 240,60"/>
+                    <path d="M200,200 C200,160 240,140 270,165 C300,190 290,240 255,255 C220,270 180,250 170,215 C160,180 185,145 220,140"/>
+                </g>
+            </svg>
+            <div class="page-hero-inner">
+                <span class="page-hero-eyebrow en">Emergency Preparedness · Head Start Facilities · Puerto Rico</span>
+                <span class="page-hero-eyebrow es">Preparación de Emergencia · Centros Head Start · Puerto Rico</span>
+                <h1 class="font-bold en">Hurricane<br>Preparedness<br>Checklist</h1>
+                <h1 class="font-bold es">Preparación<br>para Huracanes</h1>
+                <p class="sub-headline en">A complete verification checklist for Head Start facility administrators in Puerto Rico — confirm your center is storm-ready before hurricane season arrives.</p>
+                <p class="sub-headline es">Una lista de verificación completa para administradores de instalaciones Head Start en Puerto Rico — confirme que su centro esté listo antes de que llegue la tormenta.</p>
+                <div class="cta-container">
+                    <a href="#checklist" class="btn-primary en">View Checklist</a>
+                    <a href="#checklist" class="btn-primary es">Ver Lista</a>
+                    <a href="#download" class="btn-secondary-ghost en">Download PDF ↓</a>
+                    <a href="#download" class="btn-secondary-ghost es">Descargar PDF ↓</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- INTRO -->
+        <div style="border-top: 1px solid #eee;">
+            <div class="section-wrap">
+                <span class="eyebrow en">Why it matters</span>
+                <span class="eyebrow es">Por qué importa</span>
+                <h2 class="section-h2 en">Preparedness protects<br>those who matter most</h2>
+                <h2 class="section-h2 es">La preparación protege<br>a quienes más importan</h2>
+                <p class="section-lead en">June 1st marks the official start of the Atlantic hurricane season. Head Start centers in Puerto Rico bear a unique responsibility — protecting the most vulnerable children in our communities. With facilities distributed across the island, administrators must confirm that each center is prepared to respond, evacuate, and safely reopen. This checklist, developed by Sentinel Management Group's team of public and federal facilities management specialists, covers the four critical areas of preparedness.</p>
+                <p class="section-lead es">El 1 de junio marca el inicio de la temporada oficial de huracanes en el Atlántico. Los centros Head Start en Puerto Rico tienen la responsabilidad única de proteger a los niños más vulnerables de nuestras comunidades. Con instalaciones distribuidas a través de toda la isla, los administradores deben confirmar que cada centro esté preparado para responder, evacuar, y reabrir de forma segura. Esta lista fue desarrollada por el equipo de Sentinel Management Group especializado en gestión de instalaciones públicas y federales.</p>
+                <div class="intro-grid">
+                    <div class="intro-card">
+                        <span class="intro-card-num">01</span>
+                        <div class="intro-card-title en">Children's Safety</div>
+                        <div class="intro-card-title es">Seguridad de los niños</div>
+                        <p class="intro-card-text en">Head Start centers serve young children from low-income communities. Adequate preparedness ensures every child can be evacuated safely and quickly in any emergency.</p>
+                        <p class="intro-card-text es">Los centros Head Start atienden a niños en edades tempranas de comunidades de bajo ingreso. Una preparación adecuada garantiza que cada niño pueda ser evacuado de manera segura y rápida.</p>
+                    </div>
+                    <div class="intro-card">
+                        <span class="intro-card-num">02</span>
+                        <div class="intro-card-title en">Federal Compliance</div>
+                        <div class="intro-card-title es">Cumplimiento federal</div>
+                        <p class="intro-card-text en">Head Start programs funded by HHS are required to maintain updated, documented, and distributed emergency plans before each hurricane season.</p>
+                        <p class="intro-card-text es">Los programas Head Start financiados por HHS requieren planes de emergencia actualizados, documentados y distribuidos al personal antes de cada temporada.</p>
+                    </div>
+                    <div class="intro-card">
+                        <span class="intro-card-num">03</span>
+                        <div class="intro-card-title en">Operational Continuity</div>
+                        <div class="intro-card-title es">Continuidad operacional</div>
+                        <p class="intro-card-text en">A fast reopening after a storm reduces the impact on families who depend on the program and accelerates community recovery. Prior planning is the key.</p>
+                        <p class="intro-card-text es">Una reapertura rápida después de un evento reduce el impacto en las familias que dependen del programa y acelera la recuperación de la comunidad. La planificación previa es la clave.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CHECKLIST -->
+        <div class="section-wrap-alt" id="checklist">
+            <div class="section-wrap">
+                <div class="checklist-header">
+                    <div>
+                        <span class="eyebrow en">Checklist · 16 Items</span>
+                        <span class="eyebrow es">Lista de Verificación · 16 puntos</span>
+                        <h2 class="section-h2 en">Preparedness Verification</h2>
+                        <h2 class="section-h2 es">Verificación de Preparación</h2>
+                    </div>
+                    <div class="progress-block">
+                        <span class="progress-label en">Progress</span>
+                        <span class="progress-label es">Progreso</span>
+                        <div class="progress-bar-wrap">
+                            <div class="progress-bar" id="progressBar"></div>
+                        </div>
+                        <span class="progress-count" id="progressCount">
+                            <span class="en">0 of 16 completed</span>
+                            <span class="es">0 de 16 completados</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="checklist-grid">
+
+                    <!-- CAT 01 -->
+                    <div class="cat-block">
+                        <span class="cat-eyebrow en">Category 01</span>
+                        <span class="cat-eyebrow es">Categoría 01</span>
+                        <div class="cat-title en">Documentation &amp; Communication</div>
+                        <div class="cat-title es">Documentación y Comunicación</div>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Emergency plan updated and distributed to staff.</span>
+                                <span class="es">Plan de emergencia actualizado y distribuido al personal.</span>
+                            </span>
+                        </label>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Critical documents backed up and secured (physical and digital).</span>
+                                <span class="es">Documentos críticos respaldados y protegidos (físico y digital).</span>
+                            </span>
+                        </label>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Employee, family, and supplier contact information verified.</span>
+                                <span class="es">Información de contacto de empleados, familias y suplidores verificada.</span>
+                            </span>
+                        </label>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Emergency communication procedures tested.</span>
+                                <span class="es">Procedimientos de comunicación de emergencia probados.</span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- CAT 02 -->
+                    <div class="cat-block">
+                        <span class="cat-eyebrow en">Category 02</span>
+                        <span class="cat-eyebrow es">Categoría 02</span>
+                        <div class="cat-title en">Facilities &amp; Equipment</div>
+                        <div class="cat-title es">Instalaciones y Equipo</div>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Roof, doors, windows, and drainage inspection completed.</span>
+                                <span class="es">Inspección de techos, puertas, ventanas y drenajes completada.</span>
+                            </span>
+                        </label>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Outdoor play areas inspected and secured.</span>
+                                <span class="es">Áreas de juego exteriores inspeccionadas y aseguradas.</span>
+                            </span>
+                        </label>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Loose objects removed or secured.</span>
+                                <span class="es">Objetos sueltos retirados o protegidos.</span>
+                            </span>
+                        </label>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">IT and electronic equipment secured.</span>
+                                <span class="es">Equipos informáticos y electrónicos asegurados.</span>
+                            </span>
+                        </label>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Generators inspected and fuel available.</span>
+                                <span class="es">Generadores inspeccionados y con combustible disponible.</span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- CAT 03 -->
+                    <div class="cat-block">
+                        <span class="cat-eyebrow en">Category 03</span>
+                        <span class="cat-eyebrow es">Categoría 03</span>
+                        <div class="cat-title en">Supplies &amp; Security</div>
+                        <div class="cat-title es">Suministros y Seguridad</div>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Vehicles and transportation prepared for emergencies.</span>
+                                <span class="es">Vehículos y transporte preparados para emergencias.</span>
+                            </span>
+                        </label>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Potable water and emergency supplies inventory updated.</span>
+                                <span class="es">Inventario de agua potable y suministros de emergencia actualizado.</span>
+                            </span>
+                        </label>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Food protected and properly stored.</span>
+                                <span class="es">Alimentos protegidos y almacenados adecuadamente.</span>
+                            </span>
+                        </label>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Alarm and security systems verified.</span>
+                                <span class="es">Sistemas de alarma y seguridad verificados.</span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- CAT 04 -->
+                    <div class="cat-block">
+                        <span class="cat-eyebrow en">Category 04</span>
+                        <span class="cat-eyebrow es">Categoría 04</span>
+                        <div class="cat-title en">Staff &amp; Protocol</div>
+                        <div class="cat-title es">Personal y Protocolo</div>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Staff training completed.</span>
+                                <span class="es">Capacitación del personal completada.</span>
+                            </span>
+                        </label>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Reopening procedures defined.</span>
+                                <span class="es">Procedimientos para reapertura definidos.</span>
+                            </span>
+                        </label>
+                        <label class="cl-item">
+                            <input type="checkbox">
+                            <span class="cl-item-text">
+                                <span class="en">Post-event inspection planned.</span>
+                                <span class="es">Inspección posterior al evento planificada.</span>
+                            </span>
+                        </label>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- DOWNLOAD -->
+        <div class="section-wrap-dark" id="download">
+            <svg class="section-wrap-dark-spiral" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+                <g fill="none" stroke="#ffffff" stroke-width="7">
+                    <path d="M200,200 C200,140 260,110 300,150 C340,190 320,260 260,280 C200,300 140,270 120,210 C100,150 140,90 200,80 C260,70 330,100 360,160 C390,220 370,300 310,340 C250,380 170,370 120,320 C70,270 60,190 90,140 C120,90 180,60 240,60"/>
+                </g>
+            </svg>
+            <div class="section-wrap">
+                <div class="download-row">
+                    <div>
+                        <span class="eyebrow en" style="color:#666">Downloadable Resource</span>
+                        <span class="eyebrow es" style="color:#666">Recurso Descargable</span>
+                        <h2 class="section-h2 section-h2-white en">Take the checklist<br>into the field</h2>
+                        <h2 class="section-h2 section-h2-white es">Lleva la lista<br>donde la necesites</h2>
+                        <p class="section-lead section-lead-white en">Download the checklist as a PDF to print and use during field inspections. Available in English and Spanish for your full team.</p>
+                        <p class="section-lead section-lead-white es">Descarga la lista de verificación en formato PDF para imprimirla y usarla durante inspecciones de campo. Disponible en español e inglés para todo su equipo.</p>
+                    </div>
+                    <div class="dl-actions">
+                        <a href="downloads/checklist-huracan-headstart-es.pdf" download class="btn-dl es">
+                            <span class="dl-icon">↓</span>
+                            <span class="dl-label">
+                                Descargar en Español
+                                <span class="dl-sub">PDF · Lista de Verificación</span>
+                            </span>
+                        </a>
+                        <a href="downloads/checklist-huracan-headstart-en.pdf" download class="btn-dl en">
+                            <span class="dl-icon">↓</span>
+                            <span class="dl-label">
+                                Download in English
+                                <span class="dl-sub">PDF · Hurricane Preparedness Checklist</span>
+                            </span>
+                        </a>
+                        <a href="downloads/checklist-huracan-headstart-es.pdf" download class="btn-dl-ghost en">
+                            <span class="dl-icon">↓</span>
+                            <span class="dl-label">
+                                Descargar en Español
+                                <span class="dl-sub">PDF · Lista de Verificación</span>
+                            </span>
+                        </a>
+                        <a href="downloads/checklist-huracan-headstart-en.pdf" download class="btn-dl-ghost es">
+                            <span class="dl-icon">↓</span>
+                            <span class="dl-label">
+                                Download in English
+                                <span class="dl-sub">PDF · Hurricane Preparedness Checklist</span>
+                            </span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SERVICES -->
+        <div style="border-bottom: 1px solid #eee;">
+            <div class="section-wrap">
+                <span class="eyebrow en">Sentinel Management Group</span>
+                <span class="eyebrow es">Sentinel Management Group</span>
+                <h2 class="section-h2 en">Beyond the checklist:<br>professional assessment</h2>
+                <h2 class="section-h2 es">Más allá de la lista:<br>evaluación profesional</h2>
+                <p class="section-lead en">Sentinel offers comprehensive preparedness assessments for federally funded facilities — including Head Start programs — before each hurricane season.</p>
+                <p class="section-lead es">Sentinel ofrece evaluaciones completas de preparación para instalaciones federalmente financiadas — incluyendo programas Head Start — antes de cada temporada de huracanes.</p>
+                <div class="services-grid">
+                    <div class="svc-card">
+                        <span class="svc-icon">🔍</span>
+                        <div class="svc-title en">Facility Inspection</div>
+                        <div class="svc-title es">Inspección de Instalaciones</div>
+                        <p class="svc-text en">Technical evaluation of structure, mechanical systems, electrical, and storm drainage.</p>
+                        <p class="svc-text es">Evaluación técnica de estructura, sistemas mecánicos, eléctricos y drenaje pluvial.</p>
+                    </div>
+                    <div class="svc-card">
+                        <span class="svc-icon">📋</span>
+                        <div class="svc-title en">Emergency Planning</div>
+                        <div class="svc-title es">Plan de Emergencia</div>
+                        <p class="svc-text en">Development and review of emergency plans aligned with HHS and FEMA requirements.</p>
+                        <p class="svc-text es">Desarrollo y revisión de planes alineados con los requisitos de HHS y FEMA.</p>
+                    </div>
+                    <div class="svc-card">
+                        <span class="svc-icon">🛡</span>
+                        <div class="svc-title en">Risk Management</div>
+                        <div class="svc-title es">Gestión de Riesgos</div>
+                        <p class="svc-text en">Vulnerability identification and improvement prioritization before the season begins.</p>
+                        <p class="svc-text es">Identificación de vulnerabilidades y priorización de mejoras antes de la temporada.</p>
+                    </div>
+                    <div class="svc-card">
+                        <span class="svc-icon">📊</span>
+                        <div class="svc-title en">Compliance Reports</div>
+                        <div class="svc-title es">Informes de Cumplimiento</div>
+                        <p class="svc-text en">Documentation for federal audits and emergency preparedness reporting requirements.</p>
+                        <p class="svc-text es">Documentación para auditorías federales y reportes de preparación ante emergencias.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTACT CTA -->
+        <div class="contact-band" id="contact">
+            <div class="contact-band-inner">
+                <span class="eyebrow en">Contact Us</span>
+                <span class="eyebrow es">Contáctenos</span>
+                <h2 class="section-h2 en">Is your center ready<br>for the season?</h2>
+                <h2 class="section-h2 es">¿Su centro está listo<br>para la temporada?</h2>
+                <p class="section-lead en">Our team can coordinate a full facility assessment before the season starts. Contact us to schedule a no-cost consultation.</p>
+                <p class="section-lead es">Nuestro equipo puede coordinar una evaluación completa de sus instalaciones antes del inicio de la temporada. Contáctenos para una consulta sin costo.</p>
+                <div class="contact-row">
+                    <div class="contact-item">
+                        <span class="contact-item-label en">Email</span>
+                        <span class="contact-item-label es">Correo electrónico</span>
+                        <a href="mailto:info@sentinelmgpr.com" class="contact-item-value">info@sentinelmgpr.com</a>
+                    </div>
+                    <div class="contact-sep"></div>
+                    <div class="contact-item">
+                        <span class="contact-item-label en">Schedule a Consultation</span>
+                        <span class="contact-item-label es">Programar Consulta</span>
+                        <a href="contact-facilities.html" class="contact-item-value en">Request →</a>
+                        <a href="contact-facilities.html" class="contact-item-value es">Solicitar →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="js/particles.js"></script>
+    <script src="js/main.js?v=2"></script>
+    <script>
+        // Language toggle (same pattern as site)
+        const btnEN = document.getElementById('btn-en');
+        const btnES = document.getElementById('btn-es');
+
+        btnEN.addEventListener('click', () => {
+            document.body.classList.remove('lang-es');
+            document.body.classList.add('lang-en');
+            btnEN.classList.add('flag-gray');
+            btnES.classList.remove('flag-gray');
+            updateProgress();
+        });
+
+        btnES.addEventListener('click', () => {
+            document.body.classList.remove('lang-en');
+            document.body.classList.add('lang-es');
+            btnES.classList.add('flag-gray');
+            btnEN.classList.remove('flag-gray');
+            updateProgress();
+        });
+
+        // Checklist progress
+        const TOTAL = 16;
+
+        function updateProgress() {
+            const checked = document.querySelectorAll('.cl-item input:checked').length;
+            document.getElementById('progressBar').style.width = (checked / TOTAL * 100) + '%';
+            const isES = document.body.classList.contains('lang-es');
+            const countEl = document.getElementById('progressCount');
+            countEl.innerHTML = isES
+                ? `<span class="es">${checked} de ${TOTAL} completados</span>`
+                : `<span class="en">${checked} of ${TOTAL} completed</span>`;
+        }
+
+        document.querySelectorAll('.cl-item input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                cb.closest('.cl-item').classList.toggle('is-checked', cb.checked);
+                updateProgress();
+            });
+        });
+    </script>
+
+</body>
+</html>

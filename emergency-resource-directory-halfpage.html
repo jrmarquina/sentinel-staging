@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Emergency Resource Directory — Puerto Rico</title>
+<style>
+  @page {
+    size: 8.5in 5.5in;
+    margin: 0.22in 0.28in;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 7px;
+    background: #fff;
+    color: #111827;
+    width: 8.5in;
+    height: 5.5in;
+    overflow: hidden;
+  }
+
+  .page {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .tbl-title {
+    font-size: 9.5px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 4px;
+    letter-spacing: 0.01em;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .tbl-subtitle {
+    font-size: 7px;
+    font-weight: 400;
+    color: #6b7280;
+    letter-spacing: 0.02em;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  col.col-cat    { width: 11%; }
+  col.col-agency { width: 43%; }
+  col.col-phone  { width: 18%; }
+  col.col-web    { width: 28%; }
+
+  thead th {
+    background: #0f172a;
+    color: #fff;
+    padding: 3.5px 5px;
+    text-align: left;
+    font-size: 6.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    white-space: nowrap;
+  }
+
+  tbody td {
+    padding: 2.2px 5px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  tbody tr:nth-child(even) td { background: #f9fafb; }
+  tbody tr:hover td { background: #f1f5f9; }
+
+  .res-cat-badge {
+    display: inline-block;
+    padding: 1.5px 4px;
+    border-radius: 2px;
+    font-size: 6px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #fff;
+    white-space: nowrap;
+    line-height: 1.4;
+  }
+
+  .agency-name {
+    font-weight: 700;
+    color: #111827;
+    font-size: 7px;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .res-dir-phone a {
+    color: #0f172a;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 7px;
+  }
+
+  .res-dir-web a {
+    color: #2563eb;
+    font-size: 6.5px;
+    text-decoration: none;
+  }
+
+  .res-sentinel-row td {
+    background: #f0f4ff !important;
+    border-top: 1.5px solid #0f172a;
+  }
+
+  .sentinel-tag {
+    display: block;
+    font-size: 5.5px;
+    color: #1e40af;
+    font-weight: 600;
+  }
+
+  .footer {
+    margin-top: 4px;
+    font-size: 6px;
+    color: #9ca3af;
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="tbl-title">
+    Emergency Resource Directory — Puerto Rico
+    <span class="tbl-subtitle">Pre &amp; Post-Hurricane Essential Contacts · Sentinel Management Group</span>
+  </div>
+
+  <table>
+    <colgroup>
+      <col class="col-cat">
+      <col class="col-agency">
+      <col class="col-phone">
+      <col class="col-web">
+    </colgroup>
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Agency / Organization</th>
+        <th>Phone</th>
+        <th>Website</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#dc2626;">Emergency</span></td>
+        <td><span class="agency-name">Sistema 9-1-1 Puerto Rico</span></td>
+        <td class="res-dir-phone"><a href="tel:911">911</a></td>
+        <td class="res-dir-web"><a href="https://www.911.pr.gov">911.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#dc2626;">Police</span></td>
+        <td><span class="agency-name">Policía de Puerto Rico</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)343-2020">(787) 343-2020</a></td>
+        <td class="res-dir-web"><a href="https://www.policia.pr.gov/contacto">policia.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#dc2626;">Fire Dept.</span></td>
+        <td><span class="agency-name">Negociado del Cuerpo de Bomberos de Puerto Rico</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)343-2330">(787) 343-2330</a></td>
+        <td class="res-dir-web"><a href="https://www.bomberos.pr.gov">bomberos.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#dc2626;">Medical EMS</span></td>
+        <td><span class="agency-name">Negociado del Cuerpo de Emergencias Médicas</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)754-2550">(787) 754-2550</a></td>
+        <td class="res-dir-web"><a href="https://www.cem.pr.gov">cem.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#ea580c;">Emergency Mgmt.</span></td>
+        <td><span class="agency-name">Negociado para el Manejo de Emergencias (NMEAD)</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)724-0124">(787) 724-0124</a></td>
+        <td class="res-dir-web"><a href="https://manejodeemergencias.pr.gov/">manejodeemergencias.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#ea580c;">Official Portal</span></td>
+        <td><span class="agency-name">Puerto Rico Emergency Portal System (PREPS)</span></td>
+        <td class="res-dir-phone"><span style="color:#9ca3af;">—</span></td>
+        <td class="res-dir-web"><a href="https://www.preps.pr.gov/">preps.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#ea580c;">Nat. Guard</span></td>
+        <td><span class="agency-name">Guardia Nacional de Puerto Rico</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)289-1400">(787) 289-1400</a></td>
+        <td class="res-dir-web"><a href="https://www.pr.ng.mil">pr.ng.mil</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#1d4ed8;">Federal — FEMA</span></td>
+        <td><span class="agency-name">Federal Emergency Management Agency</span></td>
+        <td class="res-dir-phone"><a href="tel:1-800-621-3362">1-800-621-3362</a></td>
+        <td class="res-dir-web"><a href="https://www.fema.gov">fema.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#1d4ed8;">Federal — FEMA</span></td>
+        <td><span class="agency-name">FEMA Region 2</span></td>
+        <td class="res-dir-phone"><a href="tel:(866)366-8807">(866) 366-8807</a></td>
+        <td class="res-dir-web"><a href="https://www.fema.gov/about/contact">fema.gov/about/contact</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#1d4ed8;">Federal — USCG</span></td>
+        <td><span class="agency-name">U.S. Coast Guard Sector San Juan</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)729-6770">(787) 729-6770</a></td>
+        <td class="res-dir-web"><a href="https://www.atlanticarea.uscg.mil">atlanticarea.uscg.mil</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#1d4ed8;">Federal — FBI</span></td>
+        <td><span class="agency-name">FBI San Juan Field Office</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)754-6000">(787) 754-6000</a></td>
+        <td class="res-dir-web"><a href="https://www.fbi.gov/contact-us/field-offices/sanjuan">fbi.gov/…/sanjuan</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#b45309;">Utilities</span></td>
+        <td><span class="agency-name">LUMA Energy</span></td>
+        <td class="res-dir-phone"><a href="tel:1-844-888-LUMA">1-844-888-LUMA</a></td>
+        <td class="res-dir-web"><a href="https://lumapr.com">lumapr.com</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#b45309;">Utilities</span></td>
+        <td><span class="agency-name">Autoridad de Acueductos y Alcantarillados (AAA)</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)620-2482">(787) 620-2482</a></td>
+        <td class="res-dir-web"><a href="https://www.acueductospr.com">acueductospr.com</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#b45309;">Utilities</span></td>
+        <td><span class="agency-name">Autoridad de Carreteras y Transportación</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)722-2929">(787) 722-2929</a></td>
+        <td class="res-dir-web"><a href="https://www.act.dtop.pr.gov">act.dtop.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#b45309;">Utilities</span></td>
+        <td><span class="agency-name">Departamento de Transportación y Obras Públicas</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)722-2929">(787) 722-2929</a></td>
+        <td class="res-dir-web"><a href="https://www.dtop.pr.gov">dtop.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#b45309;">Utilities</span></td>
+        <td><span class="agency-name">Autoridad de los Puertos de Puerto Rico</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)729-8715">(787) 729-8715</a></td>
+        <td class="res-dir-web"><a href="https://www.prpa.pr.gov">prpa.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#0891b2;">Weather</span></td>
+        <td><span class="agency-name">National Weather Service San Juan</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)253-4586">(787) 253-4586</a></td>
+        <td class="res-dir-web"><a href="https://www.weather.gov/sju/">weather.gov/sju</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#0891b2;">Weather</span></td>
+        <td><span class="agency-name">National Hurricane Center</span></td>
+        <td class="res-dir-phone"><span style="color:#9ca3af;">—</span></td>
+        <td class="res-dir-web"><a href="https://www.nhc.noaa.gov">nhc.noaa.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#be185d;">Humanitarian</span></td>
+        <td><span class="agency-name">American Red Cross Puerto Rico Chapter</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)758-8150">(787) 758-8150</a></td>
+        <td class="res-dir-web"><a href="https://www.redcross.org/local/puerto-rico.html">redcross.org/…/puerto-rico</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#be185d;">Health</span></td>
+        <td><span class="agency-name">ASSMCA — Línea PAS</span></td>
+        <td class="res-dir-phone"><a href="tel:1-800-981-0023">1-800-981-0023</a></td>
+        <td class="res-dir-web"><a href="https://lineapas.assmca.pr.gov/">lineapas.assmca.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#be185d;">Humanitarian</span></td>
+        <td><span class="agency-name">Departamento de la Familia de Puerto Rico</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)294-4900">(787) 294-4900</a></td>
+        <td class="res-dir-web"><a href="https://www.familia.pr.gov">familia.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#be185d;">Health</span></td>
+        <td><span class="agency-name">Departamento de Salud de Puerto Rico</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)765-2929">(787) 765-2929</a></td>
+        <td class="res-dir-web"><a href="https://www.salud.pr.gov">salud.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#be185d;">Health</span></td>
+        <td><span class="agency-name">Centers for Disease Control and Prevention</span></td>
+        <td class="res-dir-phone"><a href="tel:1-800-CDC-INFO">1-800-CDC-INFO</a></td>
+        <td class="res-dir-web"><a href="https://www.cdc.gov/disasters/hurricanes/index.html">cdc.gov/disasters/hurricanes</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#6d28d9;">Environmental</span></td>
+        <td><span class="agency-name">U.S. EPA Caribbean Environmental Protection Division</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)977-5869">(787) 977-5869</a></td>
+        <td class="res-dir-web"><a href="https://www.epa.gov">epa.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#6d28d9;">Environmental</span></td>
+        <td><span class="agency-name">National Response Center</span></td>
+        <td class="res-dir-phone"><a href="tel:1-800-424-8802">1-800-424-8802</a></td>
+        <td class="res-dir-web"><a href="https://www.nrc.uscg.mil">nrc.uscg.mil</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#6d28d9;">Environmental</span></td>
+        <td><span class="agency-name">OSHA Puerto Rico Area Office</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)766-5471">(787) 766-5471</a></td>
+        <td class="res-dir-web"><a href="https://www.osha.gov">osha.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#374151;">Government</span></td>
+        <td><span class="agency-name">Servicio 3-1-1 Puerto Rico</span></td>
+        <td class="res-dir-phone"><a href="tel:311">311</a></td>
+        <td class="res-dir-web"><a href="https://www.311.pr.gov">311.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#374151;">Government</span></td>
+        <td><span class="agency-name">Sistema Video Relevo Puerto Rico</span></td>
+        <td class="res-dir-phone"><a href="tel:(787)773-1487">(787) 773-1487</a></td>
+        <td class="res-dir-web"><a href="https://www.srv.pr.gov">srv.pr.gov</a></td>
+      </tr>
+      <tr>
+        <td><span class="res-cat-badge" style="background:#374151;">Government</span></td>
+        <td><span class="agency-name">Federal Communications Commission</span></td>
+        <td class="res-dir-phone"><a href="tel:1-888-CALL-FCC">1-888-CALL-FCC</a></td>
+        <td class="res-dir-web"><a href="https://www.fcc.gov/emergency-management">fcc.gov/emergency-management</a></td>
+      </tr>
+      <tr class="res-sentinel-row">
+        <td><span class="res-cat-badge" style="background:#0f172a;">Facility Mgmt.</span></td>
+        <td>
+          <span class="agency-name">Sentinel Management Group</span>
+          <span class="sentinel-tag">★ Sentinel Infrastructure Management System</span>
+        </td>
+        <td class="res-dir-phone"><a href="https://sentinelmgpr.com/contact-index.html" style="color:#1d4ed8;">Contact Us</a></td>
+        <td class="res-dir-web"><a href="https://sentinelmgpr.com/contact-index.html" style="color:#1d4ed8;font-weight:700;">sentinelmgpr.com</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="footer">sentinelmgpr.com · Federal Facilities Compliance &amp; Management</div>
+</div>
+</body>
+</html>
