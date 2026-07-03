@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import CalendarPageClient from './calendar-client'
 import type { Database } from '@sentinel/db'
 
-export const metadata = { title: 'Calendar — Sentinel Public Works' }
+export const metadata = { title: 'Calendar — SIMS' }
 
 type CalendarEventRow = Database['public']['Tables']['calendar_events']['Row']
 type ContractRow = Pick<Database['public']['Tables']['contracts']['Row'], 'id' | 'number' | 'title' | 'end_date'>

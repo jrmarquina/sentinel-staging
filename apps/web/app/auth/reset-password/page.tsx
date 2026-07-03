@@ -1,7 +1,7 @@
 import { setPasswordAction } from '@/lib/auth/actions'
 import ResetPasswordForm from './reset-password-form'
 
-export const metadata = { title: 'Set Password — Sentinel Public Works' }
+export const metadata = { title: 'Set Password — SIMS' }
 
 export default function ResetPasswordPage() {
   return (

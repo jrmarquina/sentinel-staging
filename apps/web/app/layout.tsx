@@ -6,13 +6,13 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
-  title: 'Sentinel Public Works',
-  description: 'Municipal public works management platform — Guaynabo, Puerto Rico',
+  title: 'SIMS — Sentinel Infrastructure Management System',
+  description: 'Sentinel Infrastructure Management System — Guaynabo, Puerto Rico',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Sentinel PW',
+    title: 'SIMS',
   },
 }
 

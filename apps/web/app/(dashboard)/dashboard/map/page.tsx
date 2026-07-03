@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import type { Database } from '@sentinel/db'
 
-export const metadata = { title: 'Map — Sentinel Public Works' }
+export const metadata = { title: 'Map — SIMS' }
 
 // Must be dynamic with ssr:false — MapLibre uses canvas which can't SSR
 const MapClientPage = dynamic(

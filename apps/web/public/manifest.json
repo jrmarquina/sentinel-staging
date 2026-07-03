@@ -1,7 +1,7 @@
 {
-  "name": "Sentinel Public Works",
-  "short_name": "Sentinel",
-  "description": "Municipal public works management platform",
+  "name": "SIMS — Sentinel Infrastructure Management System",
+  "short_name": "SIMS",
+  "description": "Sentinel Infrastructure Management System",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0D1B2E",
