@@ -1,10 +1,63 @@
-# CLAUDE.md — Sentinel Public Works Platform
+# CLAUDE.md — SIMS (Sentinel Infrastructure Management System)
 ## Project Onboarding & Implementation Context
 
 > **This file is the authoritative context document for Claude Code.**
 > Read it completely before taking any action. Every architectural decision
 > documented here was made deliberately. Do not substitute alternatives
 > without flagging the change and explaining why.
+
+> ⚠️ **READ THIS FIRST — the phase plan below is historical.**
+> Sections 7 and 12 describe the original greenfield build plan. That plan is
+> **done**: the platform is built, deployed, and running in production at
+> **sims.sentinelmgpr.com** (staging at staging.sentinelmgpr.com). The app is
+> now ~1.1.0, 49 migrations deep, with a full facilities-management suite,
+> contracts, projects, potholes, inspections, calendar, and a public weather-ops
+> page — none of which the phase plan anticipated. Treat Sections 5, 6, 8, 9, 10
+> (the *conventions and rules*) as current and binding. Treat Sections 7 and 12
+> (the *phase checklist and status table*) as an archived record of how we got
+> here, not a to-do list. **Current reality is Section 12a, immediately below.**
+
+---
+
+## 12a. Current Reality (authoritative — supersedes Sections 7 & 12)
+
+**Product:** SIMS — Sentinel Infrastructure Management System (formerly "Sentinel
+Public Works"). First tenant: Municipality of Guaynabo, PR.
+
+**Deployment:**
+- Production: `sims.sentinelmgpr.com` (self-hosted Supabase + Next.js on Contabo VPS)
+- Staging: `staging.sentinelmgpr.com`, branch `staging` (default working branch)
+- Deploy scripts: `deploy-prod.sh`, `deploy-staging.sh` (auto-increment app version
+  into `.env.local`); CI in `.github/workflows/` (`deploy-prod.yml`,
+  `deploy-staging.yml`, `typecheck.yml`)
+
+**What is built and live:**
+- Auth (invite-only, password + reset; no self-registration), 5-role RLS
+- Facilities Management suite under `/dashboard/fm/*` — properties, assets,
+  work orders, inspections, templates, FCA (facility condition assessment),
+  schedules, reports, analytics, team/tenants
+- Contracts (with bids, amendments), Projects (with tasks), Potholes (PCI),
+  standalone Inspections, Calendar (FullCalendar + `nightly-calendar` cron),
+  Map (MapLibre), Reports, Team, Settings, System Health overlay
+- Public weather-ops page (`/weather/`) fed by `/api/weather/live` +
+  `weather-sync` edge cron (NWS/Open-Meteo/NHC/CoCoRaHS/USGS)
+- 52 API routes, PWA (next-pwa), Resend email, in-app notifications via
+  Supabase Realtime, nightly encrypted B2 backups (`scripts/backup.sh`)
+
+**Notifications:** Novu was **never deployed**. The shipped approach is direct
+Resend email (`apps/web/lib/email/*`) + in-app bell (Supabase Realtime). SMS,
+WhatsApp, and Slack channels do **not** exist. When Section 8 references Novu,
+treat it as superseded unless a decision is made to revisit it.
+
+**Not built:** citizen service request portal, SAP/ERP integration, in-app
+bilingual EN/ES (no i18n framework installed — only the public weather/outreach
+pages are bilingual). These remain genuinely pending.
+
+**Known open items (see also the team's running notes):**
+- Prod JWT / service-role keys need proper rotation (pending since 2026-06-11)
+- Cloudflare API token needs Cache Purge permission added
+- `storage_backup` schema on old prod DB should be dropped (leftover from
+  sims/prod DB separation)
 
 ---
 
@@ -13,7 +66,7 @@
 **Company:** Sentinel Management Group  
 **Role:** Technology solutions provider building a custom municipal management platform  
 **Developer toolchain:** Claude Code (you) as primary coding agent, supervised by a non-developer principal using VS Code as the IDE  
-**Repository:** Private GitHub repo — `sentinel-publicworks` (to be created if not yet done)
+**Repository:** Private GitHub repo — `jrmarquina/sentinel-staging` (exists; default branch `staging`)
 
 ---
 
@@ -599,11 +652,16 @@ Then proceed step by step, pausing for confirmation when:
 
 ---
 
-## 12. Current Status
+## 12. Current Status — ARCHIVED
 
-As of the creation of this document:
+> **This table reflects the project's state at initial planning (mid-2026) and is
+> kept for historical context only. It is NOT current.** For the real status see
+> **Section 12a (Current Reality)** at the top of this document. Phases 0–8 below
+> are all complete; the platform is in production at sims.sentinelmgpr.com.
 
-| Item | Status |
+As of the creation of this document (historical):
+
+| Item | Status (at planning time) |
 |---|---|
 | VPS provisioned | ✅ Done |
 | Client requirements form | ⏳ Pending — client has not returned selections |
@@ -615,8 +673,11 @@ As of the creation of this document:
 | Phase 2 (monorepo + DB) | ⏳ Not started |
 | Phases 3–8 | ⏳ Not started |
 
-**The recommended starting point is Phase 0** — get all local tools installed and the GitHub repo created, then move to the VPS audit in Phase 1.
+*(All of the above are now complete — see Section 12a.)*
 
 ---
 
-*This document was generated from a planning session on claude.ai and represents all architectural decisions made to date. For questions about why a decision was made, ask the user — they have the full context from the planning conversation.*
+*This document was generated from a planning session on claude.ai. The phase plan
+and status table (Sections 7, 12) are the original build blueprint, now delivered.
+Section 12a records current reality. For questions about why a decision was made,
+ask the user — they have the full context from the planning conversation.*
