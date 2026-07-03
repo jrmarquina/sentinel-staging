@@ -41,3 +41,13 @@ pnpm-debug.log*
 # Google OAuth (server-side only, never commit)
 credentials.json
 token.json
+.env.staging-health
+
+# next-pwa build output (regenerated on every `next build`, bakes in
+# that build's chunk-revision hashes — committing it goes stale immediately)
+apps/web/public/sw.js
+apps/web/public/workbox-*.js
+apps/web/public/fallback-*.js
+
+# Claude Code local tooling state
+.claude/worktrees/
