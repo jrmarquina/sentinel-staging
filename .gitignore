@@ -51,3 +51,6 @@ apps/web/public/fallback-*.js
 
 # Claude Code local tooling state
 .claude/worktrees/
+
+# graphify knowledge-graph output (rebuilt from source, see .graphifyignore)
+graphify-out/

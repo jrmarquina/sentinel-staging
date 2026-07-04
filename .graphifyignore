@@ -1,0 +1,6 @@
+# exclude vendored/minified/generated assets from the knowledge graph
+apps/web/public/
+*.min.js
+*.min.mjs
+sw.js
+workbox-*.js
