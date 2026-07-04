@@ -137,4 +137,11 @@ jobs:
               echo "⚠ Staging health check failed"
             fi
 
+            # Refresh graphify knowledge graph (AST-only, non-blocking).
+            # GRAPHIFY_FORCE accepts rebuilds with fewer nodes after file deletions.
+            if command -v "$HOME/.local/bin/graphify" > /dev/null 2>&1; then
+              GRAPHIFY_FORCE=1 nice -n 10 "$HOME/.local/bin/graphify" update . \
+                || echo "⚠ graphify update failed — continuing"
+            fi
+
             echo "Staging deploy complete"
