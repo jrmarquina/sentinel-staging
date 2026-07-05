@@ -71,11 +71,23 @@ function emailShell(opts: {
 </html>`
 }
 
-// Detail row helper — used inside email body
+// HTML-escape user-controlled text before interpolating into email markup.
+// Prevents stored HTML/link injection (phishing) via WO title/description/name.
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// Detail row helper — used inside email body. `label` is always a static
+// literal; `value` may be user-controlled, so it is escaped.
 function detailRow(label: string, value: string) {
   return `<tr>
     <td style="padding:6px 12px 6px 0;font-size:12px;font-weight:700;color:#64748b;white-space:nowrap;vertical-align:top;">${label}</td>
-    <td style="padding:6px 0;font-size:13px;color:#1e293b;">${value}</td>
+    <td style="padding:6px 0;font-size:13px;color:#1e293b;">${esc(value)}</td>
   </tr>`
 }
 
@@ -306,7 +318,7 @@ export async function notifyAssigneeWOOpen(
   const html = emailShell({
     heading:  'Orden de Trabajo Asignada',
     body: `
-      <p style="margin:0 0 8px;font-size:15px;color:#1e293b;">Estimado/a <strong>${assignee.fullName}</strong>,</p>
+      <p style="margin:0 0 8px;font-size:15px;color:#1e293b;">Estimado/a <strong>${esc(assignee.fullName)}</strong>,</p>
       <p style="font-size:14px;color:#475569;margin:0 0 8px;">Se le ha asignado la siguiente orden de trabajo.</p>
       ${detailTable(rows)}
     `,
@@ -351,7 +363,7 @@ export async function notifyManagerWOCompleted(
   const html = emailShell({
     heading:  'Orden de Trabajo Completada',
     body: `
-      <p style="margin:0 0 8px;font-size:15px;color:#1e293b;">Estimado/a <strong>${manager.fullName}</strong>,</p>
+      <p style="margin:0 0 8px;font-size:15px;color:#1e293b;">Estimado/a <strong>${esc(manager.fullName)}</strong>,</p>
       <p style="font-size:14px;color:#475569;margin:0 0 8px;">La siguiente orden de trabajo ha sido marcada como completada.</p>
       ${detailTable(rows)}
     `,

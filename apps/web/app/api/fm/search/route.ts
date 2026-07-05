@@ -32,7 +32,14 @@ export async function GET(req: NextRequest) {
     }
 
     const orgId = session.orgId
-    const ilike = `%${q}%`
+    // Strip PostgREST filter metacharacters before interpolating into `.or()`.
+    // Chars like , ( ) : * are structurally significant in the filter grammar
+    // and would otherwise let a caller inject extra OR conditions.
+    const safeQ = q.replace(/[,()*:\\"]/g, '').trim()
+    if (safeQ.length < 2) {
+      return NextResponse.json({ properties: [], assets: [], inspections: [], workOrders: [] })
+    }
+    const ilike = `%${safeQ}%`
 
     const [propertiesRes, assetsRes, inspectionsRes, workOrdersRes] = await Promise.all([
       supabase

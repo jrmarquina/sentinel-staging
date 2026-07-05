@@ -10,7 +10,7 @@ export const loginSchema = z.object({
 export const inviteUserSchema = z.object({
   email: z.string().email('Invalid email address'),
   role: z.enum(['admin', 'supervisor', 'inspector', 'vendor', 'viewer']),
-  full_name: z.string().min(2, 'Name must be at least 2 characters').optional(),
+  full_name: z.string().min(2, 'Name must be at least 2 characters').max(120, 'Name is too long').optional(),
 })
 
 export const setPasswordSchema = z
