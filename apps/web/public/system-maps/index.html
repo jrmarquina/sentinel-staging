@@ -1768,38 +1768,38 @@ function ServicesMap({ animate }) {
   };
 
   const edges = [
-    // Clients → Nginx
-    { from: 'browser', to: 'nginx', fromSide: 'right', toSide: 'left', color: C.client },
-    { from: 'mobile', to: 'nginx', fromSide: 'right', toSide: 'left', color: C.client },
-    // Nginx → Next, Auth, Realtime, Storage
+    // Clients → Cloudflare → Nginx
+    { from: 'browser', to: 'cf', fromSide: 'right', toSide: 'left', color: C.client },
+    { from: 'mobile', to: 'cf', fromSide: 'right', toSide: 'left', color: C.client },
+    { from: 'cf', to: 'nginx', fromSide: 'right', toSide: 'left', color: C.edge, label: 'TLS' },
+    // Nginx → Next app + Supabase gateway (Kong)
     { from: 'nginx', to: 'next', fromSide: 'bottom', toSide: 'top', color: C.edge },
-    { from: 'nginx', to: 'sbauth', fromSide: 'bottom', toSide: 'top', color: C.edge, curve: 0.35 },
-    { from: 'nginx', to: 'sbrt', fromSide: 'bottom', toSide: 'top', color: C.edge, curve: 0.4 },
-    { from: 'nginx', to: 'sbstore', fromSide: 'bottom', toSide: 'top', color: C.edge, curve: 0.5 },
-    // Next → Postgres, Auth, Storage, Edge, Novu
-    { from: 'next', to: 'pg', fromSide: 'bottom', toSide: 'top', color: C.app, curve: 0.6 },
-    { from: 'next', to: 'sbauth', fromSide: 'bottom', toSide: 'top', color: C.app, curve: 0.3 },
-    { from: 'next', to: 'sbstore', fromSide: 'bottom', toSide: 'top', color: C.app, curve: 0.5 },
-    { from: 'next', to: 'sbedge', fromSide: 'bottom', toSide: 'top', color: C.app, curve: 0.5 },
-    { from: 'next', to: 'novu', fromSide: 'bottom', toSide: 'top', color: C.app, curve: 0.7 },
-    // Realtime → PG
+    { from: 'nginx', to: 'kong', fromSide: 'bottom', toSide: 'top', color: C.edge, curve: 0.4, label: '/auth /rest /storage' },
+    // Next → Supabase (via Kong) + Resend email
+    { from: 'next', to: 'kong', fromSide: 'bottom', toSide: 'top', color: C.app, curve: 0.3 },
+    { from: 'next', to: 'resend', fromSide: 'right', toSide: 'left', color: C.notif, curve: 0.45, label: 'email' },
+    // Kong → Supabase services
+    { from: 'kong', to: 'sbauth', fromSide: 'bottom', toSide: 'top', color: C.rt, curve: 0.3 },
+    { from: 'kong', to: 'sbrest', fromSide: 'bottom', toSide: 'top', color: C.rt, curve: 0.35 },
+    { from: 'kong', to: 'sbrt', fromSide: 'bottom', toSide: 'top', color: C.rt, curve: 0.45 },
+    { from: 'kong', to: 'sbstore', fromSide: 'bottom', toSide: 'top', color: C.rt, curve: 0.5 },
+    // Supabase services → Postgres
+    { from: 'sbauth', to: 'pg', fromSide: 'bottom', toSide: 'top', color: C.rt, curve: 0.3 },
+    { from: 'sbrest', to: 'pg', fromSide: 'bottom', toSide: 'top', color: C.rt, curve: 0.35 },
     { from: 'sbrt', to: 'pg', fromSide: 'bottom', toSide: 'top', color: C.rt, curve: 0.5 },
-    // Edge → PG
-    { from: 'sbedge', to: 'pg', fromSide: 'bottom', toSide: 'top', color: C.rt, curve: 0.4 },
-    // Novu → Redis, Mongo
-    { from: 'novu', to: 'redis', fromSide: 'right', toSide: 'left', color: C.notif },
-    { from: 'novu', to: 'mongo', fromSide: 'right', toSide: 'left', color: C.notif, curve: 0.6 },
-    // Novu → External: Resend, Twilio, Slack
-    { from: 'novu', to: 'resend', fromSide: 'right', toSide: 'left', color: C.notif, curve: 0.5 },
-    { from: 'novu', to: 'twilio', fromSide: 'right', toSide: 'left', color: C.notif, curve: 0.5 },
-    { from: 'novu', to: 'slack', fromSide: 'right', toSide: 'left', color: C.notif, curve: 0.5 },
-    // Backup → B2, PG
+    { from: 'sbstore', to: 'pg', fromSide: 'bottom', toSide: 'top', color: C.rt, curve: 0.4 },
+    { from: 'sbedge', to: 'pg', fromSide: 'bottom', toSide: 'top', color: C.rt, curve: 0.45 },
+    // Edge Functions → external weather APIs (cron)
+    { from: 'sbedge', to: 'weather', fromSide: 'right', toSide: 'left', color: C.notif, curve: 0.5, label: 'cron' },
+    // Browser loads map tiles directly
+    { from: 'browser', to: 'tiles', fromSide: 'right', toSide: 'left', color: C.client, curve: 0.7 },
+    // Backup → PG, B2 + Contabo snapshots
     { from: 'backup', to: 'pg', fromSide: 'top', toSide: 'bottom', color: C.ops, curve: 0.3 },
     { from: 'backup', to: 'b2', fromSide: 'right', toSide: 'left', color: C.ops, curve: 0.4, label: 'GPG' },
     // UptimeRobot → Health
     { from: 'uptime', to: 'health', fromSide: 'left', toSide: 'right', color: C.ops, curve: 0.4 },
-    // GitHub Actions → VPS (via Next)
-    { from: 'gha', to: 'next', fromSide: 'left', toSide: 'right', color: C.ops, curve: 0.5, label: 'ssh deploy' },
+    // GitHub Actions → VPS (deploy script → pm2 reload)
+    { from: 'gha', to: 'next', fromSide: 'left', toSide: 'right', color: C.ops, curve: 0.5, label: 'deploy · pm2' },
   ];
 
   return (
@@ -1809,58 +1809,54 @@ function ServicesMap({ animate }) {
           {/* ── CLIENT COL ─────────────────────────────── */}
           <div className="col-client">
             <div className="col-title">Client Layer</div>
-            <Node id="browser" kind="Web" title="Browser / PWA" sub="Chromium · Safari" color={C.client} port=":443"/>
-            <Node id="mobile" kind="Mobile" title="iOS / Android" sub="Capacitor wrapper" color={C.client} port=":443"/>
+            <Node id="browser" kind="Web" title="Browser / PWA" sub="installable · offline shell" color={C.client} port=":443"/>
+            <Node id="mobile" kind="Mobile" title="Mobile PWA" sub="field capture · GPS + photo" color={C.client} port=":443"/>
+            <Node id="cf" kind="Edge" title="Cloudflare" sub="DNS · CDN · TLS" color={C.edge} isExt/>
           </div>
 
           {/* ── VPS COL (large frame) ──────────────────── */}
           <div className="col-vps">
             <div className="vps-frame">
               <div className="vps-frame-label">
-                Contabo VPS <span className="os">· ubuntu 24.04 · 8 vcpu · 32 gb</span>
+                Contabo VPS <span className="os">· ubuntu 24.04 · 4 vcpu · 8 gb · shared host</span>
               </div>
 
               <div className="vps-stack">
                 {/* Proxy row */}
                 <div className="sub-zone" style={{ '--zone-c': C.edge }}>
                   <div className="sub-zone-label">Reverse Proxy</div>
-                  <Node id="nginx" kind="Edge" title="Nginx + Certbot" sub="TLS 1.3 · HTTP/2 · LE auto-renew" color={C.edge} port=":443"/>
+                  <Node id="nginx" kind="Edge" title="Nginx" sub="reverse proxy · HTTP/2 · behind Cloudflare" color={C.edge} port=":443"/>
                 </div>
 
                 {/* App row */}
                 <div className="sub-zone" style={{ '--zone-c': C.app }}>
-                  <div className="sub-zone-label">Application</div>
-                  <Node id="next" kind="App" title="Next.js 14" sub="App Router · React Server Components" color={C.app} port=":3000"/>
+                  <div className="sub-zone-label">Application · pm2</div>
+                  <Node id="next" kind="App" title="Next.js 14" sub="App Router · RSC · pm2 sentinel-mpw" color={C.app} port=":3001"/>
                 </div>
 
-                {/* Supabase Stack */}
+                {/* Supabase Stack (self-hosted, Docker) */}
                 <div className="sub-zone" style={{ '--zone-c': C.rt }}>
-                  <div className="sub-zone-label">Supabase Stack</div>
-                  <div className="vps-row cols-4" style={{ marginBottom: 12 }}>
-                    <Node id="sbauth" kind="Auth" title="GoTrue" sub="JWT · OAuth" color={C.auth} port=":9999"/>
+                  <div className="sub-zone-label">Supabase · self-hosted (Docker)</div>
+                  <Node id="kong" kind="Gateway" title="Kong" sub="API gateway" color={C.edge} port=":8000"/>
+                  <div className="vps-row cols-4" style={{ margin: '12px 0' }}>
+                    <Node id="sbauth" kind="Auth" title="GoTrue" sub="JWT · invite-only" color={C.auth} port=":9999"/>
+                    <Node id="sbrest" kind="REST" title="PostgREST" sub="auto REST · RLS" color={C.rt} port=":3000"/>
                     <Node id="sbrt" kind="Realtime" title="Realtime" sub="WebSocket pub/sub" color={C.rt} port=":4000"/>
-                    <Node id="sbstore" kind="Storage" title="Storage" sub="S3 compatible" color={C.rt} port=":5000"/>
-                    <Node id="sbedge" kind="Functions" title="Edge Cron" sub="Deno · scheduled" color={C.rt} port=":54321"/>
+                    <Node id="sbstore" kind="Storage" title="Storage" sub="S3-compatible" color={C.rt} port=":5000"/>
                   </div>
-                  <Node id="pg" kind="Database" title="PostgreSQL 16" sub="+ PostGIS · RLS enforced" color={C.data} port=":5432" isDb/>
-                </div>
-
-                {/* Notification Hub */}
-                <div className="sub-zone" style={{ '--zone-c': C.notif }}>
-                  <div className="sub-zone-label">Notification Hub</div>
-                  <div className="vps-row cols-3">
-                    <Node id="novu" kind="Worker" title="Novu API + Worker" sub="fan-out delivery" color={C.notif} port=":3001"/>
-                    <Node id="redis" kind="Queue" title="Redis" sub="job queue · ttl cache" color={C.notif} port=":6379" isDb/>
-                    <Node id="mongo" kind="State" title="MongoDB" sub="workflow state" color={C.notif} port=":27017" isDb/>
+                  <div className="vps-row cols-2" style={{ marginBottom: 12 }}>
+                    <Node id="sbedge" kind="Functions" title="Edge Functions" sub="Deno · weather-sync · nightly-calendar" color={C.rt} port=":54321"/>
+                    <Node id="health" kind="Endpoint" title="/api/health" sub="watchdog · returns json" color={C.ops}/>
                   </div>
+                  <Node id="pg" kind="Database" title="PostgreSQL 15" sub="+ PostGIS · RLS enforced" color={C.data} port=":5432" isDb/>
                 </div>
 
                 {/* Ops row */}
                 <div className="sub-zone" style={{ '--zone-c': C.ops }}>
                   <div className="sub-zone-label">Operations</div>
                   <div className="vps-row cols-2">
-                    <Node id="health" kind="Endpoint" title="/api/health" sub="watchdog · returns json" color={C.ops}/>
-                    <Node id="backup" kind="Cron" title="Backup Script" sub="nightly 02:00 AST" color={C.ops}/>
+                    <Node id="backup" kind="Cron" title="B2 Backup" sub="nightly 02:00 AST · pg_dump + GPG" color={C.ops}/>
+                    <Node id="snap" kind="Snapshot" title="Contabo Snapshots" sub="daily VPS image" color={C.ops}/>
                   </div>
                 </div>
               </div>
@@ -1870,12 +1866,12 @@ function ServicesMap({ animate }) {
           {/* ── EXTERNAL COL ───────────────────────────── */}
           <div className="col-ext">
             <div className="col-title">External Services</div>
-            <Node id="resend" kind="Email" title="Resend" sub="SMTP relay" color={C.ext} isExt/>
-            <Node id="twilio" kind="SMS" title="Twilio" sub="SMS · WhatsApp" color={C.ext} isExt/>
-            <Node id="slack" kind="Webhook" title="Slack" sub="incoming webhook" color={C.ext} isExt/>
+            <Node id="resend" kind="Email" title="Resend" sub="transactional email" color={C.ext} isExt/>
+            <Node id="weather" kind="Data" title="Weather APIs" sub="NWS · NHC · Open-Meteo · USGS" color={C.ext} isExt/>
+            <Node id="tiles" kind="Tiles" title="OpenFreeMap" sub="MapLibre vector tiles" color={C.ext} isExt/>
             <Node id="b2" kind="Backup" title="Backblaze B2" sub="encrypted vault" color={C.ops} isExt/>
             <Node id="uptime" kind="Monitor" title="UptimeRobot" sub="HTTP poll · 5 min" color={C.ops} isExt/>
-            <Node id="gha" kind="CI/CD" title="GitHub Actions" sub="build · test · deploy" color={C.ops} isExt/>
+            <Node id="gha" kind="CI/CD" title="GitHub Actions" sub="build · typecheck · deploy" color={C.ops} isExt/>
           </div>
         </div>
 
@@ -1919,16 +1915,12 @@ function DataFlowMap({ animate }) {
     { from: 'rls', to: 'obj', fromSide: 'right', toSide: 'left', color: C.api, curve: 0.5 },
     { from: 'pg2', to: 'audit', fromSide: 'bottom', toSide: 'top', color: C.storage, curve: 0.3 },
     { from: 'pg2', to: 'notifrow', fromSide: 'right', toSide: 'left', color: C.storage },
-    // Async / RT
+    // Async / RT — in-app notifications via Realtime
     { from: 'notifrow', to: 'rt2', fromSide: 'right', toSide: 'left', color: C.rt, curve: 0.3 },
-    { from: 'rt2', to: 'bell', fromSide: 'bottom', toSide: 'top', color: C.rt, curve: 0.3 },
-    { from: 'notifrow', to: 'novu2', fromSide: 'right', toSide: 'left', color: C.async, curve: 0.4 },
+    { from: 'rt2', to: 'bell', fromSide: 'right', toSide: 'left', color: C.rt, curve: 0.3 },
     { from: 'cron', to: 'notifrow', fromSide: 'right', toSide: 'left', color: C.async, curve: 0.5 },
-    // Delivery
-    { from: 'novu2', to: 'email', fromSide: 'right', toSide: 'left', color: C.deliver, curve: 0.4 },
-    { from: 'novu2', to: 'sms', fromSide: 'right', toSide: 'left', color: C.deliver, curve: 0.4 },
-    { from: 'novu2', to: 'wa', fromSide: 'right', toSide: 'left', color: C.deliver, curve: 0.4 },
-    { from: 'novu2', to: 'slackch', fromSide: 'right', toSide: 'left', color: C.deliver, curve: 0.4 },
+    // Delivery — email sent directly by the route (fire-and-forget)
+    { from: 'route', to: 'email', fromSide: 'bottom', toSide: 'left', color: C.deliver, curve: 0.6, label: 'Resend' },
     // Offsite
     { from: 'pg2', to: 'b22', fromSide: 'bottom', toSide: 'left', color: C.offsite, curve: 0.5, label: 'nightly pg_dump + gpg' },
   ];
@@ -1969,17 +1961,13 @@ function DataFlowMap({ animate }) {
             <div className="flow-col-title"><span className="step">05</span>Push / Async</div>
             <Node id="notifrow" kind="Table" title="notifications" sub="row inserted" color={C.rt}/>
             <Node id="rt2" kind="Channel" title="Realtime" sub="websocket fanout" color={C.rt}/>
-            <Node id="cron" kind="Scheduler" title="Edge Cron" sub="02:00 AST" color={C.async}/>
-            <Node id="novu2" kind="Worker" title="Novu Worker" sub="fan-out delivery" color={C.async}/>
+            <Node id="cron" kind="Scheduler" title="Edge Cron" sub="nightly-calendar · 02:00 AST" color={C.async}/>
           </div>
 
           <div className="flow-col" style={{ '--col-c': C.deliver }}>
             <div className="flow-col-title"><span className="step">06</span>Delivery</div>
-            <Node id="bell" kind="UI" title="Bell" sub="in-app push" color={C.rt}/>
-            <Node id="email" kind="Email" title="Resend" sub="transactional" color={C.deliver} isExt/>
-            <Node id="sms" kind="SMS" title="Twilio" sub="text" color={C.deliver} isExt/>
-            <Node id="wa" kind="Chat" title="WhatsApp" sub="via Twilio" color={C.deliver} isExt/>
-            <Node id="slackch" kind="Hook" title="Slack" sub="ops channel" color={C.deliver} isExt/>
+            <Node id="bell" kind="UI" title="In-app Bell" sub="Realtime push" color={C.rt}/>
+            <Node id="email" kind="Email" title="Resend" sub="transactional email" color={C.deliver} isExt/>
           </div>
 
           <div className="flow-col" style={{ '--col-c': C.offsite }}>
@@ -2014,20 +2002,17 @@ function DependencyMap({ animate }) {
   const edges = [
     // Infra → Data
     { from: 'd-docker', to: 'd-pg', fromSide: 'top', toSide: 'bottom', color: C.infra, curve: 0.5 },
-    { from: 'd-docker', to: 'd-redis', fromSide: 'top', toSide: 'bottom', color: C.infra, curve: 0.5 },
-    { from: 'd-docker', to: 'd-mongo', fromSide: 'top', toSide: 'bottom', color: C.infra, curve: 0.5 },
     { from: 'd-docker', to: 'd-store', fromSide: 'top', toSide: 'bottom', color: C.infra, curve: 0.5 },
     // Data → Platform
     { from: 'd-pg', to: 'd-sbauth', fromSide: 'top', toSide: 'bottom', color: C.data, curve: 0.5 },
+    { from: 'd-pg', to: 'd-sbrest', fromSide: 'top', toSide: 'bottom', color: C.data, curve: 0.5 },
     { from: 'd-pg', to: 'd-sbrt', fromSide: 'top', toSide: 'bottom', color: C.data, curve: 0.5 },
     { from: 'd-pg', to: 'd-sbedge', fromSide: 'top', toSide: 'bottom', color: C.data, curve: 0.5 },
-    { from: 'd-redis', to: 'd-novu', fromSide: 'top', toSide: 'bottom', color: C.data, curve: 0.5 },
-    { from: 'd-mongo', to: 'd-novu', fromSide: 'top', toSide: 'bottom', color: C.data, curve: 0.5 },
     // Platform → App
     { from: 'd-sbauth', to: 'd-next', fromSide: 'top', toSide: 'bottom', color: C.platform, curve: 0.5 },
+    { from: 'd-sbrest', to: 'd-next', fromSide: 'top', toSide: 'bottom', color: C.platform, curve: 0.5 },
     { from: 'd-sbrt', to: 'd-next', fromSide: 'top', toSide: 'bottom', color: C.platform, curve: 0.5 },
     { from: 'd-sbedge', to: 'd-next', fromSide: 'top', toSide: 'bottom', color: C.platform, curve: 0.5 },
-    { from: 'd-novu', to: 'd-next', fromSide: 'top', toSide: 'bottom', color: C.platform, curve: 0.5 },
     { from: 'd-store', to: 'd-next', fromSide: 'top', toSide: 'bottom', color: C.data, curve: 0.5 },
     // Nginx (infra) → Next directly too
     { from: 'd-nginx', to: 'd-next', fromSide: 'top', toSide: 'bottom', color: C.infra, curve: 0.6 },
@@ -2037,10 +2022,8 @@ function DependencyMap({ animate }) {
     { from: 'd-pg', to: 'd-backup', fromSide: 'top', toSide: 'bottom', color: C.data, curve: 0.7 },
     { from: 'd-backup', to: 'd-b2ext', fromSide: 'top', toSide: 'bottom', color: C.ops, curve: 0.5 },
     { from: 'd-gha', to: 'd-docker', fromSide: 'bottom', toSide: 'top', color: C.ops, curve: 0.6, label: 'ci' },
-    // Platform → External APIs
-    { from: 'd-novu', to: 'd-resend', fromSide: 'top', toSide: 'bottom', color: C.platform, curve: 0.4 },
-    { from: 'd-novu', to: 'd-twilio', fromSide: 'top', toSide: 'bottom', color: C.platform, curve: 0.4 },
-    { from: 'd-novu', to: 'd-slack', fromSide: 'top', toSide: 'bottom', color: C.platform, curve: 0.4 },
+    // App → External email
+    { from: 'd-next', to: 'd-resend', fromSide: 'top', toSide: 'bottom', color: C.app, curve: 0.4 },
   ];
 
   return (
@@ -2058,9 +2041,8 @@ function DependencyMap({ animate }) {
             <div className="dep-nodes">
               <Node id="d-uptime" kind="Monitor" title="UptimeRobot" sub="5m poll" color={C.ops} isExt/>
               <Node id="d-b2ext" kind="Vault" title="Backblaze B2" sub="encrypted backups" color={C.ops} isExt/>
-              <Node id="d-resend" kind="Email" title="Resend" sub="smtp" color={C.ext} isExt/>
-              <Node id="d-twilio" kind="SMS" title="Twilio" sub="sms · wa" color={C.ext} isExt/>
-              <Node id="d-slack" kind="Hook" title="Slack" sub="webhook" color={C.ext} isExt/>
+              <Node id="d-resend" kind="Email" title="Resend" sub="transactional email" color={C.ext} isExt/>
+              <Node id="d-cf" kind="Edge" title="Cloudflare" sub="dns · cdn · tls" color={C.ext} isExt/>
             </div>
           </div>
 
@@ -2098,10 +2080,10 @@ function DependencyMap({ animate }) {
               <div className="dep-layer-desc">supabase services · notification worker</div>
             </div>
             <div className="dep-nodes">
-              <Node id="d-sbauth" kind="Auth" title="Supabase Auth" sub="gotrue · jwt" color={C.platform}/>
+              <Node id="d-sbauth" kind="Auth" title="GoTrue" sub="auth · jwt" color={C.platform}/>
+              <Node id="d-sbrest" kind="REST" title="PostgREST" sub="auto REST · rls" color={C.platform}/>
               <Node id="d-sbrt" kind="Realtime" title="Realtime" sub="websocket pub/sub" color={C.platform}/>
               <Node id="d-sbedge" kind="Functions" title="Edge Functions" sub="deno cron" color={C.platform}/>
-              <Node id="d-novu" kind="Worker" title="Novu" sub="fan-out delivery" color={C.platform}/>
             </div>
           </div>
 
@@ -2113,9 +2095,7 @@ function DependencyMap({ animate }) {
               <div className="dep-layer-desc">durable state — everything above depends on these</div>
             </div>
             <div className="dep-nodes">
-              <Node id="d-pg" kind="Database" title="PostgreSQL 16" sub="+ PostGIS" color={C.data} isDb/>
-              <Node id="d-redis" kind="Queue" title="Redis" sub="job queue" color={C.data} isDb/>
-              <Node id="d-mongo" kind="State" title="MongoDB" sub="workflow state" color={C.data} isDb/>
+              <Node id="d-pg" kind="Database" title="PostgreSQL 15" sub="+ PostGIS · RLS" color={C.data} isDb/>
               <Node id="d-store" kind="Object" title="Supabase Storage" sub="s3 buckets" color={C.data} isDb/>
             </div>
           </div>
@@ -2128,10 +2108,9 @@ function DependencyMap({ animate }) {
               <div className="dep-layer-desc">if this is down, everything is down</div>
             </div>
             <div className="dep-nodes">
-              <Node id="d-vps" kind="Host" title="Contabo VPS" sub="ubuntu 24.04" color={C.infra}/>
-              <Node id="d-docker" kind="Runtime" title="Docker Engine" sub="+ compose" color={C.infra}/>
+              <Node id="d-vps" kind="Host" title="Contabo VPS" sub="ubuntu 24.04 · shared" color={C.infra}/>
+              <Node id="d-docker" kind="Runtime" title="Docker + pm2" sub="supabase · app" color={C.infra}/>
               <Node id="d-nginx" kind="Edge" title="Nginx" sub="reverse proxy" color={C.infra}/>
-              <Node id="d-cert" kind="TLS" title="Let's Encrypt" sub="certbot · auto-renew" color={C.infra}/>
             </div>
           </div>
         </div>
