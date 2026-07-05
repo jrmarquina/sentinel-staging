@@ -2,10 +2,11 @@
 
 import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Edit2, KeyRound, Trash2, X, Eye, EyeOff, Shield, ChevronDown, History, HardDrive, AlertTriangle, CheckCircle2, Loader2, Maximize2 } from 'lucide-react'
+import { Plus, Edit2, KeyRound, Trash2, X, Eye, EyeOff, Shield, ChevronDown, History, HardDrive, AlertTriangle, CheckCircle2, Loader2, Maximize2, Waypoints } from 'lucide-react'
 import { format, parseISO, isToday, isYesterday, formatDistanceToNow } from 'date-fns'
 import type { BackupFile } from '@/app/api/admin/backups/route'
 import { SystemHealthOverlay } from '@/components/settings/SystemHealthOverlay'
+import { SystemMapsOverlay } from '@/components/settings/SystemMapsOverlay'
 import { createUser, updateUser, resetUserPassword, deleteUser } from './actions'
 import { DevThemeCustomiser } from '@/components/settings/DevThemeCustomiser'
 
@@ -404,6 +405,32 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function SystemMapsSection() {
+  const [overlay, setOverlay] = useState(false)
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="flex items-center">
+        <button
+          onClick={() => setOverlay(true)}
+          className="flex-1 flex items-center gap-2 px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left"
+        >
+          <Waypoints size={15} className="text-slate-400" />
+          <span className="text-sm font-bold text-slate-900 dark:text-white">System Maps</span>
+          <span className="text-xs text-slate-400 hidden sm:inline">Services · Data Flow · Dependencies · Nodes</span>
+        </button>
+        <button
+          onClick={() => setOverlay(true)}
+          title="Open full-screen system maps"
+          className="px-4 py-4 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors border-l border-slate-100 dark:border-slate-800 flex-shrink-0"
+        >
+          <Maximize2 size={14} />
+        </button>
+      </div>
+      {overlay && <SystemMapsOverlay onClose={() => setOverlay(false)} />}
+    </div>
+  )
+}
+
 function BackupStatusSection() {
   const [open,      setOpen]      = useState(false)
   const [overlay,   setOverlay]   = useState(false)
@@ -693,6 +720,9 @@ export function SettingsClient({ members: initialMembers, auditLog = [] }: { mem
 
       {/* System Health panel */}
       <BackupStatusSection />
+
+      {/* System Maps — full-screen architecture viewer */}
+      <SystemMapsSection />
 
       {/* Role summary tiles */}
       <div className="grid grid-cols-5 gap-2">
