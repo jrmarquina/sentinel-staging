@@ -215,6 +215,7 @@ export const fm = {
     'insp.run.next':        'Next',
     'insp.run.complete':    'Complete Inspection',
     'insp.run.completing':  'Completing…',
+    'insp.run.completeFailed': 'Could not save all items — please try again.',
     'insp.run.notFound':    'Inspection not found',
     'insp.run.back':        'Back to inspections',
 
@@ -603,6 +604,7 @@ export const fm = {
     'insp.run.next':        'Siguiente',
     'insp.run.complete':    'Completar Inspección',
     'insp.run.completing':  'Completando…',
+    'insp.run.completeFailed': 'No se pudieron guardar todos los elementos — intente de nuevo.',
     'insp.run.notFound':    'Inspección no encontrada',
     'insp.run.back':        'Volver a inspecciones',
 

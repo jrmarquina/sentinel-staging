@@ -23,7 +23,11 @@ const tenantSchema = z.object({
  */
 export async function GET() {
   try {
-    await requireRole(['admin'])
+    // Organization management is a platform-operator action, not a client-admin
+    // one. Restrict to admins of the Sentinel system org so a municipality's
+    // admin cannot list/touch the organizations table within their instance.
+    const session = await requireRole(['admin'])
+    if (session.orgSlug !== 'sentinel') return err('Forbidden', 403)
     const supabase = createClient()
 
     const { data, error } = await supabase
@@ -41,7 +45,8 @@ export async function GET() {
  */
 export async function POST(req: NextRequest) {
   try {
-    await requireRole(['admin'])
+    const session = await requireRole(['admin'])
+    if (session.orgSlug !== 'sentinel') return err('Forbidden', 403)
     const body = await req.json()
     const parsed = tenantSchema.safeParse(body)
     if (!parsed.success) return err(parsed.error.errors[0].message, 400)

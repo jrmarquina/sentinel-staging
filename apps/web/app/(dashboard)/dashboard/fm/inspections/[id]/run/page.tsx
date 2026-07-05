@@ -717,15 +717,21 @@ export default function InspectionRunPage() {
 
   async function handleComplete() {
     await saveDirty()
-    // Mark all hidden items as NA so they don't skew the score
+    // Mark all hidden items as NA so they don't skew the score. If this fails,
+    // abort completion — otherwise hidden items stay unrated and the
+    // server-computed score is wrong.
     const hiddenKeys = items.filter((item) => !isItemVisible(item.key)).map((i) => i.key)
     if (hiddenKeys.length > 0) {
       const naItems = hiddenKeys.map((key) => ({ key, result: 'na', severity: null, notes: null }))
-      await fetch(`/api/fm/inspections/${id}/items`, {
+      const naRes = await fetch(`/api/fm/inspections/${id}/items`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: naItems }),
       })
+      if (!naRes.ok) {
+        setError(t('insp.run.completeFailed'))
+        return
+      }
     }
     setCompleting(true)
     try {

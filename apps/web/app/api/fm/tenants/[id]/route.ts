@@ -16,7 +16,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await requireRole(['admin'])
+    // Platform-operator action only — see tenants/route.ts.
+    const session = await requireRole(['admin'])
+    if (session.orgSlug !== 'sentinel') return err('Forbidden', 403)
     const supabase = createClient()
 
     // Check if it's a protected system org
