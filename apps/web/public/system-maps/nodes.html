@@ -304,7 +304,7 @@ network.on('afterDrawing', function(ctx) {
 });
 </script>
 
-<!-- ── SIMS embed enhancements: theme-follow, auto-center, reveal + hover ── -->
+<!-- ── SIMS embed enhancements: theme-follow, auto-center + live animations ── -->
 <style>
   #sims-controls{position:fixed;right:16px;bottom:16px;z-index:9999;display:flex;gap:8px}
   #sims-controls button{appearance:none;border:1px solid rgba(255,255,255,.18);
@@ -313,18 +313,28 @@ network.on('afterDrawing', function(ctx) {
     box-shadow:0 6px 20px rgba(0,0,0,.28);transition:transform .12s ease,background .12s ease}
   #sims-controls button:hover{background:rgba(40,40,60,.9);transform:translateY(-1px)}
   #sims-controls button:active{transform:translateY(0)}
+  #sims-controls button[aria-pressed="false"]{opacity:.5}
+  #sims-hint{position:fixed;left:16px;bottom:16px;z-index:9999;font:600 11.5px/1.3 ui-sans-serif,system-ui,sans-serif;
+    color:#cdd3e6;background:rgba(20,20,32,.72);border:1px solid rgba(255,255,255,.14);
+    padding:8px 11px;border-radius:9px;backdrop-filter:blur(10px);max-width:260px;opacity:0;
+    transition:opacity .2s ease;pointer-events:none}
+  #sims-hint.on{opacity:1}
   body.sims-light{background:#f6f7fb !important}
   body.sims-light #graph{background:#f6f7fb !important}
   body.sims-light #sims-controls button{background:rgba(255,255,255,.82);color:#1e2230;border-color:rgba(0,0,0,.12)}
+  body.sims-light #sims-hint{background:rgba(255,255,255,.86);color:#2a2f42;border-color:rgba(0,0,0,.1)}
 </style>
 <div id="sims-controls">
+  <button id="sims-flow" aria-pressed="true" title="Toggle animated data flow">✦ Flow</button>
   <button id="sims-fit" title="Fit the whole graph in view">◎ Auto-center</button>
 </div>
+<div id="sims-hint"></div>
 <script>
 (function () {
   function whenReady(cb, tries) {
     tries = tries || 0;
-    if (typeof network !== 'undefined' && network) return cb(network);
+    if (typeof network !== 'undefined' && network && typeof edgesDS !== 'undefined')
+      return cb(network, edgesDS, nodesDS);
     if (tries > 200) return; // ~10s max
     setTimeout(function () { whenReady(cb, tries + 1); }, 50);
   }
@@ -333,26 +343,174 @@ network.on('afterDrawing', function(ctx) {
   var isLight = params.get('theme') === 'light';
   if (isLight) document.body.classList.add('sims-light');
 
-  whenReady(function (net) {
-    var fit = function () {
-      net.fit({ animation: { duration: 700, easingFunction: 'easeInOutQuad' } });
-    };
+  function hash(str) { var h = 0; str = String(str); for (var i=0;i<str.length;i++){ h=(h*31+str.charCodeAt(i))|0; } return Math.abs(h); }
 
-    // Auto-center button
+  whenReady(function (net, eds, nds) {
+    var fit = function () { net.fit({ animation: { duration: 700, easingFunction: 'easeInOutQuad' } }); };
     document.getElementById('sims-fit').addEventListener('click', fit);
 
-    // Reveal animation: gentle zoom-to-fit once physics settles.
-    net.once('stabilizationIterationsDone', fit);
-    // Fallback in case stabilization already finished before we hooked in.
-    setTimeout(fit, 1200);
+    // Freeze the physics simulation once the layout settles. On a ~1900-node
+    // graph the continuous simulation pins the CPU (~8fps); frozen, the graph
+    // holds its layout and the overlay animations run at 60fps.
+    var frozen = false;
+    var settle = function () {
+      if (frozen) return; frozen = true;
+      net.setOptions({ physics: false });
+      fit();
+    };
+    net.once('stabilizationIterationsDone', settle);
+    setTimeout(settle, 6000); // fallback if the event is slow to fire
 
-    // Focus+context: on hover, emphasise the node and its neighbours.
-    net.on('hoverNode', function (p) {
-      net.selectNodes([p.node], true);
+    // ── Precompute edge list, node degree (hubs), and adjacency (blast radius)
+    var edges = eds.get();
+    var degree = {}, adj = {};
+    edges.forEach(function (e) {
+      degree[e.from] = (degree[e.from]||0)+1;
+      degree[e.to]   = (degree[e.to]||0)+1;
+      (adj[e.from]=adj[e.from]||[]).push(e.to);
+      (adj[e.to]=adj[e.to]||[]).push(e.from);
     });
-    net.on('blurNode', function () {
-      net.unselectAll();
+    var degVals = Object.keys(degree).map(function(k){return degree[k];}).sort(function(a,b){return a-b;});
+    var hubCut = degVals.length ? Math.max(5, degVals[Math.floor(degVals.length*0.9)]) : 5;
+
+    // ── State
+    var flowOn = true;
+    var hoveredId = null;
+    var focusSet = null;   // Set of ids for blast-radius, or null
+    var particleCol = isLight ? 'rgba(60,110,220,0.95)' : 'rgba(150,195,255,0.95)';
+    var glowCol     = isLight ? 'rgba(60,110,220,'      : 'rgba(150,195,255,';
+
+    // ── Flow toggle
+    var flowBtn = document.getElementById('sims-flow');
+    flowBtn.addEventListener('click', function () {
+      flowOn = !flowOn;
+      flowBtn.setAttribute('aria-pressed', String(flowOn));
     });
+
+    // ── Blast radius: click a node → highlight its 2-hop neighbourhood
+    var hint = document.getElementById('sims-hint');
+    net.on('click', function (p) {
+      if (p.nodes && p.nodes.length) {
+        var start = p.nodes[0], seen = {}, frontier = [start], hops = 2;
+        seen[start] = true;
+        for (var h=0; h<hops; h++) {
+          var next = [];
+          frontier.forEach(function (id) {
+            (adj[id]||[]).forEach(function (n) { if (!seen[n]) { seen[n]=true; next.push(n); } });
+          });
+          frontier = next;
+        }
+        focusSet = seen;
+        var count = Object.keys(seen).length;
+        var lbl = (nds.get(start)||{}).label || start;
+        hint.textContent = '◎ Blast radius of ' + lbl + ' — ' + count + ' nodes within 2 hops. Click empty space to clear.';
+        hint.classList.add('on');
+      } else {
+        focusSet = null;
+        hint.classList.remove('on');
+      }
+    });
+
+    net.on('hoverNode', function (p) { hoveredId = p.node; });
+    net.on('blurNode',  function ()  { hoveredId = null; });
+
+    // ── Overlay canvas — animate ON TOP of the static network (no full redraw).
+    // The graph is large (~1900 nodes); re-rendering it every frame tanks FPS,
+    // so we draw effects on a transparent canvas positioned over #graph and map
+    // node coords into it with canvasToDOM (which tracks the current pan/zoom).
+    var graphEl = document.getElementById('graph');
+    if (getComputedStyle(graphEl).position === 'static') graphEl.style.position = 'relative';
+    var overlay = document.createElement('canvas');
+    overlay.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;z-index:5';
+    graphEl.appendChild(overlay);
+    var octx = overlay.getContext('2d');
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var VW = 0, VH = 0;
+    function sizeOverlay() {
+      var r = graphEl.getBoundingClientRect();
+      VW = r.width; VH = r.height;
+      overlay.width = Math.max(1, VW * dpr); overlay.height = Math.max(1, VH * dpr);
+      overlay.style.width = VW + 'px'; overlay.style.height = VH + 'px';
+      octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    sizeOverlay();
+    window.addEventListener('resize', sizeOverlay);
+
+    var PAD = 40;
+    function vis(d) { return d && d.x > -PAD && d.x < VW + PAD && d.y > -PAD && d.y < VH + PAD; }
+
+    function draw() {
+      var now = performance.now();
+      octx.clearRect(0, 0, VW, VH);
+      var pos = net.getPositions();
+      var domCache = {};
+      function D(id) {
+        if (id in domCache) return domCache[id];
+        var p = pos[id]; var d = p ? net.canvasToDOM(p) : null;
+        return (domCache[id] = d);
+      }
+
+      // Blast-radius glow rings
+      if (focusSet) {
+        var bp = 0.5 + 0.5 * Math.sin(now / 400);
+        octx.lineWidth = 2.5; octx.strokeStyle = glowCol + (0.3 + bp * 0.4) + ')';
+        for (var id in focusSet) { var d = D(id); if (vis(d)) { octx.beginPath(); octx.arc(d.x, d.y, 15 + bp * 5, 0, 6.2832); octx.stroke(); } }
+      }
+
+      // Hub pulse — expanding rings on the most-connected nodes
+      octx.lineWidth = 2;
+      for (var hid in degree) {
+        if (degree[hid] < hubCut) continue;
+        var hd = D(hid); if (!vis(hd)) continue;
+        var t = ((now / 1800) + (hash(hid) % 100) / 100) % 1;
+        octx.strokeStyle = glowCol + (0.35 * (1 - t)) + ')';
+        octx.beginPath(); octx.arc(hd.x, hd.y, 12 + t * 20, 0, 6.2832); octx.stroke();
+      }
+
+      // Hover pulse
+      if (hoveredId) {
+        var hv = D(hoveredId);
+        if (vis(hv)) {
+          var hp = 0.5 + 0.5 * Math.sin(now / 220);
+          octx.lineWidth = 3; octx.strokeStyle = glowCol + (0.55 + hp * 0.4) + ')';
+          octx.beginPath(); octx.arc(hv.x, hv.y, 16 + hp * 6, 0, 6.2832); octx.stroke();
+        }
+      }
+
+      // Particle flow — dots travelling from → to along each visible edge
+      if (flowOn) {
+        octx.fillStyle = particleCol; octx.shadowColor = particleCol; octx.shadowBlur = 6;
+        // stride keeps it tasteful + fast when the whole graph is in view
+        var stride = edges.length > 1600 ? 2 : 1;
+        for (var i = 0; i < edges.length; i += stride) {
+          var e = edges[i];
+          if (focusSet && !(focusSet[e.from] && focusSet[e.to])) continue;
+          var a = D(e.from), b = D(e.to);
+          if (!a || !b || (!vis(a) && !vis(b))) continue;
+          var tt = (((now / 2600) + (hash(e.id || (e.from + e.to)) % 1000) / 1000) % 1);
+          octx.beginPath();
+          octx.arc(a.x + (b.x - a.x) * tt, a.y + (b.y - a.y) * tt, 2.2, 0, 6.2832);
+          octx.fill();
+        }
+        octx.shadowBlur = 0;
+      }
+    }
+
+    // ── Loop: draw the lightweight overlay only (network stays static)
+    var lastFrame = 0, clearedIdle = false;
+    function loop(ts) {
+      requestAnimationFrame(loop);
+      if (document.hidden) return;
+      if (!(flowOn || hoveredId || focusSet)) {
+        if (!clearedIdle) { octx.clearRect(0, 0, VW, VH); clearedIdle = true; }
+        return;
+      }
+      clearedIdle = false;
+      if (ts - lastFrame < 33) return; // ~30fps
+      lastFrame = ts;
+      draw();
+    }
+    requestAnimationFrame(loop);
   });
 })();
 </script>
