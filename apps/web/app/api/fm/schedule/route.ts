@@ -33,12 +33,18 @@ function caught(e: unknown) {
 
 type ScheduleType = 'inspection' | 'work_order' | 'project_task'
 
+interface PropertyRef { id: string; name: string }
+
 interface ScheduleItem {
   id:            string          // stable, prefixed by type
   type:          ScheduleType
   title:         string
-  propertyId:    string | null
-  propertyName:  string | null
+  // A project may touch zero, one, or many properties; inspections and work
+  // orders always have exactly one. Represented as an array so the calendar
+  // renders 0 ("no property"), 1 (the name), or N ("N properties") uniformly —
+  // and stays correct if a project→property many-to-many is added later.
+  properties:    PropertyRef[]
+  propertyLabel: string          // '—' | name | 'N properties'
   assigneeId:    string | null
   assigneeName:  string | null
   start:         string          // ISO date/time
@@ -115,8 +121,10 @@ export async function GET() {
       }
     }
 
-    const propName = (row: Record<string, unknown>) =>
-      (row.fm_properties as { name?: string } | null)?.name ?? null
+    const propsFromEmbed = (id: string | null | undefined, name: string | null | undefined): PropertyRef[] =>
+      id ? [{ id, name: name ?? '—' }] : []
+    const labelOf = (props: PropertyRef[]): string =>
+      props.length === 0 ? '—' : props.length === 1 ? props[0].name : `${props.length} properties`
 
     const items: ScheduleItem[] = []
 
@@ -125,12 +133,13 @@ export async function GET() {
       const status = r.status as string
       const tmpl = (r.fm_inspection_templates as { name?: string } | null)?.name ?? 'Inspection'
       const assigneeId = (r.inspector_id as string | null) ?? null
+      const props = propsFromEmbed(r.property_id as string | null, (r.fm_properties as { name?: string } | null)?.name)
       items.push({
         id: `inspection-${r.id}`,
         type: 'inspection',
         title: tmpl,
-        propertyId: (r.property_id as string | null) ?? null,
-        propertyName: propName(r),
+        properties: props,
+        propertyLabel: labelOf(props),
         assigneeId,
         assigneeName: assigneeId ? (nameMap.get(assigneeId) || null) : null,
         start,
@@ -149,12 +158,13 @@ export async function GET() {
       const due = r.due_date as string
       const status = r.status as string
       const assigneeId = (r.assigned_to_id as string | null) ?? null
+      const props = propsFromEmbed(r.property_id as string | null, (r.fm_properties as { name?: string } | null)?.name)
       items.push({
         id: `work_order-${r.id}`,
         type: 'work_order',
         title: (r.title as string) ?? 'Work order',
-        propertyId: (r.property_id as string | null) ?? null,
-        propertyName: propName(r),
+        properties: props,
+        propertyLabel: labelOf(props),
         assigneeId,
         assigneeName: assigneeId ? (nameMap.get(assigneeId) || null) : null,
         start: due,
@@ -175,12 +185,15 @@ export async function GET() {
       const end   = r.end_date as string
       const status = r.status as string
       const assigneeId = (r.assignee_id as string | null) ?? null
+      // Today a project links to 0 or 1 property (projects.fm_property_id).
+      // If a project→property many-to-many is added, resolve the full set here.
+      const props = propsFromEmbed(proj?.fm_property_id ?? null, proj?.fm_properties?.name)
       items.push({
         id: `project_task-${r.id}`,
         type: 'project_task',
         title: (r.name as string) ?? 'Task',
-        propertyId: proj?.fm_property_id ?? null,
-        propertyName: proj?.fm_properties?.name ?? null,
+        properties: props,
+        propertyLabel: labelOf(props),
         assigneeId,
         assigneeName: assigneeId ? (nameMap.get(assigneeId) || null) : null,
         start,
@@ -199,7 +212,7 @@ export async function GET() {
     const propMap = new Map<string, string>()
     const asgMap  = new Map<string, string>()
     for (const it of items) {
-      if (it.propertyId) propMap.set(it.propertyId, it.propertyName ?? '—')
+      for (const p of it.properties) propMap.set(p.id, p.name)
       if (it.assigneeId) asgMap.set(it.assigneeId, it.assigneeName ?? '—')
     }
 
