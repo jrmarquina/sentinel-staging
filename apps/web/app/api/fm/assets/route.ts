@@ -20,6 +20,22 @@ const assetSchema = z.object({
   condition: z.string().optional(),
   risk: z.string().optional(),
   property_id: z.string().min(1),
+  mobility: z.enum(['FIXED', 'MOBILE']).optional(),
+  status: z.enum(['IN_SERVICE', 'IN_STORAGE', 'IN_REPAIR', 'RETIRED']).optional(),
+  // SAP / municipal inventory fields (from the Inventario export)
+  sap_asset_number: z.string().optional(),
+  sap_subnumber: z.string().optional(),
+  inventory_number: z.string().optional(),
+  serial: z.string().optional(),
+  tablilla: z.string().optional(),
+  modulo: z.string().optional(),
+  fund: z.string().optional(),
+  fund_center: z.string().optional(),
+  cost_center: z.string().optional(),
+  fiscal_year: z.string().optional(),
+  acquisition_date: z.string().optional(),
+  acquisition_value: z.number().optional(),
+  last_inventory_date: z.string().optional(),
 })
 
 export async function GET(req: NextRequest) {
@@ -29,12 +45,18 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const propertyId = searchParams.get('propertyId')
     const category = searchParams.get('category')
+    const mobility = searchParams.get('mobility')
+    const status = searchParams.get('status')
+    const custodianId = searchParams.get('custodianId')
+    const spaceId = searchParams.get('spaceId')
 
     let query = supabase
       .from('fm_assets')
       .select(`
         *,
         fm_properties!inner(name, code),
+        current_custodian:fm_custodians!current_custodian_id(id, full_name, custodian_type),
+        current_space:fm_spaces!current_space_id(id, name, space_type),
         fm_inspections(count)
       `)
       .eq('org_id', session.orgId)
@@ -43,6 +65,10 @@ export async function GET(req: NextRequest) {
 
     if (propertyId) query = query.eq('property_id', propertyId)
     if (category) query = query.eq('category', category)
+    if (mobility) query = query.eq('mobility', mobility)
+    if (status) query = query.eq('status', status)
+    if (custodianId) query = query.eq('current_custodian_id', custodianId)
+    if (spaceId) query = query.eq('current_space_id', spaceId)
 
     const { data, error } = await query
     if (error) return err(error.message)

@@ -21,6 +21,22 @@ const assetUpdateSchema = z.object({
   risk: z.string().optional(),
   property_id: z.string().optional(),
   last_inspection: z.string().optional(),
+  mobility: z.enum(['FIXED', 'MOBILE']).optional(),
+  // status may be set directly for IN_REPAIR (movements drive the rest)
+  status: z.enum(['IN_SERVICE', 'IN_STORAGE', 'IN_REPAIR', 'RETIRED']).optional(),
+  sap_asset_number: z.string().optional(),
+  sap_subnumber: z.string().optional(),
+  inventory_number: z.string().optional(),
+  serial: z.string().optional(),
+  tablilla: z.string().optional(),
+  modulo: z.string().optional(),
+  fund: z.string().optional(),
+  fund_center: z.string().optional(),
+  cost_center: z.string().optional(),
+  fiscal_year: z.string().optional(),
+  acquisition_date: z.string().optional(),
+  acquisition_value: z.number().optional(),
+  last_inventory_date: z.string().optional(),
 })
 
 export async function GET(
@@ -36,6 +52,8 @@ export async function GET(
       .select(`
         *,
         fm_properties(*),
+        current_custodian:fm_custodians!current_custodian_id(id, full_name, custodian_type),
+        current_space:fm_spaces!current_space_id(id, name, space_type),
         fm_inspections(
           id, status, completed_at, score,
           fm_users:inspector_id(full_name)
