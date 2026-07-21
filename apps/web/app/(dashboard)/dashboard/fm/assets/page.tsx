@@ -17,12 +17,16 @@ interface FmAsset {
   id: string; name: string; code: string
   category: string; condition: string
   location: string | null; property_id: string | null
+  mobility?: string; status?: string
+  current_custodian?: { id: string; full_name: string; custodian_type: string } | null
+  current_space?: { id: string; name: string } | null
   fm_properties?: { name: string } | null
 }
 
 interface AssetForm {
   name: string; code: string; category: string
   property_id: string; location: string; condition: string
+  mobility: 'FIXED' | 'MOBILE'
 }
 
 const CATEGORIES = ['ELECTRICAL', 'PLUMBING', 'HVAC', 'STRUCTURAL', 'FIRE_SAFETY', 'OTHER'] as const
@@ -30,7 +34,7 @@ const CONDITIONS = ['GOOD', 'FAIR', 'POOR'] as const
 
 const EMPTY_FORM: AssetForm = {
   name: '', code: '', category: 'OTHER',
-  property_id: '', location: '', condition: 'GOOD',
+  property_id: '', location: '', condition: 'GOOD', mobility: 'FIXED',
 }
 
 // condition → badge variant
@@ -49,6 +53,7 @@ export default function FMAssetsPage() {
   const [error, setError]           = useState<string | null>(null)
   const [search, setSearch]         = useState('')
   const [catFilter, setCatFilter]   = useState<string>('ALL')
+  const [mobFilter, setMobFilter]   = useState<'ALL' | 'FIXED' | 'MOBILE'>('ALL')
   const [showModal, setShowModal]   = useState(false)
   const [form, setForm]             = useState<AssetForm>(EMPTY_FORM)
   const [saving, setSaving]         = useState(false)
@@ -89,7 +94,8 @@ export default function FMAssetsPage() {
       a.code.toLowerCase().includes(q) ||
       (a.fm_properties?.name ?? '').toLowerCase().includes(q)
     const matchCat = catFilter === 'ALL' || a.category === catFilter
-    return matchSearch && matchCat
+    const matchMob = mobFilter === 'ALL' || (a.mobility ?? 'FIXED') === mobFilter
+    return matchSearch && matchCat && matchMob
   })
 
   // Category counts
@@ -116,6 +122,7 @@ export default function FMAssetsPage() {
           property_id: form.property_id || null,
           location: form.location.trim() || null,
           condition: form.condition,
+          mobility: form.mobility,
         }),
       })
       if (!res.ok) {
@@ -196,6 +203,24 @@ export default function FMAssetsPage() {
             )
           })}
         </div>
+
+        {/* Mobility toggle: fixed (building equipment) vs mobile (movable) */}
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {(['ALL', 'FIXED', 'MOBILE'] as const).map((m) => {
+            const active = mobFilter === m
+            const count = m === 'ALL' ? assets.length : assets.filter((a) => (a.mobility ?? 'FIXED') === m).length
+            const label = m === 'ALL' ? 'All items' : m === 'FIXED' ? 'Fixed' : 'Mobile'
+            return (
+              <button key={m} onClick={() => setMobFilter(m)} style={{
+                padding: '0.3rem 0.75rem', borderRadius: 9999, fontSize: '0.72rem', fontWeight: 700,
+                border: `1px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
+                background: active ? 'var(--primary-c)' : 'var(--card-b)',
+                color: active ? 'var(--primary)' : 'var(--muted)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '0.35rem',
+              }}>{label}<span style={{ opacity: 0.7, fontWeight: 800 }}>{count}</span></button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Table */}
@@ -234,6 +259,7 @@ export default function FMAssetsPage() {
                     <th>{t('asset.col.name')}</th>
                     <th>{t('asset.col.category')}</th>
                     <th style={{ display: 'none' }} className="md:table-cell">{t('asset.col.property')}</th>
+                    <th>Holder / Location</th>
                     <th>{t('asset.col.condition')}</th>
                     <th style={{ width: 80 }}></th>
                   </tr>
@@ -246,7 +272,12 @@ export default function FMAssetsPage() {
                       style={{ cursor: 'pointer' }}
                     >
                       <td>
-                        <p style={{ fontWeight: 600, color: 'var(--fg)', margin: 0 }}>{asset.name}</p>
+                        <p style={{ fontWeight: 600, color: 'var(--fg)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          {asset.name}
+                          {(asset.mobility ?? 'FIXED') === 'MOBILE' && (
+                            <FmBadge variant="info">Mobile</FmBadge>
+                          )}
+                        </p>
                         <p style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'var(--muted)', margin: '0.15rem 0 0' }}>{asset.code}</p>
                       </td>
                       <td>
@@ -258,6 +289,18 @@ export default function FMAssetsPage() {
                         <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
                           {asset.fm_properties?.name ?? '—'}
                         </span>
+                      </td>
+                      <td>
+                        {(asset.mobility ?? 'FIXED') === 'MOBILE' ? (
+                          <div style={{ fontSize: '0.78rem' }}>
+                            <span style={{ color: 'var(--fg)' }}>{asset.current_custodian?.full_name ?? 'Unassigned'}</span>
+                            {asset.current_space?.name && (
+                              <span style={{ color: 'var(--muted)', display: 'block', fontSize: '0.72rem' }}>{asset.current_space.name}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>—</span>
+                        )}
                       </td>
                       <td>
                         <FmBadge variant={conditionVariant(asset.condition)}>
@@ -335,6 +378,17 @@ export default function FMAssetsPage() {
                 {CONDITIONS.map((c) => (
                   <option key={c} value={c}>{t(`asset.condition.${c}` as Parameters<typeof t>[0])}</option>
                 ))}
+              </select>
+            </div>
+
+            {/* Mobility */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Type of asset</label>
+              <select className="fm-input" value={form.mobility}
+                onChange={(e) => setForm((f) => ({ ...f, mobility: e.target.value as 'FIXED' | 'MOBILE' }))}
+                style={{ appearance: 'none' }}>
+                <option value="FIXED">Fixed — building equipment (cistern, generator, A/C)</option>
+                <option value="MOBILE">Mobile — movable, assigned to people (laptop, chair, table)</option>
               </select>
             </div>
 

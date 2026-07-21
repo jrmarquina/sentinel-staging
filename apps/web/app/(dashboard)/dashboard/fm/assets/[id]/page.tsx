@@ -12,9 +12,10 @@ import {
 import { QRCodeSVG } from 'qrcode.react'
 import {
   FmCard, FmBadge, FmButton, FmModal,
-  FmModalFooter, FmSectionLabel, statusVariant,
+  FmModalFooter, FmSectionLabel, statusVariant, AssetCustodyTab,
 } from '@/components/fm'
 import { useFmT } from '@/lib/locale'
+import { useRole } from '@/hooks/useRole'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,9 @@ interface FmInspectionSummary {
 
 interface FmPropertySummary { id: string; name: string }
 
+interface FmCustodianSummary { id: string; full_name: string; custodian_type: string }
+interface FmSpaceSummary { id: string; name: string; space_type: string }
+
 interface FmAsset {
   id: string
   name: string
@@ -47,6 +51,11 @@ interface FmAsset {
   location: string | null
   serial_number?: string | null
   last_inspection?: string | null
+  property_id?: string | null
+  mobility?: string
+  status?: string
+  current_custodian?: FmCustodianSummary | null
+  current_space?: FmSpaceSummary | null
   fm_properties?: FmPropertySummary | null
   fm_inspections?: FmInspectionSummary[]
   fm_attachments?: FmAttachment[]
@@ -77,7 +86,7 @@ function isImage(mime: string | null): boolean {
 
 // ── Tab component ──────────────────────────────────────────────────────────
 
-type TabId = 'overview' | 'history' | 'docs'
+type TabId = 'overview' | 'custody' | 'history' | 'docs'
 
 function Tab({ id, active, label, icon, onClick }: {
   id: TabId; active: boolean; label: string; icon: React.ReactNode; onClick: () => void
@@ -127,6 +136,8 @@ export default function FMAssetDetailPage() {
   const params = useParams()
   const router = useRouter()
   const t = useFmT()
+  const { role } = useRole()
+  const canManageCustody = role === 'admin' || role === 'supervisor'
   const id = Array.isArray(params.id) ? params.id[0] : (params.id as string)
 
   const [asset, setAsset]         = useState<FmAsset | null>(null)
@@ -324,9 +335,23 @@ export default function FMAssetDetailPage() {
       {/* ── Tabs ── */}
       <div style={{ display: 'flex', gap: '1.5rem', borderBottom: '1px solid var(--border)', overflowX: 'auto' }}>
         <Tab id="overview" active={tab === 'overview'} label="Overview"           icon={<Wrench size={13} />}        onClick={() => setTab('overview')} />
+        {asset.mobility === 'MOBILE' && (
+          <Tab id="custody" active={tab === 'custody'} label="Chain of Custody"   icon={<QrCode size={13} />}         onClick={() => setTab('custody')} />
+        )}
         <Tab id="history"  active={tab === 'history'}  label="Service History"    icon={<ClipboardCheck size={13} />} onClick={() => setTab('history')} />
         <Tab id="docs"     active={tab === 'docs'}     label="Photos & Documents" icon={<Image size={13} />}          onClick={() => setTab('docs')} />
       </div>
+
+      {/* ─── Custody tab ──────────────────────────────────────────────────── */}
+      {tab === 'custody' && (
+        <AssetCustodyTab
+          assetId={id}
+          propertyId={asset.property_id ?? asset.fm_properties?.id ?? null}
+          mobility={asset.mobility ?? 'FIXED'}
+          canManage={canManageCustody}
+          onChanged={load}
+        />
+      )}
 
       {/* ─── Overview tab ─────────────────────────────────────────────────── */}
       {tab === 'overview' && (

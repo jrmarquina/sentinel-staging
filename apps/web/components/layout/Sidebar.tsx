@@ -24,6 +24,8 @@ import {
   ArrowLeftRight,
   FileSearch,
   TrendingUp,
+  History,
+  MapPin,
 } from 'lucide-react'
 import { useT } from '@/lib/locale'
 import { useDesignTheme } from '@/lib/design-theme'
@@ -88,6 +90,9 @@ const FM_SECTIONS: NavSection[] = [
       { labelKey: 'nav.fmFCA',         href: '/dashboard/fm/fca',          icon: FileSearch },
       { labelKey: 'nav.fmProperties',  href: '/dashboard/fm/properties',   icon: Building2 },
       { labelKey: 'nav.fmAssets',      href: '/dashboard/fm/assets',       icon: Wrench },
+      { labelKey: 'nav.fmCustody',     href: '/dashboard/fm/custody',      icon: History },
+      { labelKey: 'nav.fmCustodians',  href: '/dashboard/fm/custodians',   icon: Users },
+      { labelKey: 'nav.fmSpaces',      href: '/dashboard/fm/spaces',       icon: MapPin },
     ],
   },
 ]
