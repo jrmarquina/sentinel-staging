@@ -20,6 +20,7 @@ export const en = {
   'nav.fmCustody':    'Custody Search',
   'nav.fmCustodians': 'Custodians',
   'nav.fmSpaces':     'Spaces',
+  'nav.fmImport':     'Import / Export',
   'nav.fmInspections':'Inspections',
   'nav.fmFCA':        'Facility Assessment',
   'nav.fmWorkOrders': 'Work Orders',

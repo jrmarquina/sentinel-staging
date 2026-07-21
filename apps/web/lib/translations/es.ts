@@ -22,6 +22,7 @@ export const es: Record<TranslationKey, string> = {
   'nav.fmCustody':    'Búsqueda de Custodia',
   'nav.fmCustodians': 'Custodios',
   'nav.fmSpaces':     'Espacios',
+  'nav.fmImport':     'Importar / Exportar',
   'nav.fmInspections':'Inspecciones',
   'nav.fmFCA':        'Evaluación de Facilidad',
   'nav.fmWorkOrders': 'Órdenes de Trabajo',

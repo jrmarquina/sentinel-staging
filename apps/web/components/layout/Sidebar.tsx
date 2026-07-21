@@ -26,6 +26,7 @@ import {
   TrendingUp,
   History,
   MapPin,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { useT } from '@/lib/locale'
 import { useDesignTheme } from '@/lib/design-theme'
@@ -93,6 +94,7 @@ const FM_SECTIONS: NavSection[] = [
       { labelKey: 'nav.fmCustody',     href: '/dashboard/fm/custody',      icon: History },
       { labelKey: 'nav.fmCustodians',  href: '/dashboard/fm/custodians',   icon: Users },
       { labelKey: 'nav.fmSpaces',      href: '/dashboard/fm/spaces',       icon: MapPin },
+      { labelKey: 'nav.fmImport',      href: '/dashboard/fm/import',       icon: FileSpreadsheet },
     ],
   },
 ]
