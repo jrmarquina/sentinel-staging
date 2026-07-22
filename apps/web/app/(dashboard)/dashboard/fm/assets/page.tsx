@@ -78,7 +78,7 @@ export default function FMAssetsPage() {
       }),
       fetch('/api/fm/properties').then((r) => r.json() as Promise<FmProperty[]>),
     ])
-      .then(([a, p]) => { setAssets(a); setProperties(p) })
+      .then(([a, p]) => { setAssets(Array.isArray(a) ? a : []); setProperties(Array.isArray(p) ? p : []) })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
       .finally(() => setLoading(false))
   }

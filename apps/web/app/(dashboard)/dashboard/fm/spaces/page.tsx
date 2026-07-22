@@ -42,7 +42,7 @@ export default function SpacesPage() {
     Promise.all([
       fetch('/api/fm/spaces').then((r) => { if (!r.ok) throw new Error('Failed to load spaces'); return r.json() as Promise<Space[]> }),
       fetch('/api/fm/properties').then((r) => r.json() as Promise<Property[]>).catch(() => []),
-    ]).then(([s, p]) => { setSpaces(s); setProperties(p) })
+    ]).then(([s, p]) => { setSpaces(Array.isArray(s) ? s : []); setProperties(Array.isArray(p) ? p : []) })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
       .finally(() => setLoading(false))
   }, [])

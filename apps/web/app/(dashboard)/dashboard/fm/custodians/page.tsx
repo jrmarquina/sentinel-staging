@@ -43,7 +43,7 @@ export default function CustodiansPage() {
     Promise.all([
       fetch('/api/fm/custodians').then((r) => { if (!r.ok) throw new Error('Failed to load custodians'); return r.json() as Promise<Custodian[]> }),
       fetch('/api/fm/properties').then((r) => r.json() as Promise<Property[]>).catch(() => []),
-    ]).then(([c, p]) => { setCustodians(c); setProperties(p) })
+    ]).then(([c, p]) => { setCustodians(Array.isArray(c) ? c : []); setProperties(Array.isArray(p) ? p : []) })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
       .finally(() => setLoading(false))
   }, [])

@@ -90,7 +90,7 @@ export function AssetCustodyTab({ assetId, propertyId, mobility, canManage, onCh
     setLoading(true)
     fetch(`/api/fm/assets/${assetId}/movements`)
       .then((r) => { if (!r.ok) throw new Error('Failed to load custody history'); return r.json() as Promise<Movement[]> })
-      .then(setMovements)
+      .then((d) => setMovements(Array.isArray(d) ? d : []))
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
       .finally(() => setLoading(false))
   }, [assetId])
@@ -103,9 +103,12 @@ export function AssetCustodyTab({ assetId, propertyId, mobility, canManage, onCh
     // Load dropdown options scoped to this asset's building.
     const q = propertyId ? `?propertyId=${propertyId}&activeOnly=true` : '?activeOnly=true'
     Promise.all([
-      fetch(`/api/fm/custodians${q}`).then((r) => r.json() as Promise<Custodian[]>),
-      fetch(`/api/fm/spaces${propertyId ? `?propertyId=${propertyId}` : ''}`).then((r) => r.json() as Promise<Space[]>),
-    ]).then(([c, s]) => { setCustodians(c); setSpaces(s) }).catch(() => {})
+      fetch(`/api/fm/custodians${q}`).then((r) => r.json()).catch(() => []),
+      fetch(`/api/fm/spaces${propertyId ? `?propertyId=${propertyId}` : ''}`).then((r) => r.json()).catch(() => []),
+    ]).then(([c, s]) => {
+      setCustodians(Array.isArray(c) ? c : [])
+      setSpaces(Array.isArray(s) ? s : [])
+    }).catch(() => {})
     setShowModal(true)
   }
 

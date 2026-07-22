@@ -70,11 +70,17 @@ export default function CustodySearchPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const asArray = <T,>(x: unknown): T[] => (Array.isArray(x) ? (x as T[]) : [])
+    const getJson = (url: string) => fetch(url).then((r) => r.json()).catch(() => [])
     Promise.all([
-      fetch('/api/fm/custodians?activeOnly=false').then((r) => r.json() as Promise<Custodian[]>).catch(() => []),
-      fetch('/api/fm/spaces').then((r) => r.json() as Promise<Space[]>).catch(() => []),
-      fetch('/api/fm/properties').then((r) => r.json() as Promise<Property[]>).catch(() => []),
-    ]).then(([c, s, p]) => { setCustodians(c); setSpaces(s); setProperties(p) })
+      getJson('/api/fm/custodians?activeOnly=false'),
+      getJson('/api/fm/spaces'),
+      getJson('/api/fm/properties'),
+    ]).then(([c, s, p]) => {
+      setCustodians(asArray<Custodian>(c))
+      setSpaces(asArray<Space>(s))
+      setProperties(asArray<Property>(p))
+    })
   }, [])
 
   const categories = useMemo(
@@ -94,7 +100,7 @@ export default function CustodySearchPage() {
     if (propertyId) params.set('propertyId', propertyId)
     fetch(`/api/fm/custody/search?${params.toString()}`)
       .then((r) => { if (!r.ok) throw new Error('Search failed'); return r.json() as Promise<Movement[]> })
-      .then((d) => { setResults(d); setSearched(true) })
+      .then((d) => { setResults(Array.isArray(d) ? d : []); setSearched(true) })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unknown error'))
       .finally(() => setLoading(false))
   }, [dateFrom, dateTo, custodianId, category, spaceId, propertyId])
