@@ -6,7 +6,7 @@
 -- properties, adding classrooms/rooms (spaces), and registering
 -- custodial personnel.
 --
--- Capability: org_manager (full FM operational access via the
+-- Capability: fm_manager (full FM operational access via the
 -- existing _manage RLS policies — assets, spaces, custodians, and
 -- the movements ledger). It intentionally does NOT grant user/role
 -- management (that stays with org_admin).
@@ -63,7 +63,7 @@ BEGIN
     (org_id, department_id, name, slug, capability_level, description, color)
   VALUES
     (v_org_id, v_fm_dept_id,
-     'Property Supervisor', 'property_supervisor', 'org_manager',
+     'Property Supervisor', 'property_supervisor', 'fm_manager',
      'Manages physical inventory: enters assets, adds rooms/spaces, and registers custodial personnel across properties',
      '#0ea5e9')
   ON CONFLICT (org_id, department_id, slug) DO UPDATE
