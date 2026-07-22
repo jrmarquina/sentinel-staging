@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Loader2, AlertTriangle, X, Wrench } from 'lucide-react'
+import Link from 'next/link'
+import { Plus, Search, Loader2, AlertTriangle, X, Wrench, Pencil, Sparkles } from 'lucide-react'
 import {
   FmCard, FmBadge, FmButton, FmModal,
-  FmModalFooter, FmSectionLabel,
+  FmModalFooter, FmSectionLabel, FmSelect, FmInput,
 } from '@/components/fm'
 import { useFmT } from '@/lib/locale'
+import { useRole } from '@/hooks/useRole'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +49,8 @@ const conditionVariant = (c: string) =>
 export default function FMAssetsPage() {
   const router = useRouter()
   const t = useFmT()
+  const { role } = useRole()
+  const canManage = role === 'admin' || role === 'supervisor'
   const [assets, setAssets]         = useState<FmAsset[]>([])
   const [properties, setProperties] = useState<FmProperty[]>([])
   const [loading, setLoading]       = useState(true)
@@ -58,6 +62,14 @@ export default function FMAssetsPage() {
   const [form, setForm]             = useState<AssetForm>(EMPTY_FORM)
   const [saving, setSaving]         = useState(false)
   const [formError, setFormError]   = useState<string | null>(null)
+
+  // Multi-select + batch edit
+  const [selected, setSelected]     = useState<Set<string>>(new Set())
+  const [showBatch, setShowBatch]   = useState(false)
+  const [batchField, setBatchField] = useState<'name' | 'category' | 'mobility' | 'status' | 'condition'>('category')
+  const [batchValue, setBatchValue] = useState('')
+  const [batchSaving, setBatchSaving] = useState(false)
+  const [batchError, setBatchError] = useState<string | null>(null)
 
   const CATEGORY_LABELS: Record<string, string> = {
     ALL:        'All',
@@ -139,6 +151,49 @@ export default function FMAssetsPage() {
     }
   }
 
+  // ── Multi-select helpers ──────────────────────────────────────────────────
+  const filteredIds = filtered.map((a) => a.id)
+  const allSelected = filteredIds.length > 0 && filteredIds.every((id) => selected.has(id))
+
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  function toggleAll() {
+    setSelected((prev) => {
+      if (filteredIds.every((id) => prev.has(id))) {
+        const next = new Set(prev); filteredIds.forEach((id) => next.delete(id)); return next
+      }
+      return new Set([...prev, ...filteredIds])
+    })
+  }
+
+  function openBatch() {
+    setBatchField('category'); setBatchValue(''); setBatchError(null); setShowBatch(true)
+  }
+
+  async function applyBatch(e: React.FormEvent) {
+    e.preventDefault()
+    setBatchError(null)
+    if (!batchValue.trim()) { setBatchError('Enter a value'); return }
+    setBatchSaving(true)
+    try {
+      const res = await fetch('/api/fm/assets/bulk', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [...selected], patch: { [batchField]: batchValue } }),
+      })
+      const body = await res.json() as { error?: string; updated?: number }
+      if (!res.ok) throw new Error(body.error ?? 'Bulk update failed')
+      setShowBatch(false); setSelected(new Set()); load()
+    } catch (e: unknown) {
+      setBatchError(e instanceof Error ? e.message : 'Unknown error')
+    } finally { setBatchSaving(false) }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
@@ -150,10 +205,34 @@ export default function FMAssetsPage() {
             {assets.length} {assets.length !== 1 ? t('asset.title').toLowerCase() : t('asset.title').toLowerCase()}
           </p>
         </div>
-        <FmButton icon={<Plus size={15} />} onClick={() => setShowModal(true)} size="sm">
-          {t('asset.register')}
-        </FmButton>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {canManage && (
+            <Link href="/dashboard/fm/assets/normalize">
+              <FmButton icon={<Sparkles size={15} />} variant="secondary" size="sm">
+                Merge duplicates
+              </FmButton>
+            </Link>
+          )}
+          <FmButton icon={<Plus size={15} />} onClick={() => setShowModal(true)} size="sm">
+            {t('asset.register')}
+          </FmButton>
+        </div>
       </div>
+
+      {/* Batch action bar (appears when rows are selected) */}
+      {canManage && selected.size > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
+          background: 'var(--primary-c)', border: '1px solid var(--primary)',
+          borderRadius: 10, padding: '0.6rem 1rem',
+        }}>
+          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary)' }}>
+            {selected.size} selected
+          </span>
+          <FmButton size="sm" icon={<Pencil size={14} />} onClick={openBatch}>Edit selected</FmButton>
+          <button onClick={() => setSelected(new Set())} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.8rem' }}>Clear</button>
+        </div>
+      )}
 
       {/* Search + Category filters */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -256,6 +335,12 @@ export default function FMAssetsPage() {
               <table className="fm-table">
                 <thead>
                   <tr>
+                    {canManage && (
+                      <th style={{ width: 34 }}>
+                        <input type="checkbox" checked={allSelected} onChange={toggleAll}
+                          title="Select all (filtered)" style={{ cursor: 'pointer' }} />
+                      </th>
+                    )}
                     <th>{t('asset.col.name')}</th>
                     <th>{t('asset.col.category')}</th>
                     <th style={{ display: 'none' }} className="md:table-cell">{t('asset.col.property')}</th>
@@ -269,8 +354,13 @@ export default function FMAssetsPage() {
                     <tr
                       key={asset.id}
                       onClick={() => router.push(`/dashboard/fm/assets/${asset.id}`)}
-                      style={{ cursor: 'pointer' }}
+                      style={{ cursor: 'pointer', background: selected.has(asset.id) ? 'var(--primary-c)' : undefined }}
                     >
+                      {canManage && (
+                        <td onClick={(e) => { e.stopPropagation(); toggleOne(asset.id) }} style={{ cursor: 'default' }}>
+                          <input type="checkbox" checked={selected.has(asset.id)} readOnly style={{ cursor: 'pointer' }} />
+                        </td>
+                      )}
                       <td>
                         <p style={{ fontWeight: 600, color: 'var(--fg)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                           {asset.name}
@@ -320,6 +410,62 @@ export default function FMAssetsPage() {
           )}
         </FmCard>
       )}
+
+      {/* Batch edit modal */}
+      <FmModal open={showBatch} onClose={() => setShowBatch(false)}
+        title={`Edit ${selected.size} asset${selected.size === 1 ? '' : 's'}`}
+        subtitle="Apply one field change to every selected asset.">
+        <form onSubmit={applyBatch} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <FmSelect label="Field" value={batchField}
+            onChange={(e) => { setBatchField(e.target.value as typeof batchField); setBatchValue('') }}>
+            <option value="name">Description (name)</option>
+            <option value="category">Category</option>
+            <option value="mobility">Type (fixed / mobile)</option>
+            <option value="status">Status</option>
+            <option value="condition">Condition</option>
+          </FmSelect>
+
+          {batchField === 'name' && (
+            <FmInput label="New description" value={batchValue} required
+              placeholder="CARRITO PLASTICO PARA TRANSPORTAR ALIMENTOS"
+              onChange={(e) => setBatchValue(e.target.value)} />
+          )}
+          {batchField === 'category' && (
+            <FmInput label="New category" value={batchValue} required
+              placeholder="FURNITURE" onChange={(e) => setBatchValue(e.target.value.toUpperCase())} />
+          )}
+          {batchField === 'mobility' && (
+            <FmSelect label="Type" value={batchValue} required onChange={(e) => setBatchValue(e.target.value)}>
+              <option value="">Select…</option>
+              <option value="FIXED">Fixed</option>
+              <option value="MOBILE">Mobile</option>
+            </FmSelect>
+          )}
+          {batchField === 'status' && (
+            <FmSelect label="Status" value={batchValue} required onChange={(e) => setBatchValue(e.target.value)}>
+              <option value="">Select…</option>
+              <option value="IN_SERVICE">In service</option>
+              <option value="IN_STORAGE">In storage</option>
+              <option value="IN_REPAIR">In repair</option>
+              <option value="RETIRED">Retired</option>
+            </FmSelect>
+          )}
+          {batchField === 'condition' && (
+            <FmSelect label="Condition" value={batchValue} required onChange={(e) => setBatchValue(e.target.value)}>
+              <option value="">Select…</option>
+              <option value="GOOD">Good</option>
+              <option value="FAIR">Fair</option>
+              <option value="POOR">Poor</option>
+            </FmSelect>
+          )}
+
+          {batchError && <p style={{ fontSize: '0.78rem', color: 'var(--red)' }}>{batchError}</p>}
+          <FmModalFooter>
+            <FmButton type="button" variant="secondary" size="sm" onClick={() => setShowBatch(false)}>Cancel</FmButton>
+            <FmButton type="submit" size="sm" loading={batchSaving}>Apply to {selected.size}</FmButton>
+          </FmModalFooter>
+        </form>
+      </FmModal>
 
       {/* Register Asset Modal */}
       <FmModal
