@@ -7,7 +7,7 @@ import { useRole } from '@/hooks/useRole'
 
 interface DryRun {
   dryRun: true
-  stats: { sheets: number; rows: number; skipped: number }
+  stats: { sheets: number; rows: number; skipped: number; unassigned: number }
   counts: { properties: number; spaces: number; custodians: number; assets: number; retired: number; fixed: number }
   warnings: string[]
   sampleAssets: { code: string; name: string; category: string; mobility: string; status: string }[]
@@ -145,6 +145,7 @@ export default function InventoryImportPage() {
             <Stat label="Assets" value={preview.counts.assets} />
             <Stat label="Retired" value={preview.counts.retired} />
             <Stat label="Fixed" value={preview.counts.fixed} />
+            <Stat label="Unassigned" value={preview.stats.unassigned} />
             <Stat label="Skipped rows" value={preview.stats.skipped} />
           </div>
           {preview.warnings.length > 0 && (

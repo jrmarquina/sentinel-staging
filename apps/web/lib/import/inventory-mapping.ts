@@ -47,8 +47,13 @@ export interface ParseResult {
   custodians: ParsedCustodian[]
   assets: ParsedAsset[]
   warnings: string[]
-  stats: { sheets: number; rows: number; skipped: number }
+  stats: { sheets: number; rows: number; skipped: number; unassigned: number }
 }
+
+// Catch-all building for assets whose row carries no Location code. They are
+// imported here (never dropped) so the supervisor can reassign them in SIMS.
+const UNASSIGNED_PROPERTY_CODE = 'UNASSIGNED'
+const UNASSIGNED_PROPERTY_NAME = 'Unassigned / No Location'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -108,7 +113,7 @@ function parseSpaceLeaf(locationDescription: string | null): string | null {
 // Light keyword classification — the property supervisor refines these in SIMS.
 function classify(description: string): { category: string; mobility: 'FIXED' | 'MOBILE' } {
   const d = description.toUpperCase()
-  const fixedKw = ['AIRE ACONDICIONADO', 'ACONDICIONADOR', 'PLANTA ELECTRICA', 'GENERADOR',
+  const fixedKw = ['AIRE ACONDICIONADO', 'ACONDICIONADOR', 'ACOND', 'BTU', 'PLANTA ELECTRICA', 'GENERADOR',
     'CISTERNA', 'CALENTADOR', 'EXTRACTOR', 'CONSOLA DE AIRE']
   if (fixedKw.some((k) => d.includes(k))) return { category: 'HVAC/FIXED', mobility: 'FIXED' }
   if (['ABANICO', 'ENFRIADOR', 'NEVERA', 'REFRIGERADOR', 'MICROONDAS', 'ESTUFA', 'HORNO'].some((k) => d.includes(k)))
@@ -145,7 +150,7 @@ export function parseInventoryWorkbook(wb: ExcelJS.Workbook): ParseResult {
   const custodianKeys = new Set<string>()
   const custodians: ParsedCustodian[] = []
   const assetByCode = new Map<string, ParsedAsset>()
-  let rowCount = 0, skipped = 0, sheetCount = 0
+  let rowCount = 0, skipped = 0, sheetCount = 0, unassignedCount = 0
 
   // First pass: seed property names from sheet names (the richest source).
   wb.eachSheet((ws) => {
@@ -198,12 +203,15 @@ export function parseInventoryWorkbook(wb: ExcelJS.Workbook): ParseResult {
       // Property from the row's Location code (authoritative), else sheet.
       let propCode = cLoc ? cellStr(get(cLoc)) : null
       if (!propCode) { const s = parseSheetCode(ws.name); propCode = s.code }
-      if (!propCode) { skipped++; warnings.push(`Sheet "${ws.name}" row ${r}: no location code — skipped.`); continue }
+      // No building on the row → route to the Unassigned catch-all, never drop.
+      if (!propCode) { propCode = UNASSIGNED_PROPERTY_CODE; unassignedCount++ }
 
       const locDesc = cLocDesc ? cellStr(get(cLocDesc)) : null
       if (!propertyByCode.has(propCode)) {
-        const firstSeg = locDesc?.split('\\')[0]?.trim()
-        propertyByCode.set(propCode, { code: propCode, name: firstSeg || propCode })
+        const name = propCode === UNASSIGNED_PROPERTY_CODE
+          ? UNASSIGNED_PROPERTY_NAME
+          : (locDesc?.split('\\')[0]?.trim() || propCode)
+        propertyByCode.set(propCode, { code: propCode, name })
       }
 
       // Space (skip unassigned).
@@ -270,12 +278,18 @@ export function parseInventoryWorkbook(wb: ExcelJS.Workbook): ParseResult {
     }
   })
 
+  if (unassignedCount > 0) {
+    warnings.push(
+      `${unassignedCount} assets had no building code and were placed in "${UNASSIGNED_PROPERTY_NAME}" — reassign them in SIMS.`,
+    )
+  }
+
   return {
     properties: Array.from(propertyByCode.values()),
     spaces,
     custodians,
     assets: Array.from(assetByCode.values()),
     warnings,
-    stats: { sheets: sheetCount, rows: rowCount, skipped },
+    stats: { sheets: sheetCount, rows: rowCount, skipped, unassigned: unassignedCount },
   }
 }
