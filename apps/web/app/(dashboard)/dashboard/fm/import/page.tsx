@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { Upload, Download, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
-import { FmCard, FmButton, FmBadge, FmSectionLabel } from '@/components/fm'
+import { FmCard, FmButton, FmBadge, FmSectionLabel, FmInput } from '@/components/fm'
 import { useRole } from '@/hooks/useRole'
 
 interface DryRun {
@@ -22,6 +22,7 @@ interface ImportResult {
 export default function InventoryImportPage() {
   const { role } = useRole()
   const canManage = role === 'admin' || role === 'supervisor'
+  const isAdmin = role === 'admin'
 
   const fileRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
@@ -29,6 +30,27 @@ export default function InventoryImportPage() {
   const [preview, setPreview] = useState<DryRun | null>(null)
   const [result, setResult] = useState<ImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Danger zone: wipe imported data
+  const [wipeText, setWipeText] = useState('')
+  const [wiping, setWiping] = useState(false)
+  const [wipeResult, setWipeResult] = useState<Record<string, number> | null>(null)
+
+  async function wipe() {
+    setWiping(true); setError(null); setWipeResult(null)
+    try {
+      const res = await fetch('/api/fm/inventory/reset', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'WIPE', includeProperties: true }),
+      })
+      const body = await res.json() as { error?: string; deleted?: Record<string, number> }
+      if (!res.ok) throw new Error(body.error ?? 'Reset failed')
+      setWipeResult(body.deleted ?? {})
+      setWipeText('')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
+    } finally { setWiping(false) }
+  }
 
   function pick(f: File | null) {
     setFile(f); setPreview(null); setResult(null); setError(null)
@@ -174,6 +196,40 @@ export default function InventoryImportPage() {
           <p style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: '0.9rem' }}>
             Review under <FmBadge variant="info">Assets</FmBadge> and correct mobility, categories, and custody as needed, then re-export.
           </p>
+        </FmCard>
+      )}
+
+      {/* Danger zone: wipe imported data (admin only) */}
+      {isAdmin && (
+        <FmCard style={{ padding: '1.25rem', border: '1px solid var(--red)' }}>
+          <FmSectionLabel>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--red)' }}>
+              <AlertTriangle size={13} /> Danger zone — reset imported inventory
+            </span>
+          </FmSectionLabel>
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: '0.6rem 0 0.9rem', maxWidth: 620 }}>
+            Deletes everything the Excel import created for this organization — imported assets,
+            all spaces, custodian people, movement history, and the empty import-created properties
+            (properties with work orders, inspections, or floors are kept). Per-building Storage
+            custodians are kept. This cannot be undone. Type <strong>WIPE</strong> to enable.
+          </p>
+          <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ width: 200 }}>
+              <FmInput label="Confirm" value={wipeText} placeholder="WIPE"
+                onChange={(e) => setWipeText(e.target.value)} />
+            </div>
+            <FmButton size="sm" variant="danger" loading={wiping} disabled={wipeText !== 'WIPE'} onClick={wipe}>
+              Reset inventory
+            </FmButton>
+          </div>
+          {wipeResult && (
+            <p style={{ fontSize: '0.8rem', color: 'var(--fg)', marginTop: '0.9rem' }}>
+              ✓ Deleted — assets {wipeResult.assets ?? 0}, spaces {wipeResult.spaces ?? 0},
+              custodians {wipeResult.custodians ?? 0}, movements {wipeResult.movements ?? 0},
+              properties {wipeResult.properties ?? 0}
+              {typeof wipeResult.propertiesKept === 'number' ? ` (kept ${wipeResult.propertiesKept})` : ''}.
+            </p>
+          )}
         </FmCard>
       )}
     </div>
